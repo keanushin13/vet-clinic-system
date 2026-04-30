@@ -237,6 +237,24 @@ const PetOwnerMyPets = () => {
                         <td>
                           <div className="action-btns">
                             <button
+                              className="ai-insight-btn icon-btn"
+                              title="AI Insight"
+                              aria-label="AI Insight"
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                            <button
                               className="edit-btn icon-btn"
                               onClick={() => openEdit(pet)}
                               title="Edit pet"
@@ -336,6 +354,24 @@ const PetOwnerMyPets = () => {
                       <div className="pets-card-row">
                         <span className="pets-card-label">Actions</span>
                         <div className="action-btns">
+                          <button
+                            className="ai-insight-btn icon-btn"
+                            title="AI Insight"
+                            aria-label="AI Insight"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
                           <button
                             className="edit-btn icon-btn"
                             onClick={() => openEdit(pet)}

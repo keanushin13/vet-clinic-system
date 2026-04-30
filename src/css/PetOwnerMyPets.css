@@ -344,7 +344,7 @@
 
 .action-btns {
   display: flex;
-  gap: 10px;
+  gap: 5px;
   flex-wrap: nowrap;
 }
 
@@ -376,7 +376,8 @@
 }
 
 .edit-btn.icon-btn,
-.delete-btn.icon-btn {
+.delete-btn.icon-btn,
+.ai-insight-btn {
   min-width: 36px;
   width: 36px;
   height: 36px;
@@ -387,7 +388,8 @@
 }
 
 .edit-btn.icon-btn svg,
-.delete-btn.icon-btn svg {
+.delete-btn.icon-btn svg,
+.ai-insight-btn svg {
   width: 16px;
   height: 16px;
 }
