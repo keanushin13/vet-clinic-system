@@ -1,0 +1,864 @@
+﻿@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Quicksand:wght@600;700&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.dashboard-container {
+  display: flex;
+  height: 100dvh;
+  width: 100%;
+  font-family: "Poppins", sans-serif;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  height: 100dvh;
+  background: linear-gradient(180deg, #438fb5 0%, #255065 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-brand {
+  padding: 40px 30px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-brand img {
+  width: 42px;
+  height: auto;
+} /* Fixed Logo Size */
+
+.sidebar-brand span {
+  font-size: 30px;
+  font-weight: 700;
+  font-family: "Quicksand", sans-serif;
+}
+
+.sidebar-nav {
+  padding: 10px 15px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 14px 20px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.22);
+}
+.nav-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-item img {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) invert(1);
+}
+
+.nav-item span {
+  font-size: 15px;
+  font-weight: 500;
+  color: white;
+}
+
+.main-area {
+  flex: 1;
+  margin-left: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  height: 85px;
+  background-color: #63b6c5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 45px;
+  color: white;
+}
+
+.top-bar h2 {
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+
+.notif-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.notif-btn img {
+  width: 26px;
+  filter: brightness(0) invert(1);
+}
+
+.user-profile img {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+}
+
+.content-body {
+  flex: 1;
+  background: linear-gradient(145deg, #ffffff 0%, #c9eaf7 60%, #b0d7e7 100%);
+  padding: 40px;
+  overflow-y: auto;
+}
+
+.book-btn {
+  background-color: #438fb5;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.appointment-error {
+  color: #b42318;
+  margin-bottom: 10px;
+}
+
+.po-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.po-modal-card {
+  width: min(640px, 100%);
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+}
+
+.po-modal-card h3 {
+  margin-bottom: 14px;
+  color: #1f495f;
+}
+
+.po-booking-form {
+  display: grid;
+  gap: 12px;
+}
+
+.po-booking-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #365769;
+  font-size: 0.92rem;
+}
+
+.po-booking-form input,
+.po-booking-form select,
+.po-booking-form textarea {
+  border: 1px solid #c9d6df;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-family: inherit;
+}
+
+.po-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.po-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.po-btn-ghost {
+  background: #eff4f8;
+  color: #1f495f;
+}
+
+.po-btn-primary {
+  background: #2e86ab;
+  color: #fff;
+}
+
+.calendar-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.view-toggle {
+  display: flex;
+  background: #f0f4f6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.view-toggle button {
+  padding: 6px 15px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #777;
+  border-radius: 6px;
+}
+
+.view-toggle button.active {
+  background: white;
+  color: #255065;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.appointment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apt-search {
+  width: 300px;
+  max-width: 100%;
+  border-radius: 12px;
+  border: 1px solid #d7dde4;
+  padding: 10px 14px;
+  background: #fff;
+  margin-bottom: 0;
+}
+
+.add-apt-btn {
+  background-color: #63b6c5;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-container {
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.calendar-month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 8px;
+}
+
+.month-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.month-nav button {
+  background-color: #63b6c5;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1px solid #eee;
+  border-left: 1px solid #eee;
+}
+
+.weekday-label {
+  padding: 12px;
+  text-align: center;
+  font-weight: 700;
+  color: #63b6c5;
+  background: #f9fdfd;
+  border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.weekday-short {
+  display: none;
+}
+
+.calendar-day {
+  min-height: 110px;
+  padding: 8px;
+  border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.calendar-day.empty {
+  background: #fbfcfe;
+}
+
+.day-num {
+  font-size: 14px;
+  color: #999;
+}
+
+.event-item {
+  font-size: 10px;
+  padding: 3px 6px;
+  margin-top: 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-item.confirmed {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.event-item.pending {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.event-item.completed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.event-item.cancelled {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.list-view-container {
+  background: transparent;
+  border-radius: 16px;
+  padding: 16px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.appointment-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.appointment-table th {
+  text-align: left;
+  color: #5fb3ca;
+  font-size: 15px;
+  font-weight: 600;
+  border-bottom: 1px solid #dde3e8;
+  padding: 14px;
+}
+
+.appointment-table td {
+  border-bottom: 1px solid #e8edf2;
+  color: #2f3541;
+  padding: 14px;
+}
+
+.apt-status {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.apt-status.pending {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.apt-status.confirmed {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.apt-status.completed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.apt-status.cancelled {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.action-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.btn-edit,
+.btn-remove {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-edit {
+  background: #e4e6ea;
+  color: #505866;
+}
+
+.btn-remove {
+  background: #fbeef0;
+  color: #ef575a;
+}
+
+.btn-edit.icon-btn,
+.btn-remove.icon-btn {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-edit.icon-btn svg,
+.btn-remove.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.list-placeholder {
+  padding: 18px;
+  color: #5f6876;
+}
+
+.modal-error {
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.user-modal-form .form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.user-modal-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex: 1;
+}
+
+.user-modal-form select,
+.user-modal-form textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: inherit;
+}
+
+.user-modal-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cancel-btn,
+.save-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.save-btn {
+  background: #2563eb;
+  color: #fff;
+}
+/* =====================
+    RESPONSIVE - MOBILE
+    (global-mobile.css handles sidebar toggle)
+===================== */
+@media (max-width: 768px) {
+  .dashboard-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+    overflow: auto;
+  }
+
+  .main-area {
+    margin-left: 0 !important;
+    width: 100% !important;
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .top-bar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: auto !important;
+    min-height: 56px;
+    padding: 0 12px !important;
+    gap: 8px;
+    flex-wrap: nowrap;
+    z-index: 999 !important;
+  }
+
+  .top-bar h2 {
+    font-size: 1rem !important;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .content-body {
+    padding: 16px !important;
+    padding-top: calc(16px + var(--topbar-height)) !important;
+    margin-top: var(--topbar-height) !important;
+  }
+
+  .calendar-controls {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+  }
+
+  .view-toggle {
+    width: 100%;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .view-toggle button {
+    width: 100%;
+    padding: 8px 6px;
+    font-size: 12px;
+    line-height: 1.05;
+  }
+
+  .appointment-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .apt-search,
+  .add-apt-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .add-apt-btn {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 10px 12px;
+  }
+
+  .calendar-container {
+    padding: 10px;
+  }
+
+  .calendar-month-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .month-nav {
+    width: 100%;
+  }
+
+  .month-nav button {
+    flex: 1;
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+
+  .weekday-label {
+    padding: 7px 2px;
+    font-size: 10px;
+    letter-spacing: 0.1px;
+  }
+
+  .calendar-day {
+    min-height: 70px;
+    padding: 3px;
+  }
+
+  .day-num {
+    font-size: 12px;
+  }
+
+  .event-item {
+    font-size: 8px;
+    padding: 2px 3px;
+    margin-top: 3px;
+  }
+
+  .user-modal-form .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Stats grid: 2 columns on tablet, 1 on phone */
+  .admin-stats-grid,
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Tables: horizontal scroll */
+  table {
+    min-width: 520px;
+  }
+
+  .table-wrapper,
+  .user-table-wrapper,
+  .inventory-table-wrapper,
+  .payment-table-wrapper,
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Profile grids */
+  .profile-details-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Search inputs */
+  .search-box input,
+  .log-search {
+    width: 100% !important;
+  }
+
+  /* Admin recent flex */
+  .admin-recent-flex {
+    flex-direction: column !important;
+  }
+
+  /* Message layout */
+  .message-container {
+    flex-direction: column !important;
+  }
+
+  .inbox-panel {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #eee;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-stats-grid,
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .content-body {
+    padding: 12px !important;
+    padding-top: calc(12px + var(--topbar-height)) !important;
+  }
+
+  .calendar-controls {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .view-toggle button {
+    font-size: 11px;
+    padding: 7px 4px;
+  }
+
+  .add-apt-btn {
+    font-size: 15px;
+  }
+
+  .weekday-label {
+    font-size: 9px;
+    padding: 6px 1px;
+  }
+
+  .weekday-full {
+    display: none;
+  }
+
+  .weekday-short {
+    display: inline;
+  }
+
+  .calendar-day {
+    min-height: 62px;
+  }
+
+  .day-num {
+    font-size: 11px;
+  }
+
+  .event-item {
+    font-size: 7px;
+    line-height: 1.15;
+  }
+}
+
+/* ===== STATUS GROUPING ===== */
+.status-group {
+  margin-bottom: 20px;
+  border-radius: 10px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+
+.status-group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(90deg, #438fb5 0%, #63b6c5 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.status-group-header:hover {
+  background: linear-gradient(90deg, #3a7a99 0%, #5aacb5 100%);
+  transform: translateX(2px);
+}
+
+.status-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-icon {
+  font-size: 18px;
+  display: inline-block;
+}
+
+.status-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.status-count {
+  background: rgba(255, 255, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+}
+
+.status-toggle-icon {
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.status-group-header[aria-expanded="false"] .status-toggle-icon {
+  transform: rotate(-90deg);
+}
+
+/* Card grid within grouped section */
+.status-group .appointments-card-grid {
+  padding: 12px;
+  background: white;
+}
+
+.status-group .appointment-card {
+  margin-bottom: 0;
+}
+
+/* Responsive grouping on mobile */
+@media (max-width: 768px) {
+  .status-group-header {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .status-title {
+    font-size: 14px;
+  }
+
+  .status-count {
+    padding: 1px 6px;
+    font-size: 11px;
+  }
+
+  .status-icon {
+    font-size: 16px;
+    margin-bottom: 0;
+  }
+}

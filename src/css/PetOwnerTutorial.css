@@ -1,0 +1,179 @@
+﻿/* =============================================
+   PetOwner Tutorial Overlay
+   ============================================= */
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.tutorial-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.tutorial-spotlight-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- Card ---- */
+.tutorial-card {
+  position: absolute;
+  pointer-events: all;
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px 24px 20px;
+  width: min(360px, calc(100vw - 24px));
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  animation: tutorialFadeIn 0.25s ease;
+}
+
+@keyframes tutorialFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tutorial-card--center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.tutorial-card--anchored {
+  max-width: 300px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+/* ---- Close button ---- */
+.tutorial-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #999;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+  pointer-events: all;
+}
+.tutorial-close:hover {
+  color: #555;
+}
+
+/* ---- Step dots ---- */
+.tutorial-step-indicator {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.tutorial-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #dde4ea;
+  transition:
+    background 0.2s,
+    width 0.2s;
+}
+
+.tutorial-dot.active {
+  background: #438fb5;
+  width: 20px;
+  border-radius: 4px;
+}
+
+.tutorial-dot.done {
+  background: #63b6c5;
+}
+
+/* ---- Text ---- */
+.tutorial-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #255065;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.tutorial-desc {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* ---- Buttons ---- */
+.tutorial-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.tutorial-btn {
+  padding: 9px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+  pointer-events: all;
+}
+
+.tutorial-btn--back {
+  background: #f0f4f7;
+  color: #555;
+}
+.tutorial-btn--back:hover {
+  background: #dde4ea;
+}
+
+.tutorial-btn--next {
+  background: #438fb5;
+  color: #fff;
+}
+.tutorial-btn--next:hover {
+  background: #255065;
+}
+
+/* ---- Mobile adjustments ---- */
+@media (max-width: 480px) {
+  .tutorial-card {
+    padding: 20px 18px 16px;
+    border-radius: 14px;
+  }
+
+  .tutorial-card--center {
+    top: auto;
+    bottom: 90px;
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: auto;
+  }
+
+  .tutorial-title {
+    font-size: 15px;
+  }
+  .tutorial-desc {
+    font-size: 13px;
+  }
+}

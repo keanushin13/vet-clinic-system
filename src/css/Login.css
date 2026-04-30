@@ -1,0 +1,391 @@
+﻿@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Quicksand:wght@400;600&display=swap");
+
+/* =====================
+    RESET + GLOBAL
+===================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Poppins", sans-serif;
+  background-color: #ffffff;
+}
+
+/* =====================
+    MAIN CONTAINER
+===================== */
+.login-container {
+  display: flex;
+  width: 100%;
+  height: calc(100dvh - 90px);
+  overflow: hidden;
+}
+
+/* =====================
+    LEFT PANEL
+===================== */
+.login-left {
+  position: relative;
+  width: 42%;
+  background-color: #60acc8;
+  display: flex;
+  align-items: center;
+  padding-left: 60px;
+  z-index: 2;
+}
+
+.login-left::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -15%;
+  transform: translateY(-50%);
+  width: 70%;
+  height: 120%;
+  background-color: #60acc8;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.login-content {
+  position: relative;
+  z-index: 4;
+  width: 85%;
+  max-width: 400px;
+}
+
+/* =====================
+    BRANDING
+===================== */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.brand img {
+  width: 40px;
+}
+
+.brand span {
+  font-family: "Quicksand", sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #1f4e79;
+}
+
+h1 {
+  font-size: 30px;
+  color: #1a3a5a;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #2c5270;
+  margin-bottom: 24px;
+}
+
+/* =====================
+    FORM & ALIGNMENT
+===================== */
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a3a5a;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  font-family: "Poppins", sans-serif;
+  transition: all 0.3s ease;
+  display: block;
+}
+
+/* HIDE BROWSER DEFAULT REVEAL EYE */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+input:focus {
+  outline: none;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.2);
+}
+
+.password-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 18px;
+  padding-bottom: 22px;
+}
+
+.password-wrapper input {
+  margin-bottom: 0;
+  padding-right: 45px;
+}
+
+.eye-icon {
+  position: absolute;
+  right: 12px;
+  top: 33%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  z-index: 5;
+}
+
+.eye-icon img {
+  width: 22px;
+  height: auto;
+}
+
+.forgot {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #1f4e79;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* =====================
+    LOGIN BUTTON
+===================== */
+.login-btn {
+  width: 140px;
+  padding: 12px 0;
+  background-color: #1f4e79;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* =====================
+    REGISTER SECTION
+===================== */
+.register-text {
+  margin-top: 20px;
+  font-size: 13px;
+  color: #2c5270;
+}
+
+.register-link {
+  color: #1f4e79;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* =====================
+    RIGHT PANEL (VIDEO)
+===================== */
+.login-right {
+  width: 58%;
+  height: 100%;
+  background-color: #000;
+  overflow: hidden;
+}
+
+.login-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* =====================
+    BOTTOM BAR
+===================== */
+.bottom-bar {
+  height: 90px;
+  background-color: #1f4e79;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 60px;
+  position: relative;
+  z-index: 10;
+}
+
+.bottom-left {
+  display: flex;
+  gap: 30px;
+}
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: #ffffff;
+}
+.bottom-bar .info-item span {
+  font-size: 12px;
+}
+.info-item img {
+  width: 20px;
+}
+.bottom-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bottom-right img {
+  width: 35px;
+}
+.bottom-right span {
+  font-family: "Esteban", serif;
+  font-size: 36px;
+  font-weight: 200;
+  color: #ffffff;
+}
+
+/* =====================
+    RESPONSIVE
+===================== */
+@media (max-width: 768px) {
+  html,
+  body {
+    overflow: auto;
+  }
+
+  .login-container {
+    flex-direction: column;
+    height: 85dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .login-left {
+    width: 100%;
+    min-width: unset;
+    padding: 20px 20px;
+    justify-content: flex-start;
+    background-color: #60acc8;
+    order: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .login-left::after {
+    display: none;
+  }
+
+  .login-right {
+    width: 100%;
+    height: 240px;
+    background-color: #000;
+    overflow: hidden;
+    order: 1;
+    flex-shrink: 0;
+  }
+
+  .login-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .login-content {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+  .brand span {
+    font-size: 2rem;
+  }
+
+  .bottom-bar {
+    height: auto;
+    flex-direction: column;
+    padding: 20px 24px;
+    gap: 8px;
+    text-align: center;
+    order: 2;
+    justify-content: center;
+    align-items: center;
+    background-color: #1f4e79;
+    flex-shrink: 0;
+  }
+
+  .bottom-left {
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .info-item {
+    font-size: 13px;
+    justify-content: center;
+  }
+  .bottom-right span {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-left {
+    padding: 32px 16px;
+    border-radius: 0 37px 0 0;
+    margin-top: -32px;
+  }
+
+  .login-btn {
+    width: 100%;
+  }
+
+  .login-right {
+    height: 220px;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+  }
+
+  input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  label {
+    font-size: 12px;
+  }
+}

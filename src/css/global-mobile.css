@@ -1,0 +1,460 @@
+/* =========================================================
+   GLOBAL MOBILE / RESPONSIVE BASE
+   Imported once in index.js — applies to all pages
+   ========================================================= */
+
+:root {
+  --sidebar-width: 280px;
+  --topbar-height: 64px;
+  --footer-height: 64px;
+  --font-base: 16px;
+  --color-overlay: rgba(0, 0, 0, 0.45);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: var(--font-base);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-text-size-adjust: 100%;
+  /* prevent iOS font boosting */
+  padding-left: max(0px, env(safe-area-inset-left));
+  padding-right: max(0px, env(safe-area-inset-right));
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* Fix 100vh on mobile browsers (address bar shifts) */
+.dashboard-container,
+.page-wrapper {
+  min-height: 100dvh;
+}
+
+/* Ensure default dashboard shells can stretch on all role pages */
+.dashboard-container,
+.main-area,
+.content-body {
+  min-height: 0;
+}
+
+/* Sidebar overlay backdrop — shown on mobile when sidebar is open */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  z-index: 1190;
+  pointer-events: none;
+}
+
+/* Hamburger button — hidden on desktop */
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.hamburger-btn span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: all 0.25s ease;
+}
+
+/* Ensure all interactive elements meet 44px touch target minimum */
+button,
+a,
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* =========================================================
+   MOBILE BREAKPOINT  ≤ 768px
+   ========================================================= */
+@media (max-width: 768px) {
+  :root {
+    --topbar-height: 56px;
+  }
+
+  /* Footer-first mobile nav: hide sidebar controls */
+  .hamburger-btn {
+    display: none !important;
+  }
+
+  .sidebar,
+  .sidebar-overlay,
+  .sidebar-overlay.visible {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  /* Keep fallback drawer definitions inert when sidebar is disabled */
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100dvh !important;
+    width: var(--sidebar-width) !important;
+    z-index: 1200 !important;
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Show overlay when sidebar is open */
+  .sidebar-overlay.visible {
+    display: block;
+    pointer-events: auto;
+  }
+
+  /* Main content takes full width — flex column container */
+  .main-area,
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* Fixed-height container so only content-body scrolls */
+  .dashboard-container {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  /* Top bar adjustments */
+  .top-bar,
+  .topbar {
+    height: var(--topbar-height) !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
+    gap: 8px !important;
+  }
+
+  .top-bar-right {
+    gap: 10px !important;
+  }
+
+  .top-bar h2,
+  .topbar h2 {
+    font-size: clamp(1rem, 4vw, 1.25rem) !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Stack 2-column grids to 1 column */
+  .profile-details-grid,
+  .form-grid,
+  .details-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Make all tables horizontally scrollable on mobile */
+  .table-wrapper,
+  .user-table-wrapper,
+  .inventory-table-wrapper,
+  .payment-table-wrapper,
+  .table-container,
+  .owner-pets-table-card,
+  .user-table-card,
+  .pets-table-card,
+  .appointment-table-card,
+  .activity-table-card,
+  .payment-table-card,
+  .inventory-table-card,
+  .schedule-table-card,
+  .records-table-card,
+  .patients-table-card,
+  .user-management-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure all tables have minimum width for horizontal scroll on mobile */
+  table,
+  .owner-pets-table,
+  .user-table,
+  .pets-table,
+  .appointment-table,
+  .activity-table,
+  .payment-table,
+  .inventory-table,
+  .schedule-table,
+  .records-table,
+  .patients-table {
+    min-width: 480px;
+  }
+
+  /* Desktop-only table containers hide on mobile; mobile cards show */
+  .op-desktop-only,
+  .desktop-only {
+    display: none !important;
+  }
+
+  .op-mobile-only,
+  .mobile-only {
+    display: flex !important;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    scroll-margin-top: var(--topbar-height);
+    scroll-margin-bottom: 20px;
+  }
+
+  .modal-overlay {
+    padding-left: max(8px, env(safe-area-inset-left)) !important;
+    padding-right: max(8px, env(safe-area-inset-right)) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+
+  .table-header-actions,
+  .patients-actions,
+  .records-filters,
+  .inventory-header,
+  .user-mgmt-header,
+  .pets-mgmt-header,
+  .table-header,
+  .notif-header-actions,
+  .notif-header-flex,
+  .log-header-flex,
+  .appointment-actions,
+  .calendar-month-header {
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+  }
+
+  .table-header-actions > *,
+  .patients-actions > *,
+  .records-filters > *,
+  .inventory-header > *,
+  .user-mgmt-header > *,
+  .pets-mgmt-header > *,
+  .table-header > *,
+  .notif-header-actions > *,
+  .notif-header-flex > *,
+  .log-header-flex > *,
+  .appointment-actions > *,
+  .calendar-month-header > * {
+    width: 100%;
+  }
+
+  .row-actions,
+  .action-btns {
+    gap: 6px;
+  }
+
+  /* ── Generic mobile card list styles ── */
+  .cards-list,
+  .op-cards-list,
+  .mobile-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pet-card,
+  .op-pet-card,
+  .user-card,
+  .appointment-card,
+  .record-card,
+  .item-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .pet-card-header,
+  .op-pet-card-header,
+  .user-card-header,
+  .appointment-card-header,
+  .record-card-header,
+  .item-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .pet-card-body,
+  .op-pet-card-body,
+  .user-card-body,
+  .appointment-card-body,
+  .record-card-body,
+  .item-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .pet-card-row,
+  .op-pet-card-row,
+  .user-card-row,
+  .appointment-card-row,
+  .record-card-row,
+  .item-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #374151;
+  }
+
+  .card-label,
+  .op-card-label,
+  .pet-card-label {
+    font-weight: 600;
+    color: #6b7280;
+    flex-shrink: 0;
+    min-width: 80px;
+  }
+
+  .content-body.no-scroll {
+    min-height: calc(100dvh - var(--topbar-height));
+    height: auto !important;
+    overflow: auto !important;
+    padding-bottom: calc(
+      16px + var(--footer-height) + env(safe-area-inset-bottom)
+    ) !important;
+  }
+
+  .chat-input-area {
+    padding-bottom: calc(
+      10px + var(--footer-height) + env(safe-area-inset-bottom)
+    );
+  }
+
+  .content-body,
+  .main-content,
+  .page-content,
+  .content-area {
+    padding-top: var(--topbar-height) !important;
+    padding-bottom: calc(
+      20px + var(--footer-height) + env(safe-area-inset-bottom)
+    ) !important;
+  }
+
+  /*
+   * Flex-containment overrides — specificity 0,2,0 beats per-page
+   * .top-bar / .content-body (0,1,0) so no need to edit 30+ CSS files.
+   * Keeps the topbar in normal document flow; only content-body scrolls.
+   */
+  .main-area > .top-bar,
+  .main-area > .topbar {
+    position: static !important;
+    flex-shrink: 0 !important;
+    padding-top: max(env(safe-area-inset-top), 0px) !important;
+  }
+
+  .main-area > .content-body {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin-top: 0 !important;
+    padding-top: 16px !important;
+    padding-bottom: calc(
+      16px + var(--footer-height) + env(safe-area-inset-bottom)
+    ) !important;
+  }
+
+  /* Full-width search inputs */
+  .search-box,
+  .search-box input,
+  .search-input,
+  .filter-bar input {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Tablet landscape & small tablet tuning */
+@media (max-width: 1024px) {
+  .content-body,
+  .main-content,
+  .page-content {
+    padding: 20px !important;
+    padding-top: calc(20px + var(--topbar-height)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .content-body,
+  .main-content,
+  .page-content {
+    padding: 14px !important;
+    padding-top: calc(14px + var(--topbar-height)) !important;
+  }
+
+  table {
+    min-width: 460px;
+  }
+}
+
+/* =========================================================
+   SMALL MOBILE  ≤ 480px
+   ========================================================= */
+@media (max-width: 480px) {
+  /* Stats cards — 1 column on very small screens */
+  .stats-grid,
+  .admin-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Reduce padding on containers */
+  .main-content,
+  .content-area,
+  .page-content {
+    padding: 12px !important;
+  }
+
+  .chat-input-area {
+    padding: 8px;
+    padding-bottom: calc(
+      8px + var(--footer-height) + env(safe-area-inset-bottom)
+    );
+  }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .modal-box {
+    max-height: 82dvh !important;
+  }
+}

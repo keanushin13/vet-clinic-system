@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PawCruz</string>
+    <string name="title_activity_main">PawCruz</string>
+    <string name="package_name">com.pawcruz.app</string>
+    <string name="custom_url_scheme">com.pawcruz.app</string>
+</resources>

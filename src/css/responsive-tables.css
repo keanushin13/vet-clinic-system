@@ -1,0 +1,644 @@
+/* =========================================================
+   RESPONSIVE TABLES — Custom card layouts for all data tables
+   Desktop: table view | Mobile (≤768px): card view
+   ========================================================= */
+
+/* ─────────────────────────────────────────────────────
+   PETS CARD — for StaffPetsProfile & VetPatients
+   ────────────────────────────────────────────────────── */
+.pets-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  padding: 12px;
+}
+
+.pets-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.pets-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4f46e5;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pets-card-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a202c;
+}
+
+.pets-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pets-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.pets-card-label {
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.pets-card-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* ─────────────────────────────────────────────────────
+   USER CARD — for StaffUserManagement & AdminUserManagement
+   ────────────────────────────────────────────────────── */
+.user-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  padding: 12px;
+}
+
+.user-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.user-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #374151;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-card-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a202c;
+}
+
+.user-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.user-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.user-card-label {
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.user-card-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.user-card-role {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+/* ─────────────────────────────────────────────────────
+   INVENTORY CARD — for StaffInventory
+   ────────────────────────────────────────────────────── */
+.inventory-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  padding: 12px;
+}
+
+.inventory-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.inventory-card-title {
+  flex: 1;
+}
+
+.inventory-card-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a202c;
+  margin-bottom: 2px;
+}
+
+.inventory-card-category {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.inventory-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inventory-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.inventory-card-label {
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.inventory-card-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* ─────────────────────────────────────────────────────
+   PAYMENT CARD — for StaffPaymentHistory
+   ────────────────────────────────────────────────────── */
+.payment-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  padding: 12px;
+}
+
+.payment-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.payment-card-title {
+  flex: 1;
+}
+
+.payment-card-id {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1a202c;
+  margin-bottom: 2px;
+  font-family: monospace;
+}
+
+.payment-card-owner {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.payment-card-amount {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #059669;
+}
+
+.payment-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.payment-card-label {
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.payment-card-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #dbeafe;
+  color: #0c4a6e;
+}
+
+/* ─────────────────────────────────────────────────────
+   RECORD CARD — for VetMedRec
+   ────────────────────────────────────────────────────── */
+.record-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  padding: 12px;
+}
+
+.record-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.record-card-title {
+  flex: 1;
+}
+
+.record-card-id {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1a202c;
+  margin-bottom: 2px;
+  font-family: monospace;
+}
+
+.record-card-patient {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.record-card-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.record-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.record-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.record-card-label {
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.record-card-diagnosis {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #374151;
+  font-style: italic;
+}
+
+/* ─────────────────────────────────────────────────────
+   ACTIVITY CARD — for StaffActivityLog
+   ────────────────────────────────────────────────────── */
+.activity-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  padding: 12px;
+}
+
+.activity-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.activity-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.activity-card-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a202c;
+}
+
+.activity-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.activity-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.activity-card-label {
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.activity-card-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.activity-card-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* ─────────────────────────────────────────────────────
+   GENERIC CARD CONTAINER & LIST
+   ────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────
+   APPOINTMENT CARD — for StaffAppointment, VetCalendar, PetOwnerAppointment
+   ────────────────────────────────────────────────────── */
+.appointment-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  padding: 12px;
+}
+
+.appointment-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.appointment-card-title {
+  flex: 1;
+}
+
+.appointment-card-pet {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a202c;
+  margin-bottom: 2px;
+}
+
+.appointment-card-date {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.appointment-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.appointment-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.appointment-card-label {
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.apt-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.apt-card-pet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apt-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4f46e5;
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.apt-card-pet-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a202c;
+}
+
+.apt-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.apt-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.apt-card-label {
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+  min-width: 85px;
+}
+
+.apt-card-value {
+  flex: 1;
+  text-align: right;
+}
+
+.apt-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.appointments-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+/* ─────────────────────────────────────────────────────
+   GENERIC CARD CONTAINER & LIST
+   ────────────────────────────────────────────────────── */
+.cards-list,
+.table-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ─────────────────────────────────────────────────────
+   SHOW/HIDE UTILITIES
+   ────────────────────────────────────────────────────── */
+.desktop-only,
+.table-desktop {
+  display: block;
+}
+
+.mobile-only,
+.table-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only,
+  .table-desktop {
+    display: none !important;
+  }
+
+  .mobile-only,
+  .table-mobile {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+}

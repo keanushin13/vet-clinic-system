@@ -1,0 +1,583 @@
+.calendar-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.view-toggle {
+  display: flex;
+  background: #f0f4f6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.view-toggle button {
+  padding: 6px 15px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #777;
+  border-radius: 6px;
+}
+
+.view-toggle button.active {
+  background: white;
+  color: #255065;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.add-apt-btn {
+  background-color: #63b6c5;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appointment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apt-search {
+  width: 280px;
+  border-radius: 12px;
+  border: 1px solid #d7dde4;
+  padding: 10px 14px;
+  background: #fff;
+  margin-bottom: 0;
+}
+
+.calendar-container {
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.calendar-month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.month-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.month-nav button {
+  background-color: #63b6c5;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.month-nav button:hover {
+  filter: brightness(0.94);
+}
+
+.month-nav button:focus-visible {
+  outline: 2px solid #255065;
+  outline-offset: 2px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top: 1px solid #eee;
+  border-left: 1px solid #eee;
+}
+
+.weekday-label {
+  padding: 12px;
+  text-align: center;
+  font-weight: 700;
+  color: #63b6c5;
+  background: #f9fdfd;
+  border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.weekday-short {
+  display: none;
+}
+
+.calendar-day {
+  min-height: 110px;
+  padding: 8px;
+  border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.calendar-day.empty {
+  background: #fbfcfe;
+}
+
+.day-num {
+  font-size: 14px;
+  color: #999;
+}
+
+.event-item {
+  font-size: 10px;
+  padding: 3px 6px;
+  margin-top: 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
+}
+
+.event-item:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+
+.event-item:focus-visible {
+  outline: 2px solid #255065;
+  outline-offset: 2px;
+}
+
+.event-item.confirmed {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+.event-item.pending {
+  background: #fff3e0;
+  color: #e65100;
+}
+.event-item.completed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.event-item.cancelled {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.list-view-container {
+  background: #f4f5f7;
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.appointment-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.appointment-table th {
+  text-align: left;
+  color: #5fb3ca;
+  font-size: 15px;
+  font-weight: 600;
+  border-bottom: 1px solid #dde3e8;
+  padding: 14px;
+}
+
+.appointment-table td {
+  border-bottom: 1px solid #e8edf2;
+  color: #2f3541;
+  padding: 14px;
+}
+
+.apt-status {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.apt-status.pending {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.apt-status.confirmed {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.apt-status.completed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.apt-status.cancelled {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.action-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.btn-edit,
+.btn-remove {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-edit {
+  background: #e4e6ea;
+  color: #505866;
+}
+
+.btn-remove {
+  background: #fbeef0;
+  color: #ef575a;
+}
+
+.btn-edit:hover {
+  background: #d8dbe0;
+}
+
+.btn-remove:hover {
+  background: #f7dfe3;
+}
+
+.btn-edit.icon-btn,
+.btn-remove.icon-btn {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-edit.icon-btn svg,
+.btn-remove.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-edit.icon-btn:focus-visible,
+.btn-remove.icon-btn:focus-visible {
+  outline: 2px solid #2a607d;
+  outline-offset: 2px;
+}
+
+.list-placeholder {
+  padding: 18px;
+  color: #5f6876;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 520px;
+  padding: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+.user-modal-form .form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.user-modal-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex: 1;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cancel-btn,
+.save-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.save-btn {
+  background: #2563eb;
+  color: #fff;
+}
+
+.modal-error {
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.user-modal-form select,
+.user-modal-form textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: inherit;
+}
+
+.user-modal-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+/* =====================
+    RESPONSIVE - MOBILE
+    (global-mobile.css handles sidebar toggle)
+===================== */
+@media (max-width: 768px) {
+  .dashboard-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+    overflow: auto;
+  }
+
+  .main-area {
+    margin-left: 0 !important;
+    width: 100% !important;
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .top-bar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: auto !important;
+    min-height: 56px;
+    padding: 0 12px !important;
+    gap: 8px;
+    flex-wrap: nowrap;
+    z-index: 999 !important;
+  }
+
+  .top-bar h2 {
+    font-size: 1rem !important;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .content-body {
+    padding: 16px !important;
+    padding-top: calc(16px + var(--topbar-height)) !important;
+    margin-top: var(--topbar-height) !important;
+  }
+
+  /* Stats grid: 2 columns on tablet, 1 on phone */
+  .admin-stats-grid,
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Tables: horizontal scroll */
+  table {
+    min-width: 520px;
+  }
+
+  .table-wrapper,
+  .user-table-wrapper,
+  .inventory-table-wrapper,
+  .payment-table-wrapper,
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Profile grids */
+  .profile-details-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Search inputs */
+  .search-box input,
+  .log-search {
+    width: 100% !important;
+  }
+
+  /* Admin recent flex */
+  .admin-recent-flex {
+    flex-direction: column !important;
+  }
+
+  /* Message layout */
+  .message-container {
+    flex-direction: column !important;
+  }
+
+  .inbox-panel {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #eee;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-stats-grid,
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .content-body {
+    padding: 12px !important;
+  }
+
+  .weekday-full {
+    display: none;
+  }
+
+  .weekday-short {
+    display: inline;
+  }
+}
+
+/* ===== STATUS GROUPING ===== */
+.status-group {
+  margin-bottom: 20px;
+  border-radius: 10px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+
+.status-group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(90deg, #438fb5 0%, #63b6c5 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.status-group-header:hover {
+  background: linear-gradient(90deg, #3a7a99 0%, #5aacb5 100%);
+  transform: translateX(2px);
+}
+
+.status-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-icon {
+  font-size: 18px;
+  display: inline-block;
+}
+
+.status-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.status-count {
+  background: rgba(255, 255, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+}
+
+.status-toggle-icon {
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.status-group-header[aria-expanded="false"] .status-toggle-icon {
+  transform: rotate(-90deg);
+}
+
+/* Desktop table within grouped section */
+.status-group .table-desktop {
+  border-collapse: collapse;
+}
+
+.status-group .appointment-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+
+.status-group .appointment-table tbody tr:hover {
+  background: #f3f4f6;
+}
+
+/* Mobile cards within grouped section */
+.status-group .table-mobile {
+  padding: 12px;
+  background: white;
+}
+
+.status-group .record-card {
+  margin-bottom: 12px;
+}
+
+/* Responsive grouping on mobile */
+@media (max-width: 768px) {
+  .status-group-header {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .status-title {
+    font-size: 14px;
+  }
+
+  .status-count {
+    padding: 1px 6px;
+    font-size: 11px;
+  }
+
+  .status-icon {
+    font-size: 16px;
+    margin-bottom: 0;
+  }
+}

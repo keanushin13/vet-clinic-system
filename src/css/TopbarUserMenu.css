@@ -1,0 +1,41 @@
+.topbar-user-menu-wrapper {
+  position: relative;
+}
+
+.topbar-user-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 150px;
+  background: #fff;
+  border: 1px solid #d9e3ea;
+  border-radius: 10px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+  z-index: 1200;
+}
+
+.topbar-user-menu-item {
+  width: 100%;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1f3e4d;
+  cursor: pointer;
+}
+
+.topbar-user-menu-item:hover {
+  background: #f1f7fb;
+}
+
+.topbar-user-menu-item-danger {
+  color: #c62828;
+}
+
+.topbar-user-menu-item-danger:hover {
+  background: #fdecec;
+}
