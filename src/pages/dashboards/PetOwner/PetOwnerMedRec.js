@@ -199,7 +199,6 @@ const PetOwnerMedRec = () => {
                             strokeLinejoin="round"
                           />
                         </svg>
-                        AI Insight
                       </button>
                     </div>
                   </div>
