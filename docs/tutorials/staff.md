@@ -11,11 +11,14 @@ Covers clinic staff flows: Appointments (calendar & list), Inventory management,
 ## Navigation (examples)
 
 - Appointments: `/staff-appointments`
-- Inventory: `/staff-inventory`
+- User Management: `/staff-users`
+- Owner pets: `/staff-users/:id/pets`
+- Pets Profile: `/staff-pets`
 - Messages: `/staff-messages`
+- Vet Schedules: `/staff-vet-schedules`
+- Inventory: `/staff-inventory`
 - Payments: `/staff-payments`
 - Activity: `/staff-activity`
-- Owner pets: `/staff-users/:id/pets`
 - Profile: `/staff-profile`
 
 ---
@@ -38,9 +41,41 @@ Expected: Appointment appears for the selected vet and owner; status updates as 
 
 Troubleshooting: If slots are empty, confirm you selected a vet and a valid date.
 
-Screenshot placeholder: booking modal + calendar.
+---
 
-Video script bullet: "Staff dashboard → Book appointment for owner → verify on calendar."
+## User Management — `/staff-users`
+
+Goal: Manage pet owner accounts (create, view, edit, activate/deactivate) and navigate to owner pets.
+
+What you'll see:
+
+- A searchable list of clients showing name, contact, registered pets count, status, and actions (View Pets, View, Edit, Activate/Deactivate).
+
+Steps — Common tasks:
+
+1. Open `User Management` (`/staff-users`).
+2. Use the search box to filter by name, email, or username.
+3. Add a new client: click **+ Add New Client** → fill `Username` (required), `Email` (required), `Password` (required for new), optional `First Name`, `Last Name`, and `Phone` → **Save**.
+4. View client details: click the eye/view icon → use **View Pets** to go to `/staff-users/:id/pets` for that owner.
+5. Edit client: click the edit (pencil) icon → update fields; password is optional when editing.
+6. Toggle active status: click the activate/deactivate icon to mark user `Active` or `Inactive`.
+
+Notes & validations:
+
+- Phone input uses country code `+63` and strips any leading `63` from input; enter the local 10-digit number.
+- When adding a client, `username`, `email`, and `password` are required; the backend will return errors for duplicates.
+- API helpers: `getStaffClients()`, `createStaffClient(data)`, `updateStaffClient(id, data)`, `toggleStaffClientActive(id)` (see `src/api/api.js`).
+
+Troubleshooting:
+
+- If creation fails with a duplicate email/username error, pick a unique username or check existing accounts.
+- If the pets count appears incorrect, open **View Pets** to confirm the owner's pet list.
+
+Verification checklist:
+
+- You can create a new client and they appear in the list.
+- View Pets navigates to `/staff-users/:id/pets` with the owner state.
+- Toggling active correctly updates the status badge.
 
 ---
 
@@ -55,10 +90,6 @@ Steps:
 3. Edit stock quantities or add usage records as needed.
 
 Expected: Inventory shows up-to-date quantities and recent usage.
-
-Video script bullet: "Open Inventory → update stock for an item → show updated quantity."
-
----
 
 ## Messages, Payments, Activity Log
 
@@ -111,8 +142,6 @@ Verification checklist:
 - Overriding the amount requires an adjustment reason.
 - Archived payments are hidden from default lists and can be restored.
 
-Video script bullet: "Staff → Add Payment → show appointment-based billing summary → save as Paid."
-
 ---
 
 ## Owner / Pet Management
@@ -133,4 +162,4 @@ Steps:
 - Inventory updates persist.
 - Messages send and payment entries are visible.
 
-_End of Staff guide (placeholder screenshots)._
+_End of Staff guide._
