@@ -45,8 +45,7 @@ function Register() {
       !formData.username ||
       !formData.email ||
       !formData.phone ||
-      !formData.password ||
-      !formData.confirmPassword
+      !formData.password
     )
       return "All fields are required";
     if (!/^[a-zA-Z0-9]+$/.test(formData.username))
@@ -57,6 +56,7 @@ function Register() {
       return "Phone number must be exactly 11 digits";
     if (!isStrongPassword(formData.password))
       return "Password must be at least 8 characters, include 1 uppercase letter, 1 number, and 1 special character";
+    if (!formData.confirmPassword) return "Please confirm your password";
     if (formData.password !== formData.confirmPassword)
       return "Passwords do not match";
     return null;
