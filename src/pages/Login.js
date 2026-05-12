@@ -124,6 +124,10 @@ const Login = () => {
 
   const handleOtpSuccess = (user) => {
     const role = user.role;
+    if (role === "pet_owner" && !user.profileCompleted) {
+      navigate("/profile-setup");
+      return;
+    }
     if (role === "admin") navigate("/admin");
     else if (role === "veterinarian") navigate("/vet");
     else if (role === "staff") navigate("/staff");

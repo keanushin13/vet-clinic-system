@@ -18,9 +18,9 @@ function Register() {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
-    role: "pet_owner",
   });
 
   const [modal, setModal] = useState({ show: false, message: "" });
@@ -31,15 +31,34 @@ function Register() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "").slice(0, 11);
+      setFormData({ ...formData, phone: digitsOnly });
+      return;
+    }
+    setFormData({ ...formData, [name]: value });
   };
 
   const validate = () => {
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) return "All fields are required";
-    if (!/^[a-zA-Z0-9]+$/.test(formData.username)) return "Username must contain letters and numbers only";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return "Invalid email format";
-    if (!isStrongPassword(formData.password)) return "Password must be at least 8 characters, include 1 uppercase letter, 1 number, and 1 special character";
-    if (formData.password !== formData.confirmPassword) return "Passwords do not match";
+    if (
+      !formData.username ||
+      !formData.email ||
+      !formData.phone ||
+      !formData.password ||
+      !formData.confirmPassword
+    )
+      return "All fields are required";
+    if (!/^[a-zA-Z0-9]+$/.test(formData.username))
+      return "Username must contain letters and numbers only";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+      return "Invalid email format";
+    if (!/^\d{11}$/.test(formData.phone))
+      return "Phone number must be exactly 11 digits";
+    if (!isStrongPassword(formData.password))
+      return "Password must be at least 8 characters, include 1 uppercase letter, 1 number, and 1 special character";
+    if (formData.password !== formData.confirmPassword)
+      return "Passwords do not match";
     return null;
   };
 
@@ -52,10 +71,21 @@ function Register() {
     }
     try {
       setLoading(true);
-      await API.post("/users/register", formData);
-      setModal({ show: true, message: "Registration successful! Please verify your email." });
+      await API.post("/users/register", {
+        username: formData.username,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+      });
+      setModal({
+        show: true,
+        message: "Registration successful! Please verify your email.",
+      });
     } catch (err) {
-      setModal({ show: true, message: err.response?.data?.message || "Registration failed" });
+      setModal({
+        show: true,
+        message: err.response?.data?.message || "Registration failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -84,58 +114,62 @@ function Register() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="input-group">
-              <label>Join as</label>
-              <select 
-                name="role" 
-                className="register-input" 
-                onChange={handleChange} 
-                required
-              >
-                <option value="pet_owner">Pet Owner</option>
-                <option value="veterinarian">Veterinarian</option>
-                <option value="staff">Staff</option>
-              </select>
-            </div>
+            <p style={{ marginTop: 0, marginBottom: "14px", color: "#64748b" }}>
+              Mobile registration currently supports pet owner accounts only.
+            </p>
 
             <div className="input-group">
               <label>Username</label>
-              <input 
-                type="text" 
-                name="username" 
-                className="register-input" 
-                placeholder="Enter username" 
-                onChange={handleChange} 
-                required 
+              <input
+                type="text"
+                name="username"
+                className="register-input"
+                placeholder="Enter username"
+                onChange={handleChange}
+                required
               />
             </div>
 
             <div className="input-group">
               <label>Email Address</label>
-              <input 
-                type="email" 
-                name="email" 
-                className="register-input" 
-                placeholder="email@example.com" 
-                onChange={handleChange} 
-                required 
+              <input
+                type="email"
+                name="email"
+                className="register-input"
+                placeholder="email@example.com"
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Phone Number</label>
+              <input
+                type="tel"
+                name="phone"
+                className="register-input"
+                placeholder="09XXXXXXXXX"
+                value={formData.phone}
+                onChange={handleChange}
+                maxLength={11}
+                required
               />
             </div>
 
             <div className="input-group">
               <label>Password</label>
               <div className="password-field">
-                <input 
-                  type={showPass ? "text" : "password"} 
-                  name="password" 
-                  className="register-input" 
-                  placeholder="••••••••" 
-                  onChange={handleChange} 
-                  required 
+                <input
+                  type={showPass ? "text" : "password"}
+                  name="password"
+                  className="register-input"
+                  placeholder="••••••••"
+                  onChange={handleChange}
+                  required
                 />
-                <button 
-                  type="button" 
-                  className="eye-btn" 
+                <button
+                  type="button"
+                  className="eye-btn"
                   onClick={() => setShowPass(!showPass)}
                 >
                   <img src={showPass ? eyeHide : eyeShow} alt="toggle" />
@@ -146,17 +180,17 @@ function Register() {
             <div className="input-group">
               <label>Confirm Password</label>
               <div className="password-field">
-                <input 
-                  type={showConfirm ? "text" : "password"} 
-                  name="confirmPassword" 
-                  className="register-input" 
-                  placeholder="••••••••" 
-                  onChange={handleChange} 
-                  required 
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  name="confirmPassword"
+                  className="register-input"
+                  placeholder="••••••••"
+                  onChange={handleChange}
+                  required
                 />
-                <button 
-                  type="button" 
-                  className="eye-btn" 
+                <button
+                  type="button"
+                  className="eye-btn"
                   onClick={() => setShowConfirm(!showConfirm)}
                 >
                   <img src={showConfirm ? eyeHide : eyeShow} alt="toggle" />
@@ -182,36 +216,62 @@ function Register() {
 
       {/* MODAL SECTION - UPDATED FOR THE WHITE BOX LOOK */}
       {modal?.show && (
-        <div className="modal-overlay" style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.6)', display: 'flex',
-          justifyContent: 'center', alignItems: 'center', zIndex: 3000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div className="modal-container" style={{
-            background: 'white',
-            padding: '40px',
-            borderRadius: '25px',
-            width: '400px',
-            textAlign: 'center',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-          }}>
-            <img src={paw} alt="Logo" style={{ width: '60px', marginBottom: '15px' }} />
-            <h3 style={{ color: '#1f4e79', marginBottom: '10px' }}>Notification</h3>
-            <p style={{ color: '#64748b', fontSize: '15px', marginBottom: '25px', lineHeight: '1.5' }}>
+        <div
+          className="modal-overlay"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 3000,
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            className="modal-container"
+            style={{
+              background: "white",
+              padding: "40px",
+              borderRadius: "25px",
+              width: "400px",
+              textAlign: "center",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+            }}
+          >
+            <img
+              src={paw}
+              alt="Logo"
+              style={{ width: "60px", marginBottom: "15px" }}
+            />
+            <h3 style={{ color: "#1f4e79", marginBottom: "10px" }}>
+              Notification
+            </h3>
+            <p
+              style={{
+                color: "#64748b",
+                fontSize: "15px",
+                marginBottom: "25px",
+                lineHeight: "1.5",
+              }}
+            >
               {modal.message}
             </p>
-            <button 
+            <button
               onClick={closeModal}
               style={{
-                width: '100%',
-                padding: '12px',
-                backgroundColor: '#1f4e79',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                fontWeight: '600',
-                cursor: 'pointer'
+                width: "100%",
+                padding: "12px",
+                backgroundColor: "#1f4e79",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                fontWeight: "600",
+                cursor: "pointer",
               }}
             >
               OK

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { initCSRF } from "./api/api";
 import BottomNavigation from "./components/BottomNavigation";
 import PetOwnerTutorial, {
@@ -11,6 +11,7 @@ import DevNav from "./pages/DevNav";
 
 // AUTH & SECURITY IMPORTS
 import Login from "./pages/Login";
+import ProfileSetup from "./pages/ProfileSetup";
 import Register from "./pages/Register";
 import UnlockAccount from "./pages/security/UnlockAccount";
 import VerifyEmail from "./pages/security/VerifyEmail";
@@ -63,9 +64,35 @@ import PetOwnerPayHis from "./pages/dashboards/PetOwner/PetOwnerPayHis";
 import PetOwnerProfile from "./pages/dashboards/PetOwner/PetOwnerProfile";
 
 function App() {
+  const getStoredUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  };
+
+  const canAccessPetOwnerRoutes = () => {
+    const user = getStoredUser();
+    const token = localStorage.getItem("token");
+    return Boolean(
+      token && user?.role === "pet_owner" && user?.profileCompleted,
+    );
+  };
+
+  const canAccessProfileSetup = () => {
+    const user = getStoredUser();
+    const token = localStorage.getItem("token");
+    return Boolean(token && user?.role === "pet_owner");
+  };
+
   const [showTutorial, setShowTutorial] = useState(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    return user.role === "pet_owner" && !localStorage.getItem(PO_TUTORIAL_KEY);
+    const user = getStoredUser();
+    return (
+      user.role === "pet_owner" &&
+      user.profileCompleted &&
+      !localStorage.getItem(PO_TUTORIAL_KEY)
+    );
   });
 
   useEffect(() => {
@@ -91,6 +118,16 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route
+          path="/profile-setup"
+          element={
+            canAccessProfileSetup() ? (
+              <ProfileSetup />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
 
         {/* SECURITY FLOW ROUTES */}
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
@@ -98,17 +135,86 @@ function App() {
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
         {/* PET OWNER DASHBOARD ROUTES */}
-        <Route path="/pet-owner" element={<PetOwnerDashboard />} />
+        <Route
+          path="/pet-owner"
+          element={
+            canAccessPetOwnerRoutes() ? (
+              <PetOwnerDashboard />
+            ) : (
+              <Navigate to="/profile-setup" replace />
+            )
+          }
+        />
         <Route
           path="/pet-owner-appointments"
-          element={<PetOwnerAppointment />}
+          element={
+            canAccessPetOwnerRoutes() ? (
+              <PetOwnerAppointment />
+            ) : (
+              <Navigate to="/profile-setup" replace />
+            )
+          }
         />
-        <Route path="/pet-owner-pets" element={<PetOwnerMyPets />} />
-        <Route path="/pet-owner-messages" element={<PetOwnerMessages />} />
-        <Route path="/pet-owner-records" element={<PetOwnerMedRec />} />
-        <Route path="/pet-owner-payments" element={<PetOwnerPayHis />} />
-        <Route path="/pet-owner-notifications" element={<PetOwnerNotif />} />
-        <Route path="/pet-owner-profile" element={<PetOwnerProfile />} />
+        <Route
+          path="/pet-owner-pets"
+          element={
+            canAccessPetOwnerRoutes() ? (
+              <PetOwnerMyPets />
+            ) : (
+              <Navigate to="/profile-setup" replace />
+            )
+          }
+        />
+        <Route
+          path="/pet-owner-messages"
+          element={
+            canAccessPetOwnerRoutes() ? (
+              <PetOwnerMessages />
+            ) : (
+              <Navigate to="/profile-setup" replace />
+            )
+          }
+        />
+        <Route
+          path="/pet-owner-records"
+          element={
+            canAccessPetOwnerRoutes() ? (
+              <PetOwnerMedRec />
+            ) : (
+              <Navigate to="/profile-setup" replace />
+            )
+          }
+        />
+        <Route
+          path="/pet-owner-payments"
+          element={
+            canAccessPetOwnerRoutes() ? (
+              <PetOwnerPayHis />
+            ) : (
+              <Navigate to="/profile-setup" replace />
+            )
+          }
+        />
+        <Route
+          path="/pet-owner-notifications"
+          element={
+            canAccessPetOwnerRoutes() ? (
+              <PetOwnerNotif />
+            ) : (
+              <Navigate to="/profile-setup" replace />
+            )
+          }
+        />
+        <Route
+          path="/pet-owner-profile"
+          element={
+            canAccessPetOwnerRoutes() ? (
+              <PetOwnerProfile />
+            ) : (
+              <Navigate to="/profile-setup" replace />
+            )
+          }
+        />
 
         {/* VETERINARIAN DASHBOARD ROUTES */}
         <Route path="/vet" element={<VetDashboard />} />
