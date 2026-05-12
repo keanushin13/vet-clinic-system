@@ -104,7 +104,17 @@ const AdminUserManagement = () => {
   };
 
   const filtered = users.filter((u) =>
-    (u.firstName + " " + u.lastName + " " + u.username + " " + u.email)
+    (
+      u.firstName +
+      " " +
+      u.lastName +
+      " " +
+      u.username +
+      " " +
+      u.email +
+      " " +
+      (u.phone || "")
+    )
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -164,7 +174,9 @@ const AdminUserManagement = () => {
                     <tr>
                       <th>Name</th>
                       <th>Email</th>
+                      <th>Phone</th>
                       <th>Role</th>
+                      <th>Profile</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -183,9 +195,17 @@ const AdminUserManagement = () => {
                           </span>
                         </td>
                         <td>{u.email}</td>
+                        <td>{u.phone || "-"}</td>
                         <td>
                           <span className={`role-badge ${u.role}`}>
                             {u.role}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`status-pill ${u.profileCompleted ? "active" : "inactive"}`}
+                          >
+                            {u.profileCompleted ? "Completed" : "Pending"}
                           </span>
                         </td>
                         <td>
@@ -303,6 +323,18 @@ const AdminUserManagement = () => {
                       <div className="user-card-row">
                         <span className="user-card-label">Role</span>
                         <span className={`role-badge ${u.role}`}>{u.role}</span>
+                      </div>
+                      <div className="user-card-row">
+                        <span className="user-card-label">Phone</span>
+                        <span>{u.phone || "-"}</span>
+                      </div>
+                      <div className="user-card-row">
+                        <span className="user-card-label">Profile</span>
+                        <span
+                          className={`status-pill ${u.profileCompleted ? "active" : "inactive"}`}
+                        >
+                          {u.profileCompleted ? "Completed" : "Pending"}
+                        </span>
                       </div>
                       <div className="user-card-row">
                         <span className="user-card-label">Status</span>
