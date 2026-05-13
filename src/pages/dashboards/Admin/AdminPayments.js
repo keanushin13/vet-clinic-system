@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import AdminSidebar from "../../../components/AdminSidebar";
@@ -95,14 +95,13 @@ export default function AdminPayments() {
     }
   }, [statusFilter, methodFilter, dateFrom, dateTo]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!user || user.role !== "admin") {
       navigate("/login");
       return;
     }
     load();
-  }, [statusFilter, methodFilter, dateFrom, dateTo]);
+  }, [user, navigate, load]);
 
   const filtered = payments.filter((p) => {
     if (!search) return true;

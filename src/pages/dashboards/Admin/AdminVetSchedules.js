@@ -58,7 +58,6 @@ export default function AdminVetSchedules() {
   const [excError, setExcError] = useState("");
 
   // Clinic hours
-  const [clinicSettings, setClinicSettings] = useState([]);
   const [clinicForm, setClinicForm] = useState([]);
   const [clinicSaving, setClinicSaving] = useState(false);
   const [clinicMsg, setClinicMsg] = useState("");
