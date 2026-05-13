@@ -46,7 +46,11 @@ export const getMe = () => API.get("/users/me");
 export const updateMe = (data) => API.put("/users/me", data);
 export const createUser = (data) => API.post("/users/create", data);
 export const updateUser = (id, data) => API.put(`/users/${id}`, data);
-export const deleteUser = (id) => API.delete(`/users/delete/${id}`);
+export const deleteUser = (id) => API.delete(`/users/${id}`);
+export const restoreUser = (id) => API.patch(`/users/${id}/restore`);
+export const adminResetPassword = (id, newPassword) =>
+  API.post(`/users/${id}/reset-password`, { newPassword });
+export const toggleUserActive = (id) => API.patch(`/users/${id}/toggle-active`);
 export const updatePassword = (data) =>
   API.post("/users/update-password", data);
 export const getStaffClients = () =>

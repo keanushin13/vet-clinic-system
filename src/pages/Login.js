@@ -127,7 +127,8 @@ const Login = () => {
     if (role === "pet_owner" && !user.profileCompleted) {
       navigate("/profile-setup");
       return;
-    } else if (role === "veterinarian") navigate("/vet");
+    } else if (role === "admin") navigate("/admin");
+    else if (role === "veterinarian") navigate("/vet");
     else if (role === "staff") navigate("/staff");
     else navigate("/pet-owner");
   };

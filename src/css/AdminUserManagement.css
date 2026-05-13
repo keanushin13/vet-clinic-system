@@ -10,7 +10,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 .search-box input {
@@ -117,19 +119,35 @@
   font-weight: 600;
 }
 
-.status-pill.active {
+.status-pill.active,
+.status-pill.status-active {
   background: #d4edda;
   color: #155724;
 }
-.status-pill.inactive {
+.status-pill.inactive,
+.status-pill.status-unverified {
+  background: #e2e3e5;
+  color: #383d41;
+}
+.status-pill.status-suspended {
+  background: #fff3cd;
+  color: #856404;
+}
+.status-pill.status-deleted {
   background: #f8d7da;
   color: #721c24;
+}
+
+/* deleted row dim */
+tr.row-deleted td,
+.user-card.row-deleted {
+  opacity: 0.55;
 }
 
 /* ACTIONS */
 .action-btns {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: nowrap;
 }
 
@@ -160,27 +178,145 @@
   background: #ffeded;
 }
 
+.restore-btn {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+.restore-btn:hover {
+  background: #c8e6c9;
+}
+
+.suspend-btn {
+  background: #fff8e1;
+  color: #e65100;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+.suspend-btn:hover {
+  background: #ffe0b2;
+}
+
+.activate-btn {
+  background: #e8f5e9;
+  color: #1b5e20;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+.activate-btn:hover {
+  background: #c8e6c9;
+}
+
 .edit-btn.icon-btn,
-.delete-btn.icon-btn {
-  min-width: 36px;
-  width: 36px;
-  height: 36px;
+.delete-btn.icon-btn,
+.restore-btn.icon-btn,
+.suspend-btn.icon-btn,
+.activate-btn.icon-btn,
+.icon-btn {
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 6px;
 }
 
-.edit-btn.icon-btn svg,
-.delete-btn.icon-btn svg {
-  width: 16px;
-  height: 16px;
+.icon-btn svg {
+  width: 15px;
+  height: 15px;
 }
 
-.edit-btn.icon-btn:focus-visible,
-.delete-btn.icon-btn:focus-visible {
+.icon-btn:focus-visible {
   outline: 2px solid #2a607d;
   outline-offset: 2px;
+}
+
+/* filter row */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.role-filter-select {
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.show-deleted-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* table summary */
+.table-summary {
+  font-size: 13px;
+  color: #777;
+  padding: 4px 0 8px;
+}
+
+/* pagination */
+.pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 0 4px;
+}
+
+.page-btn {
+  padding: 6px 16px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  transition: 0.15s;
+}
+.page-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.page-info {
+  font-size: 13px;
+  color: #555;
+}
+
+/* modal hint */
+.modal-hint {
+  font-size: 12px;
+  color: #888;
+  margin: -6px 0 8px;
+}
+
+/* empty state */
+.empty-row {
+  text-align: center;
+  color: #aaa;
+  font-size: 14px;
+  padding: 24px 0;
 }
 /* =====================
     RESPONSIVE - MOBILE

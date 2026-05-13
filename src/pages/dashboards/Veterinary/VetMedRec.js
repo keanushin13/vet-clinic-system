@@ -44,6 +44,7 @@ const VetMedRec = () => {
     notes: "",
     status: "Finalized",
     followUpDate: "",
+    modificationReason: "",
   });
 
   useEffect(() => {
@@ -125,6 +126,7 @@ const VetMedRec = () => {
       followUpDate: record.followUpDate
         ? new Date(record.followUpDate).toISOString().slice(0, 10)
         : "",
+      modificationReason: "",
     });
     setShowModal(true);
     setError("");
@@ -171,6 +173,10 @@ const VetMedRec = () => {
         ...form,
         followUpDate: form.followUpDate || null,
       };
+      // only send modificationReason for admin/staff edits
+      if (!editing || user.role === "veterinarian") {
+        delete payload.modificationReason;
+      }
       if (editing) {
         await updateMedicalRecord(editing.id, payload);
         setSuccess("Medical record updated successfully.");
@@ -616,6 +622,29 @@ const VetMedRec = () => {
                 <label>Notes</label>
                 <textarea name="notes" value={form.notes} onChange={onChange} />
               </div>
+
+              {/* modificationReason — required for admin/staff when editing */}
+              {editing && (user.role === "admin" || user.role === "staff") && (
+                <div className="form-group">
+                  <label>Modification Reason *</label>
+                  <select
+                    name="modificationReason"
+                    value={form.modificationReason}
+                    onChange={onChange}
+                    required
+                  >
+                    <option value="">Select a reason...</option>
+                    <option value="Typographical Error">
+                      Typographical Error
+                    </option>
+                    <option value="Duplicate Entries">Duplicate Entries</option>
+                    <option value="Ownership Transfer">
+                      Ownership Transfer
+                    </option>
+                    <option value="Wrong Species">Wrong Species</option>
+                  </select>
+                </div>
+              )}
 
               <div className="modal-actions">
                 <button
