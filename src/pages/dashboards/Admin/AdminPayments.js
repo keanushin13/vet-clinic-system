@@ -95,13 +95,13 @@ export default function AdminPayments() {
     }
   }, [statusFilter, methodFilter, dateFrom, dateTo]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!user || user.role !== "admin") {
       navigate("/login");
       return;
     }
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, methodFilter, dateFrom, dateTo]);
 
   const filtered = payments.filter((p) => {
