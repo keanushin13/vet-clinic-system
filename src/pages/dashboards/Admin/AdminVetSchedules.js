@@ -72,7 +72,6 @@ export default function AdminVetSchedules() {
     getClinicSettings()
       .then((r) => {
         const s = Array.isArray(r.data) ? r.data : [];
-        setClinicSettings(s);
         setClinicForm(s.map((d) => ({ ...d })));
       })
       .catch(() => {});
