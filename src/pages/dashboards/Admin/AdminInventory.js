@@ -266,9 +266,32 @@ export default function AdminInventory() {
     setAiOpen(true);
     try {
       const r = await getInventoryAiAnalysis();
-      setAiText(
-        r.data?.suggestions || r.data?.analysis || JSON.stringify(r.data),
-      );
+      let text =
+        r.data?.suggestions ||
+        r.data?.analysis ||
+        r.data?.insight ||
+        JSON.stringify(r.data);
+
+      // If text is a JSON string, try to parse it
+      if (typeof text === "string" && text.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(text);
+          text =
+            parsed.insight ||
+            parsed.suggestions ||
+            parsed.analysis ||
+            JSON.stringify(parsed);
+        } catch {
+          // If parsing fails, use as-is
+        }
+      }
+
+      // Replace escaped newlines with actual newlines
+      if (typeof text === "string") {
+        text = text.replace(/\\n/g, "\n");
+      }
+
+      setAiText(text);
     } catch (err) {
       setAiError(err.response?.data?.message || "AI analysis failed");
     } finally {

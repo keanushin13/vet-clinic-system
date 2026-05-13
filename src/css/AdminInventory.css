@@ -20,6 +20,8 @@
 }
 .inv-ai-text {
   white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
   font-size: 14px;
   color: #333;
   line-height: 1.6;
