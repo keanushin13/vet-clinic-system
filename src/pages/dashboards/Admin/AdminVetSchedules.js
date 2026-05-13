@@ -337,7 +337,6 @@ export default function AdminVetSchedules() {
                           ? `${v.firstName} ${v.lastName || ""}`.trim()
                           : v.username}
                       </div>
-                      <div className="vs-vet-email">{v.email}</div>
                     </div>
                   </div>
                 ))

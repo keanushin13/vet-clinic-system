@@ -16,6 +16,7 @@
 
 .appt-search {
   flex: 1;
+  margin-bottom: 0;
   min-width: 160px;
   padding: 10px 16px;
   border-radius: 12px;
@@ -30,6 +31,8 @@
 
 .appt-filter-select,
 .appt-date-input {
+  width: auto;
+  margin-bottom: 0;
   padding: 10px 14px;
   border-radius: 12px;
   border: 1.5px solid #e0e0e0;

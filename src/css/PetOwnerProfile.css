@@ -177,6 +177,7 @@
   padding: 10px 16px;
   font-weight: 600;
   cursor: pointer;
+  margin-top: 0;
 }
 
 .cancel-btn {
