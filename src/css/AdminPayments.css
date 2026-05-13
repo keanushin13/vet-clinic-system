@@ -1,0 +1,58 @@
+/* AdminPayments.css */
+@import "./AdminAppointments.css";
+
+/* Invoice modal extras */
+.invoice-box {
+  max-width: 560px;
+}
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.invoice-header h3 {
+  margin: 0;
+}
+
+.invoice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+.invoice-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+.total-row {
+  font-weight: 700;
+  font-size: 16px;
+  border-top: 2px solid #4f8cff !important;
+  border-bottom: none !important;
+  padding-top: 10px !important;
+}
+.invoice-body hr {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 4px 0;
+}
+
+@media print {
+  .modal-overlay {
+    position: static;
+    background: none;
+    padding: 0;
+  }
+  .modal-box {
+    box-shadow: none;
+    max-height: none;
+    border-radius: 0;
+  }
+  .cancel-btn,
+  .save-btn {
+    display: none;
+  }
+}

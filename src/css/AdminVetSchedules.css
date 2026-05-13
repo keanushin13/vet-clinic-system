@@ -1,0 +1,300 @@
+/* ===== AdminVetSchedules.css ===== */
+.vs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.vs-section-card,
+.vs-vet-list-card,
+.vs-schedule-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  padding: 26px;
+}
+
+.vs-section-title {
+  margin: 0 0 18px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #333;
+}
+.vs-sub-title {
+  margin: 24px 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #555;
+}
+
+/* Clinic hours grid */
+.vs-clinic-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vs-clinic-header,
+.vs-clinic-row {
+  display: grid;
+  grid-template-columns: 110px 50px 1fr 1fr 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+}
+.vs-clinic-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: #888;
+  border-bottom: 1.5px solid #f0f0f0;
+  margin-bottom: 4px;
+}
+.vs-clinic-row:not(:last-child) {
+  border-bottom: 1px solid #f8f8f8;
+}
+.vs-clinic-row input[type="time"],
+.vs-clinic-row input[type="number"] {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #e0e0e0;
+  font-size: 13px;
+  outline: none;
+}
+.vs-clinic-row input:focus {
+  border-color: #4f8cff;
+}
+.vs-clinic-row input:disabled {
+  background: #f5f5f5;
+  color: #bbb;
+}
+
+/* Weekly schedule grid */
+.vs-weekly-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vs-weekly-header,
+.vs-weekly-row {
+  display: grid;
+  grid-template-columns: 110px 50px 1fr 1fr 80px;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+}
+.vs-weekly-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: #888;
+  border-bottom: 1.5px solid #f0f0f0;
+  margin-bottom: 4px;
+}
+.vs-weekly-row:not(:last-child) {
+  border-bottom: 1px solid #f8f8f8;
+}
+.vs-weekly-row input[type="time"],
+.vs-weekly-row input[type="number"] {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #e0e0e0;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.vs-weekly-row input:focus {
+  border-color: #4f8cff;
+}
+.vs-weekly-row input:disabled {
+  background: #f5f5f5;
+  color: #bbb;
+}
+
+.vs-day-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #444;
+}
+
+.vs-save-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+.vs-msg {
+  font-size: 13px;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+/* Two-column layout */
+.vs-two-col {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+}
+
+/* Vet list */
+.vs-vet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.vs-vet-item:hover {
+  background: #f0f4ff;
+}
+.vs-vet-item.selected {
+  background: #e3f2fd;
+}
+.vs-vet-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #4f8cff;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.vs-vet-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.vs-vet-email {
+  font-size: 12px;
+  color: #888;
+}
+
+.vs-select-hint {
+  color: #aaa;
+  text-align: center;
+  margin: 40px 0;
+}
+
+/* Exceptions form */
+.vs-exc-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.vs-exc-form input {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #e0e0e0;
+  font-size: 13px;
+  outline: none;
+}
+.vs-exc-form input:focus {
+  border-color: #4f8cff;
+}
+
+.vs-exc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.vs-exc-table th {
+  background: #f8f9fc;
+  padding: 8px 10px;
+  text-align: left;
+  color: #666;
+  font-weight: 600;
+}
+.vs-exc-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+/* Shared button styles */
+.save-btn {
+  background: #4f8cff;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 22px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.save-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 22px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: #555;
+}
+
+.form-error {
+  color: #c62828;
+  font-size: 13px;
+  background: #fce4ec;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.empty-row {
+  color: #aaa;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.delete-btn {
+  background: #fce4ec;
+  color: #c62828;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.delete-btn:hover {
+  background: #f8bbd0;
+}
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .vs-two-col {
+    grid-template-columns: 1fr;
+  }
+  .vs-clinic-header,
+  .vs-clinic-row {
+    grid-template-columns: 90px 40px 1fr 1fr;
+  }
+  .vs-clinic-header span:nth-child(5),
+  .vs-clinic-header span:nth-child(6),
+  .vs-clinic-row input:nth-child(5),
+  .vs-clinic-row input:nth-child(6) {
+    display: none;
+  }
+  .vs-weekly-header,
+  .vs-weekly-row {
+    grid-template-columns: 90px 40px 1fr 1fr;
+  }
+  .vs-weekly-header span:nth-child(5),
+  .vs-weekly-row input:nth-child(5) {
+    display: none;
+  }
+}

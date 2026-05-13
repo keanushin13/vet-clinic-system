@@ -1,0 +1,31 @@
+/* AdminActivityLogs.css */
+@import "./AdminAppointments.css";
+
+/* Category tabs */
+.al-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.al-tab {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1.5px solid #e0e0e0;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  transition: all 0.15s;
+}
+.al-tab:hover {
+  background: #f0f4ff;
+  border-color: #4f8cff;
+  color: #4f8cff;
+}
+.al-tab.active {
+  background: #4f8cff;
+  color: #fff;
+  border-color: #4f8cff;
+}

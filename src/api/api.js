@@ -149,10 +149,17 @@ export const markAllNotificationsRead = () =>
   API.patch("/notifications/mark-all-read");
 export const markNotificationRead = (id) =>
   API.patch(`/notifications/${id}/read`);
+export const broadcastNotification = (title, body, targetRole) =>
+  API.post("/notifications/broadcast", { title, body, targetRole });
 
 // ─── ACTIVITY LOGS ────────────────────────────────────────────────────────────
 export const getActivityLogs = (params) =>
   API.get("/activity-logs", { params });
+
+// ─── CLINIC SETTINGS ──────────────────────────────────────────────────────────
+export const getClinicSettings = () => API.get("/clinic-settings");
+export const updateClinicSettings = (settings) =>
+  API.put("/clinic-settings", { settings });
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 export const getAdminStats = () => API.get("/stats/admin");

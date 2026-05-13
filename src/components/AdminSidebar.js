@@ -7,6 +7,20 @@ import messageIcon from "../assets/Message_Icon.png";
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/admin", icon: dashboardIcon },
   { label: "User Management", path: "/admin-users", icon: userManagementIcon },
+  { label: "Appointments", path: "/admin-appointments", icon: dashboardIcon },
+  {
+    label: "Vet Schedules",
+    path: "/admin-vet-schedules",
+    icon: userManagementIcon,
+  },
+  {
+    label: "Medical Records",
+    path: "/admin-medical-records",
+    icon: userManagementIcon,
+  },
+  { label: "Payments", path: "/admin-payments", icon: dashboardIcon },
+  { label: "Inventory", path: "/admin-inventory", icon: userManagementIcon },
+  { label: "Activity Logs", path: "/admin-activity-logs", icon: dashboardIcon },
   { label: "Messages", path: "/admin-messages", icon: messageIcon },
 ];
 

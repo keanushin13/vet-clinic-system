@@ -1,0 +1,5 @@
+/* AdminMedicalRecords.css — reuses AdminAppointments patterns */
+/* All shared classes (.appt-card, .appt-toolbar, .status-pill, etc.)
+   are in AdminAppointments.css but since each page imports its own CSS
+   we repeat the shared base here for isolation. */
+@import "./AdminAppointments.css";
