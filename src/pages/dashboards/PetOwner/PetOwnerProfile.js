@@ -344,20 +344,38 @@ const PetOwnerProfile = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>First Name</label>
+                  <label>
+                    First Name{" "}
+                    <span style={{ color: "#999", fontSize: "12px" }}>
+                      ({editForm.firstName?.length || 0}/20)
+                    </span>
+                  </label>
                   <input
+                    maxLength="20"
                     value={editForm.firstName}
                     onChange={(e) =>
-                      setEditForm((p) => ({ ...p, firstName: e.target.value }))
+                      setEditForm((p) => ({
+                        ...p,
+                        firstName: e.target.value.slice(0, 20),
+                      }))
                     }
                   />
                 </div>
                 <div className="form-group">
-                  <label>Last Name</label>
+                  <label>
+                    Last Name{" "}
+                    <span style={{ color: "#999", fontSize: "12px" }}>
+                      ({editForm.lastName?.length || 0}/20)
+                    </span>
+                  </label>
                   <input
+                    maxLength="20"
                     value={editForm.lastName}
                     onChange={(e) =>
-                      setEditForm((p) => ({ ...p, lastName: e.target.value }))
+                      setEditForm((p) => ({
+                        ...p,
+                        lastName: e.target.value.slice(0, 20),
+                      }))
                     }
                   />
                 </div>
@@ -374,47 +392,60 @@ const PetOwnerProfile = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Email</label>
+                  <label>
+                    Email{" "}
+                    <span style={{ color: "#999", fontSize: "12px" }}>
+                      (Read-only)
+                    </span>
+                  </label>
                   <input
                     type="email"
                     required
                     value={editForm.email}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, email: e.target.value }))
-                    }
+                    disabled
+                    style={{
+                      backgroundColor: "#f5f5f5",
+                      cursor: "not-allowed",
+                    }}
                   />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Phone</label>
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{ marginRight: "8px", fontWeight: "500" }}>
-                      +63
+                  <label>
+                    Phone{" "}
+                    <span style={{ color: "#999", fontSize: "12px" }}>
+                      (Read-only)
                     </span>
-                    <input
-                      type="number"
-                      value={editForm.phone?.replace(/^63/, "") || ""}
-                      placeholder="Enter number"
-                      maxLength="10"
-                      pattern="[0-9]*"
-                      style={{ flex: 1 }}
-                      onChange={(e) => {
-                        const numOnly = e.target.value.replace(/[^0-9]/g, "");
-                        const phone = numOnly.replace(/^63/, "").slice(0, 10);
-                        const fullPhone = phone ? `63${phone}` : "";
-                        setEditForm((p) => ({ ...p, phone: fullPhone }));
-                      }}
-                    />
-                  </div>
+                  </label>
+                  <input
+                    type="tel"
+                    value={editForm.phone}
+                    disabled
+                    style={{
+                      backgroundColor: "#f5f5f5",
+                      cursor: "not-allowed",
+                    }}
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Address</label>
-                  <input
+                  <label>
+                    Address{" "}
+                    <span style={{ color: "#999", fontSize: "12px" }}>
+                      ({editForm.address?.length || 0}/50)
+                    </span>
+                  </label>
+                  <textarea
+                    maxLength="50"
+                    rows="2"
                     value={editForm.address}
                     onChange={(e) =>
-                      setEditForm((p) => ({ ...p, address: e.target.value }))
+                      setEditForm((p) => ({
+                        ...p,
+                        address: e.target.value.slice(0, 50),
+                      }))
                     }
+                    style={{ resize: "vertical", fontFamily: "inherit" }}
                   />
                 </div>
               </div>
