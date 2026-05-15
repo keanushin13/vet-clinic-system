@@ -526,3 +526,435 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ─── FILTER BAR ─────────────────────────────────────────────────────────── */
+.pets-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.pets-search-input {
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-family: "Poppins", sans-serif;
+  background: white;
+  min-width: 200px;
+  outline: none;
+}
+
+.pets-search-input:focus {
+  border-color: #438fb5;
+}
+
+.filter-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid #d1d5db;
+  background: white;
+  font-size: 0.8rem;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  color: #555;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+
+.filter-tab.active {
+  background: #438fb5;
+  color: white;
+  border-color: #438fb5;
+}
+
+.filter-tab:hover:not(.active) {
+  background: #f0f9fd;
+  border-color: #438fb5;
+  color: #255065;
+}
+
+.filter-select {
+  padding: 7px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: "Poppins", sans-serif;
+  background: white;
+  color: #444;
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  border-color: #438fb5;
+}
+
+.add-pet-btn {
+  margin-left: auto;
+  padding: 8px 22px;
+  background: #438fb5;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  transition: background 0.18s;
+  white-space: nowrap;
+}
+
+.add-pet-btn:hover {
+  background: #255065;
+}
+
+/* ─── PET CARD GRID ──────────────────────────────────────────────────────── */
+.pets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.pet-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.pet-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(67, 143, 181, 0.18);
+}
+
+.pet-avatar-initials {
+  border-radius: 50%;
+  background: #e0f2f5;
+  color: #438fb5;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fav-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #ccc;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.18s, transform 0.15s;
+}
+
+.fav-btn.active {
+  color: #e76f51;
+}
+
+.fav-btn:hover {
+  transform: scale(1.2);
+}
+
+/* Status badges */
+.pet-status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.badge-gray       { background: #f0f0f0; color: #666; }
+.badge-orange     { background: #fff3e0; color: #e65100; }
+.badge-blue       { background: #e3f2fd; color: #1565c0; }
+.badge-red-orange { background: #fbe9e7; color: #bf360c; }
+.badge-green      { background: #e8f5e9; color: #2e7d32; }
+
+/* Reminder & records badges */
+.reminder-badge {
+  background: #fff8e1;
+  color: #f57f17;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.records-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.has-records-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #63c58d;
+  display: inline-block;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+/* Pet card action buttons */
+.pet-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.pet-card-actions button {
+  flex: 1;
+  padding: 7px 4px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  transition: opacity 0.18s;
+  border: none;
+}
+
+.pet-card-actions button:hover {
+  opacity: 0.82;
+}
+
+.btn-view-detail {
+  background: #438fb5;
+  color: white;
+}
+
+.btn-book-appt {
+  background: #f0f9fd;
+  color: #255065;
+  border: 1px solid #c9eaf7 !important;
+}
+
+/* Empty state */
+.pets-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.pets-error {
+  color: #c62828;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+/* ─── PET DETAIL PANEL ───────────────────────────────────────────────────── */
+.pet-detail-panel {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.pet-detail-header {
+  background: linear-gradient(90deg, #63b6c5 0%, #438fb5 100%);
+  padding: 28px 28px 24px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  color: white;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.detail-back-btn {
+  position: absolute;
+  top: 14px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: "Poppins", sans-serif;
+  transition: background 0.18s;
+}
+
+.detail-back-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.pet-detail-header > :not(.detail-back-btn) {
+  margin-top: 28px;
+}
+
+.detail-edit-btn,
+.detail-delete-btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.18s;
+}
+
+.detail-edit-btn {
+  background: rgba(255, 255, 255, 0.9);
+  color: #255065;
+}
+
+.detail-delete-btn {
+  background: rgba(231, 111, 81, 0.85);
+  color: white;
+}
+
+.detail-edit-btn:hover,
+.detail-delete-btn:hover {
+  opacity: 0.85;
+}
+
+.pet-detail-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Health snapshot card */
+.health-snapshot-card {
+  background: #f8fcfe;
+  border: 1px solid #c9eaf7;
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.health-snapshot-card h5 {
+  color: #255065;
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.snapshot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid #eef5f8;
+  font-size: 0.84rem;
+  color: #444;
+}
+
+.snapshot-row:last-child {
+  border-bottom: none;
+}
+
+.snapshot-row span:first-child {
+  color: #666;
+}
+
+.vacc-up-to-date { color: #2e7d32; font-weight: 600; }
+.vacc-due        { color: #e65100; font-weight: 600; }
+.vacc-missing    { color: #c62828; font-weight: 600; }
+
+/* Detail action buttons */
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.detail-view-appt-btn,
+.detail-book-appt-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.84rem;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  transition: opacity 0.18s;
+  border: none;
+}
+
+.detail-view-appt-btn {
+  background: #438fb5;
+  color: white;
+}
+
+.detail-book-appt-btn {
+  background: #f0f9fd;
+  color: #255065;
+  border: 1px solid #c9eaf7;
+}
+
+.detail-view-appt-btn:hover,
+.detail-book-appt-btn:hover {
+  opacity: 0.82;
+}
+
+/* Notes section */
+.detail-notes {
+  background: #fffdf0;
+  border: 1px solid #f0e6a0;
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+
+.detail-notes h5 {
+  color: #7a6a00;
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-notes p {
+  color: #555;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* Pet form modal wider */
+.pet-form-modal {
+  max-width: 600px !important;
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .pets-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .pets-grid { grid-template-columns: repeat(2, 1fr); }
+  .pets-filter-bar { gap: 8px; }
+  .add-pet-btn { margin-left: 0; width: 100%; }
+  .pet-detail-header { flex-direction: column; align-items: flex-start; }
+  .detail-actions { flex-direction: column; }
+}
+
+@media (max-width: 380px) {
+  .pets-grid { grid-template-columns: 1fr; }
+}

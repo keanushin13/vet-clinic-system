@@ -2,78 +2,231 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/PetOwnerMyPets.css";
-import "../../../css/responsive-tables.css";
 import PetOwnerSidebar from "../../../components/PetOwnerSidebar";
 import { useSidebar } from "../../../components/useSidebar";
 import {
   createPet,
   deletePet,
+  getAppointments,
+  getMedicalRecords,
   getPets,
   updatePet,
-  getMedicalRecords,
-  getMedicalRecordAiInsight,
 } from "../../../api/api";
 
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
+
+const getPetStatus = (pet, appointments) => {
+  const now = new Date();
+  const petAppts = appointments.filter((a) => a.petId === pet.id);
+  if (pet.status === "UnderTreatment") return "Under Treatment";
+  if (
+    petAppts.find(
+      (a) => a.status === "Confirmed" && new Date(a.scheduledAt) >= now,
+    )
+  )
+    return "Upcoming Appointment";
+  if (petAppts.find((a) => a.status === "Pending"))
+    return "Waiting for Confirmation";
+  if (petAppts.some((a) => a.status === "Completed")) return "Completed Visit";
+  return "No Appointment";
+};
+
+const STATUS_BADGE_CLASS = {
+  "No Appointment": "badge-gray",
+  "Waiting for Confirmation": "badge-orange",
+  "Upcoming Appointment": "badge-blue",
+  "Under Treatment": "badge-red-orange",
+  "Completed Visit": "badge-green",
+};
+
+const getVaccinationStatus = (petRecords) => {
+  if (!petRecords.length) return "Missing";
+  const sorted = [...petRecords].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+  );
+  const latest = sorted[0];
+  const text = [
+    latest.diagnosis,
+    latest.treatment,
+    latest.prescription,
+    latest.notes,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (!text.includes("vaccin")) return "Missing";
+  if (latest.followUpDate && new Date(latest.followUpDate) < new Date())
+    return "Due";
+  return "Up to date";
+};
+
+const getLastVisit = (petId, appointments) => {
+  const completed = appointments
+    .filter((a) => a.petId === petId && a.status === "Completed")
+    .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
+  return completed[0]?.scheduledAt || null;
+};
+
+const getNextCheckup = (petId, appointments) => {
+  const now = new Date();
+  const upcoming = appointments
+    .filter(
+      (a) =>
+        a.petId === petId &&
+        a.status === "Confirmed" &&
+        new Date(a.scheduledAt) > now,
+    )
+    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+  return upcoming[0]?.scheduledAt || null;
+};
+
+const hasReminder = (pet, appointments, records) => {
+  const now = new Date();
+  const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const soonAppt = appointments.find(
+    (a) =>
+      a.petId === pet.id &&
+      a.status === "Confirmed" &&
+      new Date(a.scheduledAt) >= now &&
+      new Date(a.scheduledAt) <= in7Days,
+  );
+  if (soonAppt) return true;
+  const petRecs = records.filter((r) => r.petId === pet.id);
+  const vacc = getVaccinationStatus(petRecs);
+  return vacc === "Due" || vacc === "Missing";
+};
+
+const fmtDate = (iso) =>
+  iso
+    ? new Date(iso).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "—";
+
 const emptyForm = {
   name: "",
-  species: "Dog",
+  species: "",
   breed: "",
-  age: "",
   gender: "",
-  status: "Healthy",
+  age: "",
+  birthday: "",
+  weight: "",
+  image: "",
   notes: "",
 };
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 const PetOwnerMyPets = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
   const { isOpen, toggle, close } = useSidebar();
 
   const [pets, setPets] = useState([]);
-  const [search, setSearch] = useState("");
+  const [appointments, setAppointments] = useState([]);
+  const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [favorites, setFavorites] = useState(() =>
+    JSON.parse(localStorage.getItem("po_fav_pets") || "[]"),
+  );
+
+  const [selectedPet, setSelectedPet] = useState(null);
+
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [form, setForm] = useState(emptyForm);
-  const [aiModal, setAiModal] = useState(null); // { record, insight, loading, error }
 
-  const filtered = pets.filter((p) =>
-    (p.name + " " + p.species + " " + (p.breed || ""))
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterSpecies, setFilterSpecies] = useState("");
+  const [filterSex, setFilterSex] = useState("");
+  const [filterAge, setFilterAge] = useState("");
 
   useEffect(() => {
     if (!user || user.role !== "pet_owner") {
       navigate("/login");
       return;
     }
-    loadPets();
+    loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadPets = async () => {
+  const loadAll = async () => {
     setLoading(true);
     setError("");
     try {
-      const r = await getPets();
-      setPets(r.data || []);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to load pets");
+      const [petsRes, apptRes, recRes] = await Promise.all([
+        getPets(),
+        getAppointments(),
+        getMedicalRecords(),
+      ]);
+      setPets(petsRes.data || []);
+      setAppointments(apptRes.data || []);
+      setRecords(recRes.data || []);
+    } catch {
+      setError("Failed to load pets data.");
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── Favorites ──────────────────────────────────────────────────────────────
+
+  const toggleFavorite = (id) => {
+    setFavorites((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id];
+      localStorage.setItem("po_fav_pets", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // ─── Filters ────────────────────────────────────────────────────────────────
+
+  const speciesOptions = [
+    ...new Set(pets.map((p) => p.species).filter(Boolean)),
+  ];
+
+  const filteredPets = pets.filter((pet) => {
+    const petRecords = records.filter((r) => r.petId === pet.id);
+    if (search && !pet.name.toLowerCase().includes(search.toLowerCase()))
+      return false;
+    if (filterCategory === "has-records" && !petRecords.length) return false;
+    if (filterCategory === "favorites" && !favorites.includes(pet.id))
+      return false;
+    if (
+      filterSpecies &&
+      pet.species?.toLowerCase() !== filterSpecies.toLowerCase()
+    )
+      return false;
+    if (filterSex && pet.gender?.toLowerCase() !== filterSex.toLowerCase())
+      return false;
+    if (filterAge === "young" && (pet.age == null || pet.age > 2)) return false;
+    if (
+      filterAge === "adult" &&
+      (pet.age == null || pet.age < 3 || pet.age > 7)
+    )
+      return false;
+    if (filterAge === "senior" && (pet.age == null || pet.age < 8)) return false;
+    return true;
+  });
+
+  // ─── Modal handlers ─────────────────────────────────────────────────────────
+
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm);
-    setError("");
+    setFormError("");
     setShowModal(true);
   };
 
@@ -81,102 +234,242 @@ const PetOwnerMyPets = () => {
     setEditing(pet);
     setForm({
       name: pet.name || "",
-      species: pet.species || "Dog",
+      species: pet.species || "",
       breed: pet.breed || "",
-      age: pet.age?.toString() || "",
       gender: pet.gender || "",
-      status: pet.status || "Healthy",
+      age: pet.age != null ? String(pet.age) : "",
+      birthday: pet.birthday ? pet.birthday.slice(0, 10) : "",
+      weight: pet.weight != null ? String(pet.weight) : "",
+      image: pet.image || "",
       notes: pet.notes || "",
     });
-    setError("");
+    setFormError("");
     setShowModal(true);
+  };
+
+  const onSelectImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () =>
+      setForm((p) => ({ ...p, image: String(reader.result || "") }));
+    reader.readAsDataURL(file);
   };
 
   const submitPet = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.species.trim()) {
-      setError("Name and species are required");
+      setFormError("Name and Species are required.");
       return;
     }
-
     setSaving(true);
-    setError("");
+    setFormError("");
     try {
       const payload = {
-        ...form,
         name: form.name.trim(),
         species: form.species.trim(),
-        breed: form.breed || null,
-        age: form.age ? Number(form.age) : null,
+        breed: form.breed.trim() || null,
         gender: form.gender || null,
-        notes: form.notes || null,
+        age: form.age !== "" ? Number(form.age) : null,
+        birthday: form.birthday || null,
+        weight: form.weight !== "" ? parseFloat(form.weight) : null,
+        image: form.image || null,
+        notes: form.notes.trim() || null,
       };
-
       if (editing) {
         await updatePet(editing.id, payload);
       } else {
         await createPet(payload);
       }
-
       setShowModal(false);
-      setEditing(null);
-      setForm(emptyForm);
-      await loadPets();
+      setSelectedPet(null);
+      await loadAll();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to save pet");
+      setFormError(err.response?.data?.message || "Failed to save pet.");
     } finally {
       setSaving(false);
     }
   };
 
   const archivePet = async (pet) => {
-    if (!window.confirm(`Archive ${pet.name}?`)) return;
+    if (!window.confirm(`Remove ${pet.name} from your pet list?`)) return;
     try {
       await deletePet(pet.id);
-      await loadPets();
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to archive pet");
+      if (selectedPet?.id === pet.id) setSelectedPet(null);
+      await loadAll();
+    } catch {
+      setError("Failed to remove pet.");
     }
   };
 
-  const openAiInsight = async (petOrRecord, refresh = false) => {
-    setAiModal({
-      record: petOrRecord?.petId ? petOrRecord : null,
-      insight: null,
-      loading: true,
-      error: "",
-    });
-    try {
-      let record = petOrRecord?.petId ? petOrRecord : null;
+  // ─── Avatar sub-component ────────────────────────────────────────────────────
 
-      if (!record) {
-        // Request latest record for this pet from server (API filters by owner)
-        const res = await getMedicalRecords({
-          petId: petOrRecord.id,
-          limit: 1,
-        });
-        const recs = res.data || [];
-        if (!recs.length) {
-          setAiModal({
-            loading: false,
-            error: "No medical records found for this pet.",
-          });
-          return;
-        }
-        record = recs[0];
-      }
-
-      // Request AI insight for the record
-      const insightRes = await getMedicalRecordAiInsight(record.id, refresh);
-      setAiModal({ record, loading: false, error: "", ...insightRes.data });
-    } catch (err) {
-      setAiModal((prev) => ({
-        ...prev,
-        loading: false,
-        error: err.response?.data?.message || "Failed to generate AI insight",
-      }));
+  const PetAvatar = ({ pet, size = 72 }) => {
+    if (pet.image) {
+      return (
+        <img
+          src={pet.image}
+          alt={pet.name}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: "50%",
+            objectFit: "cover",
+            border: "3px solid #c9eaf7",
+          }}
+        />
+      );
     }
+    return (
+      <div
+        className="pet-avatar-initials"
+        style={{ width: size, height: size, fontSize: size * 0.36 }}
+      >
+        {pet.name?.charAt(0).toUpperCase() || "?"}
+      </div>
+    );
   };
+
+  // ─── Detail panel ────────────────────────────────────────────────────────────
+
+  const DetailPanel = ({ pet }) => {
+    const petRecords = records.filter((r) => r.petId === pet.id);
+    const sortedRecs = [...petRecords].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+    );
+    const latestRec = sortedRecs[0];
+    const vaccStatus = getVaccinationStatus(petRecords);
+    const lastVisit = getLastVisit(pet.id, appointments);
+    const nextCheckup = getNextCheckup(pet.id, appointments);
+    const activeCondition =
+      latestRec?.status === "FollowUp" ? latestRec.diagnosis : null;
+    const isFav = favorites.includes(pet.id);
+
+    return (
+      <div className="pet-detail-panel">
+        {/* Gradient header */}
+        <div className="pet-detail-header">
+          <button
+            className="detail-back-btn"
+            onClick={() => setSelectedPet(null)}
+          >
+            ← Back to Pets
+          </button>
+          <PetAvatar pet={pet} size={90} />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3 style={{ margin: 0 }}>{pet.name}</h3>
+              <button
+                className={`fav-btn${isFav ? " active" : ""}`}
+                style={{ position: "static", fontSize: "1.3rem", color: isFav ? "#e76f51" : "rgba(255,255,255,0.5)" }}
+                onClick={() => toggleFavorite(pet.id)}
+                title={isFav ? "Remove from favorites" : "Add to favorites"}
+              >
+                ♥
+              </button>
+            </div>
+            <p style={{ margin: "4px 0 0", opacity: 0.85, fontSize: "0.88rem" }}>
+              {[pet.species, pet.breed].filter(Boolean).join(" · ")}
+              {pet.gender ? ` · ${pet.gender}` : ""}
+            </p>
+            <p style={{ margin: "2px 0 0", opacity: 0.75, fontSize: "0.82rem" }}>
+              {[
+                pet.age != null
+                  ? `${pet.age} yr${pet.age !== 1 ? "s" : ""}`
+                  : null,
+                pet.weight != null ? `${pet.weight} kg` : null,
+                pet.birthday ? `Born ${fmtDate(pet.birthday)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button className="detail-edit-btn" onClick={() => openEdit(pet)}>
+              Edit
+            </button>
+            <button
+              className="detail-delete-btn"
+              onClick={() => archivePet(pet)}
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="pet-detail-body">
+          {/* Health Snapshot */}
+          <div className="health-snapshot-card">
+            <h5>🩺 Health Snapshot</h5>
+            <div className="snapshot-row">
+              <span>Vaccination Status</span>
+              <span
+                className={
+                  vaccStatus === "Up to date"
+                    ? "vacc-up-to-date"
+                    : vaccStatus === "Due"
+                    ? "vacc-due"
+                    : "vacc-missing"
+                }
+              >
+                {vaccStatus}
+              </span>
+            </div>
+            <div className="snapshot-row">
+              <span>Last Visit</span>
+              <span>{fmtDate(lastVisit)}</span>
+            </div>
+            <div className="snapshot-row">
+              <span>Next Scheduled Check-up</span>
+              <span>{fmtDate(nextCheckup)}</span>
+            </div>
+            <div className="snapshot-row">
+              <span>Active Conditions</span>
+              <span style={{ color: activeCondition ? "#c62828" : "#888" }}>
+                {activeCondition || "None noted"}
+              </span>
+            </div>
+            {petRecords.length > 0 && (
+              <div className="snapshot-row">
+                <span>Medical Records</span>
+                <span style={{ color: "#2e7d32", fontWeight: 600 }}>
+                  {petRecords.length} record
+                  {petRecords.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Appointment actions */}
+          <div className="detail-actions">
+            <button
+              className="detail-view-appt-btn"
+              onClick={() => navigate("/pet-owner-appointments")}
+            >
+              📅 View Appointments
+            </button>
+            <button
+              className="detail-book-appt-btn"
+              onClick={() => navigate("/pet-owner-appointments")}
+            >
+              ＋ Book Appointment
+            </button>
+          </div>
+
+          {/* Notes */}
+          {pet.notes && (
+            <div className="detail-notes">
+              <h5>Notes</h5>
+              <p>{pet.notes}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Main render ─────────────────────────────────────────────────────────────
 
   return (
     <div className="dashboard-container">
@@ -210,372 +503,357 @@ const PetOwnerMyPets = () => {
         </header>
 
         <section className="content-body">
-          <div className="pets-management-card">
-            <div className="table-header-actions">
-              <div className="search-box">
-                <input
-                  type="text"
-                  placeholder="Search pets by name or species..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-              <button className="add-user-btn" onClick={openCreate}>
-                + Add New Pet
+          {error && <p className="pets-error">{error}</p>}
+
+          {/* ── Filter Bar ──────────────────────────────────────────────── */}
+          <div className="pets-filter-bar">
+            <input
+              className="pets-search-input"
+              placeholder="Search by pet name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+
+            {["all", "has-records", "favorites"].map((cat) => (
+              <button
+                key={cat}
+                className={`filter-tab${filterCategory === cat ? " active" : ""}`}
+                onClick={() => setFilterCategory(cat)}
+              >
+                {cat === "all"
+                  ? "All Pets"
+                  : cat === "has-records"
+                  ? "Has Records"
+                  : "♥ Favorites"}
               </button>
-            </div>
+            ))}
 
-            {error && <p className="pets-error">{error}</p>}
+            <select
+              className="filter-select"
+              value={filterSpecies}
+              onChange={(e) => setFilterSpecies(e.target.value)}
+            >
+              <option value="">All Species</option>
+              {speciesOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
 
-            {/* Desktop Table */}
-            <div className="user-table-wrapper table-desktop">
-              <table className="user-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Species / Breed</th>
-                    <th>Age</th>
-                    <th>Gender</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        style={{ textAlign: "center", color: "#888" }}
-                      >
-                        Loading pets...
-                      </td>
-                    </tr>
-                  ) : filtered.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        style={{ textAlign: "center", color: "#888" }}
-                      >
-                        No pets found. Add one to get started.
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map((pet) => (
-                      <tr key={pet.id}>
-                        <td className="user-name-cell">
-                          <div className="user-avatar-small">
-                            {pet.name.charAt(0)}
-                          </div>
-                          <span>{pet.name}</span>
-                        </td>
-                        <td>
-                          {pet.species}
-                          {pet.breed ? ` — ${pet.breed}` : ""}
-                        </td>
-                        <td>{pet.age ? `${pet.age} yr(s)` : "—"}</td>
-                        <td>{pet.gender || "—"}</td>
-                        <td>
-                          <span
-                            className={`status-pill ${pet.status === "Healthy" ? "active" : "inactive"}`}
-                          >
-                            {pet.status}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="action-btns">
-                            <button
-                              className="ai-insight-btn icon-btn"
-                              title="AI Insight"
-                              aria-label="AI Insight"
-                              onClick={() => openAiInsight(pet)}
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                aria-hidden="true"
-                              >
-                                <path
-                                  d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </button>
-                            <button
-                              className="edit-btn icon-btn"
-                              onClick={() => openEdit(pet)}
-                              title="Edit pet"
-                              aria-label="Edit pet"
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                aria-hidden="true"
-                              >
-                                <path
-                                  d="M4 20h4l10-10-4-4L4 16v4z"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinejoin="round"
-                                />
-                                <path
-                                  d="M12 6l4 4"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                            </button>
-                            <button
-                              className="delete-btn icon-btn"
-                              onClick={() => archivePet(pet)}
-                              title="Archive pet"
-                              aria-label="Archive pet"
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                aria-hidden="true"
-                              >
-                                <path
-                                  d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <select
+              className="filter-select"
+              value={filterSex}
+              onChange={(e) => setFilterSex(e.target.value)}
+            >
+              <option value="">All Sex</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
 
-            {/* Mobile Cards */}
-            <div className="table-mobile table-cards-list">
-              {loading ? (
-                <p style={{ textAlign: "center", color: "#888" }}>
-                  Loading pets...
-                </p>
-              ) : filtered.length === 0 ? (
-                <p style={{ textAlign: "center", color: "#888" }}>
-                  No pets found. Add one to get started.
-                </p>
-              ) : (
-                filtered.map((pet) => (
-                  <div className="pets-card" key={pet.id}>
-                    <div className="pets-card-header">
-                      <div className="pets-card-avatar">
-                        {pet.name?.charAt(0) || "?"}
-                      </div>
-                      <div className="pets-card-name">{pet.name}</div>
-                    </div>
-                    <div className="pets-card-body">
-                      <div className="pets-card-row">
-                        <span className="pets-card-label">Species / Breed</span>
-                        <span>
-                          {pet.species}
-                          {pet.breed ? ` — ${pet.breed}` : ""}
-                        </span>
-                      </div>
-                      <div className="pets-card-row">
-                        <span className="pets-card-label">Age</span>
-                        <span>{pet.age ? `${pet.age} yr(s)` : "—"}</span>
-                      </div>
-                      <div className="pets-card-row">
-                        <span className="pets-card-label">Gender</span>
-                        <span>{pet.gender || "—"}</span>
-                      </div>
-                      <div className="pets-card-row">
-                        <span className="pets-card-label">Status</span>
-                        <span
-                          className={`status-pill ${pet.status === "Healthy" ? "active" : "inactive"}`}
-                        >
-                          {pet.status}
-                        </span>
-                      </div>
-                      <div className="pets-card-row">
-                        <span className="pets-card-label">Actions</span>
-                        <div className="action-btns">
-                          <button
-                            className="ai-insight-btn icon-btn"
-                            title="AI Insight"
-                            aria-label="AI Insight"
-                            onClick={() => openAiInsight(pet)}
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            className="edit-btn icon-btn"
-                            onClick={() => openEdit(pet)}
-                            title="Edit pet"
-                            aria-label="Edit pet"
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d="M4 20h4l10-10-4-4L4 16v4z"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinejoin="round"
-                              />
-                              <path
-                                d="M12 6l4 4"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            className="delete-btn icon-btn"
-                            onClick={() => archivePet(pet)}
-                            title="Archive pet"
-                            aria-label="Archive pet"
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
+            <select
+              className="filter-select"
+              value={filterAge}
+              onChange={(e) => setFilterAge(e.target.value)}
+            >
+              <option value="">All Ages</option>
+              <option value="young">Young (≤2 yrs)</option>
+              <option value="adult">Adult (3–7 yrs)</option>
+              <option value="senior">Senior (8+ yrs)</option>
+            </select>
+
+            <button className="add-pet-btn" onClick={openCreate}>
+              + Add Pet
+            </button>
+          </div>
+
+          {/* ── Content ─────────────────────────────────────────────────── */}
+          {loading ? (
+            <p style={{ color: "#888", textAlign: "center", marginTop: 40 }}>
+              Loading pets…
+            </p>
+          ) : selectedPet ? (
+            <DetailPanel pet={selectedPet} />
+          ) : filteredPets.length === 0 ? (
+            <div className="pets-empty">
+              <p>
+                No pets found.{" "}
+                {pets.length === 0
+                  ? "Add your first pet to get started!"
+                  : "Try adjusting your filters."}
+              </p>
+              {pets.length === 0 && (
+                <button className="add-pet-btn" onClick={openCreate}>
+                  + Add Pet
+                </button>
               )}
             </div>
-          </div>
+          ) : (
+            <div className="pets-grid">
+              {filteredPets.map((pet) => {
+                const petRecords = records.filter((r) => r.petId === pet.id);
+                const status = getPetStatus(pet, appointments);
+                const reminder = hasReminder(pet, appointments, petRecords);
+                const isFav = favorites.includes(pet.id);
+
+                return (
+                  <div key={pet.id} className="pet-card">
+                    <button
+                      className={`fav-btn${isFav ? " active" : ""}`}
+                      onClick={() => toggleFavorite(pet.id)}
+                      title={isFav ? "Remove from favorites" : "Add to favorites"}
+                    >
+                      ♥
+                    </button>
+
+                    <PetAvatar pet={pet} />
+
+                    {(reminder || petRecords.length > 0) && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {reminder && (
+                          <span className="reminder-badge">🔔 Reminder</span>
+                        )}
+                        {petRecords.length > 0 && (
+                          <span className="records-badge">
+                            <span className="has-records-dot" />
+                            Records
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "0.95rem",
+                          color: "#255065",
+                        }}
+                      >
+                        {pet.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.78rem",
+                          color: "#777",
+                          marginTop: 2,
+                        }}
+                      >
+                        {[pet.species, pet.breed].filter(Boolean).join(" · ")}
+                      </div>
+                      {(pet.gender || pet.age != null) && (
+                        <div
+                          style={{
+                            fontSize: "0.74rem",
+                            color: "#999",
+                            marginTop: 1,
+                          }}
+                        >
+                          {[
+                            pet.gender,
+                            pet.age != null ? `${pet.age} yr${pet.age !== 1 ? "s" : ""}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      )}
+                    </div>
+
+                    <span
+                      className={`pet-status-badge ${
+                        STATUS_BADGE_CLASS[status] || "badge-gray"
+                      }`}
+                    >
+                      {status}
+                    </span>
+
+                    <div className="pet-card-actions">
+                      <button
+                        className="btn-view-detail"
+                        onClick={() => setSelectedPet(pet)}
+                      >
+                        View Details
+                      </button>
+                      <button
+                        className="btn-book-appt"
+                        onClick={() => navigate("/pet-owner-appointments")}
+                      >
+                        Book Appt
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       </main>
 
+      {/* ── Create / Edit Modal ───────────────────────────────────────────── */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3>{editing ? "Edit Pet" : "Add New Pet"}</h3>
-
+          <div
+            className="modal-box pet-form-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <form onSubmit={submitPet} className="user-modal-form">
+              <h3>{editing ? `Edit ${editing.name}` : "Add New Pet"}</h3>
+
+              {/* Image upload */}
+              <div className="avatar-upload-wrap">
+                {form.image ? (
+                  <img src={form.image} alt="Preview" className="avatar-preview" />
+                ) : (
+                  <div
+                    className="pet-avatar-initials avatar-preview"
+                    style={{ fontSize: "1.6rem" }}
+                  >
+                    {form.name?.charAt(0).toUpperCase() || "🐾"}
+                  </div>
+                )}
+                <label className="upload-btn">
+                  Upload Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={onSelectImage}
+                  />
+                </label>
+              </div>
+
+              {/* Name | Species */}
               <div className="form-row">
                 <div className="form-group">
-                  <label>Name *</label>
+                  <label>Pet Name *</label>
                   <input
-                    placeholder="Pet name"
+                    required
                     value={form.name}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, name: e.target.value }))
                     }
-                    required
+                    placeholder="e.g. Buddy"
                   />
                 </div>
                 <div className="form-group">
                   <label>Species *</label>
                   <input
-                    placeholder="e.g. Dog, Cat"
+                    required
                     value={form.species}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, species: e.target.value }))
                     }
-                    required
+                    placeholder="e.g. Dog, Cat"
                   />
                 </div>
               </div>
 
+              {/* Breed | Sex */}
               <div className="form-row">
                 <div className="form-group">
                   <label>Breed</label>
                   <input
-                    placeholder="Breed"
                     value={form.breed}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, breed: e.target.value }))
                     }
+                    placeholder="e.g. Labrador"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Age</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Age"
-                    value={form.age}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, age: e.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Gender</label>
+                  <label>Sex</label>
                   <select
                     value={form.gender}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, gender: e.target.value }))
                     }
                   >
-                    <option value="">Select gender</option>
+                    <option value="">— Select —</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Age | Weight */}
+              <div className="form-row">
                 <div className="form-group">
-                  <label>Status *</label>
-                  <select
-                    value={form.status}
+                  <label>Age (years)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={form.age}
                     onChange={(e) =>
-                      setForm((p) => ({ ...p, status: e.target.value }))
+                      setForm((p) => ({ ...p, age: e.target.value }))
                     }
-                    required
+                    placeholder="e.g. 3"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Weight (kg)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={form.weight}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, weight: e.target.value }))
+                    }
+                    placeholder="e.g. 5.2"
+                  />
+                </div>
+              </div>
+
+              {/* Birthday */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Birthday</label>
+                  <input
+                    type="date"
+                    value={form.birthday}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, birthday: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="form-group" />
+              </div>
+
+              {/* Status — edit only, read-only */}
+              {editing && (
+                <div className="form-group">
+                  <label>Status</label>
+                  <select
+                    value={editing.status || "Healthy"}
+                    disabled
+                    style={{ background: "#f5f5f5", cursor: "not-allowed" }}
                   >
                     <option value="Healthy">Healthy</option>
                     <option value="UnderTreatment">Under Treatment</option>
                     <option value="Deceased">Deceased</option>
                   </select>
+                  <span style={{ fontSize: "11px", color: "#999" }}>
+                    Status is managed by the clinic staff.
+                  </span>
                 </div>
-              </div>
+              )}
 
+              {/* Notes */}
               <div className="form-group">
                 <label>Notes</label>
                 <textarea
-                  rows={3}
-                  placeholder="Notes"
+                  rows="2"
                   value={form.notes}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, notes: e.target.value }))
                   }
+                  placeholder="Any additional notes…"
+                  style={{ resize: "vertical", fontFamily: "inherit" }}
                 />
               </div>
 
-              {error && <p className="modal-error">{error}</p>}
+              {formError && <p className="modal-error">{formError}</p>}
 
               <div className="modal-actions">
                 <button
@@ -586,121 +864,10 @@ const PetOwnerMyPets = () => {
                   Cancel
                 </button>
                 <button type="submit" className="save-btn" disabled={saving}>
-                  {saving ? "Saving..." : editing ? "Save Changes" : "Add Pet"}
+                  {saving ? "Saving…" : editing ? "Save Changes" : "Add Pet"}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {aiModal && (
-        <div className="modal-overlay" onClick={() => setAiModal(null)}>
-          <div
-            className="modal-box ai-insight-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="ai-insight-header">
-              <div className="ai-generated-badge">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                  width="14"
-                  height="14"
-                >
-                  <path
-                    d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                AI Generated
-              </div>
-              <h3>Health Insight — {aiModal.record?.pet?.name}</h3>
-              <p className="ai-insight-subheading">
-                {aiModal.record?.diagnosis}
-              </p>
-              <p className="ai-insight-subheading">
-                Analyzed from full medical history across all records.
-              </p>
-            </div>
-
-            {aiModal.loading && (
-              <div className="ai-insight-loading">
-                <div className="ai-loading-spinner" />
-                <span>Generating health insight...</span>
-              </div>
-            )}
-
-            {aiModal.error && (
-              <p className="ai-insight-error">{aiModal.error}</p>
-            )}
-
-            {!aiModal.loading && aiModal.insight && (
-              <div className="ai-insight-body">
-                <div className="ai-insight-content">
-                  {aiModal.insight
-                    .split("\n")
-                    .map((line, i) =>
-                      line.trim() ? <p key={i}>{line}</p> : <br key={i} />,
-                    )}
-                </div>
-                <div className="ai-disclaimer">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden="true"
-                    width="14"
-                    height="14"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    />
-                    <path
-                      d="M12 8v4m0 4h.01"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  {aiModal.disclaimer}
-                </div>
-                <div className="ai-meta">
-                  {aiModal.fromCache
-                    ? "Cached insight · "
-                    : "Freshly generated · "}
-                  {aiModal.aiModel} &middot;{" "}
-                  {aiModal.generatedAt
-                    ? new Date(aiModal.generatedAt).toLocaleString()
-                    : ""}
-                </div>
-              </div>
-            )}
-
-            <div className="modal-actions">
-              {!aiModal.loading &&
-                aiModal.insight &&
-                user &&
-                (user.role === "veterinarian" ||
-                  user.role === "staff" ||
-                  user.role === "admin") && (
-                  <button
-                    className="cancel-btn"
-                    onClick={() => openAiInsight(aiModal.record, true)}
-                  >
-                    Refresh
-                  </button>
-                )}
-              <button className="save-btn" onClick={() => setAiModal(null)}>
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}
