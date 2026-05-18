@@ -405,3 +405,282 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+.cancel-btn {
+  background: #e5e7eb;
+  color: #111827;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ─── FILTER BAR ─────────────────────────────────────────────────────────── */
+.medrec-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.medrec-search {
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 0.83rem;
+  font-family: "Poppins", sans-serif;
+  min-width: 190px;
+  outline: none;
+  background: white;
+}
+
+.medrec-search:focus {
+  border-color: #438fb5;
+}
+
+.medrec-select {
+  padding: 7px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: "Poppins", sans-serif;
+  outline: none;
+  background: white;
+  color: #444;
+  cursor: pointer;
+}
+
+.medrec-select:focus {
+  border-color: #438fb5;
+}
+
+.medrec-date-input {
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: "Poppins", sans-serif;
+  outline: none;
+  background: white;
+  color: #444;
+}
+
+.medrec-date-input:focus {
+  border-color: #438fb5;
+}
+
+.medrec-count {
+  font-size: 0.82rem;
+  color: #888;
+  margin-bottom: 14px;
+}
+
+/* ─── RECORD CARD ────────────────────────────────────────────────────────── */
+.medrec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.medrec-card {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transition: box-shadow 0.18s ease;
+}
+
+.medrec-card:hover {
+  box-shadow: 0 4px 16px rgba(67, 143, 181, 0.15);
+}
+
+.medrec-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.medrec-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0f2f5;
+  color: #438fb5;
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.medrec-pet-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.medrec-pet-name {
+  font-weight: 600;
+  color: #255065;
+  font-size: 0.92rem;
+}
+
+.medrec-pet-sub {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 2px;
+}
+
+.medrec-diagnosis-preview {
+  flex: 2;
+  font-size: 0.84rem;
+  color: #555;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 10px;
+}
+
+.medrec-card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.medrec-visit-date {
+  font-size: 0.78rem;
+  color: #999;
+  white-space: nowrap;
+}
+
+.medrec-status-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-finalized { background: #dcfce7; color: #166534; }
+.badge-followup  { background: #fef9c3; color: #854d0e; }
+
+.pdf-btn {
+  background: #f0f9fd;
+  border: 1px solid #c9eaf7;
+  color: #255065;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s;
+}
+
+.pdf-btn:hover {
+  background: #e0f2f5;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #aaa;
+  transition: transform 0.2s ease;
+  padding: 4px 6px;
+  line-height: 1;
+}
+
+.expand-btn.open {
+  transform: rotate(180deg);
+}
+
+/* ─── EXPANDED CARD BODY ─────────────────────────────────────────────────── */
+.medrec-card-body {
+  padding: 0 20px 20px;
+  border-top: 1px solid #f0f4f8;
+}
+
+.medrec-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 28px;
+  margin-top: 16px;
+}
+
+.medrec-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.medrec-field.full-width {
+  grid-column: 1 / -1;
+}
+
+.medrec-field-label {
+  font-size: 0.7rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.medrec-field-value {
+  font-size: 0.86rem;
+  color: #333;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.medrec-card-footer {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f0f4f8;
+}
+
+.medrec-footer-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  transition: opacity 0.18s;
+}
+
+.medrec-footer-btn:hover { opacity: 0.82; }
+
+.medrec-pdf-btn {
+  background: #f0f9fd;
+  color: #255065;
+  border: 1px solid #c9eaf7;
+}
+
+.medrec-ai-btn {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: none;
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .medrec-diagnosis-preview { display: none; }
+  .medrec-visit-date { display: none; }
+}
+
+@media (max-width: 640px) {
+  .medrec-filter-bar { gap: 8px; }
+  .medrec-search { min-width: 100%; }
+  .medrec-details-grid { grid-template-columns: 1fr; }
+  .medrec-card-footer { flex-direction: column; }
+}
