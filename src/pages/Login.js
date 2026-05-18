@@ -124,7 +124,9 @@ const Login = () => {
     }
   };
 
-  const isMobile = () => /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile = () =>
+    /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    window.innerWidth <= 768;
 
   const handleOtpSuccess = (user) => {
     const role = user?.role;
