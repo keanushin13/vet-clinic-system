@@ -862,3 +862,46 @@
     margin-bottom: 0;
   }
 }
+
+/* =====================
+   BOOKING FORM HELPERS
+===================== */
+.required-star {
+  color: #e53e3e;
+  margin-left: 2px;
+}
+
+.add-pet-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.no-pets-hint {
+  font-size: 12px;
+  color: #c62828;
+  margin-top: 4px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #438fb5;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-family: "Poppins", sans-serif;
+}
+.link-btn:hover { color: #255065; }
+
+/* =====================
+   STATUS-LOCKED LABEL
+===================== */
+.apt-locked-note {
+  font-size: 11px;
+  color: #aaa;
+  font-style: italic;
+  padding: 4px 0;
+}

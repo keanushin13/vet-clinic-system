@@ -18,6 +18,57 @@ import {
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
+const VISIT_REASONS = {
+  Consultation: [
+    "General Consultation",
+    "Follow-up Check-up",
+    "Others",
+  ],
+  Vaccination: [
+    "Vanguard 5 in 1",
+    "Vanguard 6 in 1",
+    "Vanguard L4",
+    "Purevac",
+    "Anti Rabies 10DS",
+    "Single Rabies for Cat",
+    "Kennel Kupp KC (Bronchicne)",
+    "Hipra DP",
+    "Hipra DHLP",
+    "Proheart Inj.",
+    "Felocill 4 in 1",
+    "Bondetella",
+  ],
+  Deworming: [
+    "Dog Deworming",
+    "Cat Deworming",
+  ],
+  "Minor Surgery": [
+    "Basic Wound Repair",
+  ],
+  "Medical Consult and Testing": [
+    "CBC",
+    "Blood Chemistry",
+    "Dog Parvo / Distemper Test",
+    "Canine Coronavirus Test",
+    "Blood Parasite Test",
+    "Feline Leukemia Test",
+    "Feline Rhinotracheitis Test",
+    "Giardia Test",
+  ],
+};
+
+function parseReason(reasonStr) {
+  if (!reasonStr) return { visitReason: "", serviceType: "" };
+  const sep = " — ";
+  const idx = reasonStr.indexOf(sep);
+  if (idx === -1) {
+    const knownReasons = Object.keys(VISIT_REASONS);
+    const matchedReason = knownReasons.find((r) => reasonStr.startsWith(r));
+    return { visitReason: matchedReason || "", serviceType: matchedReason ? reasonStr.slice(matchedReason.length).replace(/^[\s\-–—:]+/, "") : reasonStr };
+  }
+  return { visitReason: reasonStr.slice(0, idx), serviceType: reasonStr.slice(idx + sep.length) };
+}
+
 const PetOwnerAppointment = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -40,7 +91,8 @@ const PetOwnerAppointment = () => {
     vetId: "",
     date: "",
     slot: "",
-    reason: "",
+    visitReason: "",
+    serviceType: "",
     notes: "",
   });
   const [expandedStatus, setExpandedStatus] = useState({
@@ -95,7 +147,8 @@ const PetOwnerAppointment = () => {
       vetId: prev.vetId || vets[0]?.id || "",
       date: "",
       slot: "",
-      reason: "",
+      visitReason: "",
+      serviceType: "",
       notes: "",
     }));
   };
@@ -106,12 +159,14 @@ const PetOwnerAppointment = () => {
     setEditing(appointment);
     setShowModal(true);
     setError("");
+    const { visitReason, serviceType } = parseReason(appointment.reason || "");
     setForm({
       petId: appointment.petId,
       vetId: appointment.vetId || "",
       date,
       slot: iso,
-      reason: appointment.reason || "",
+      visitReason,
+      serviceType,
       notes: appointment.notes || "",
     });
 
@@ -152,6 +207,12 @@ const PetOwnerAppointment = () => {
       setError("Please select pet, veterinarian, and time slot");
       return;
     }
+    if (!form.visitReason || !form.serviceType) {
+      setError("Please select a visit reason and service type");
+      return;
+    }
+
+    const assembledReason = `${form.visitReason} — ${form.serviceType}`;
 
     setBooking(true);
     setError("");
@@ -160,7 +221,7 @@ const PetOwnerAppointment = () => {
         await updateAppointment(editing.id, {
           vetId: form.vetId,
           scheduledAt: form.slot,
-          reason: form.reason,
+          reason: assembledReason,
           notes: form.notes,
         });
       } else {
@@ -168,7 +229,7 @@ const PetOwnerAppointment = () => {
           petId: form.petId,
           vetId: form.vetId,
           scheduledAt: form.slot,
-          reason: form.reason,
+          reason: assembledReason,
           notes: form.notes,
         });
       }
@@ -485,51 +546,35 @@ const PetOwnerAppointment = () => {
                               </div>
 
                               <div className="apt-card-actions">
-                                <button
-                                  className="btn-edit icon-btn"
-                                  onClick={() => openEditModal(a)}
-                                  title="Reschedule appointment"
-                                  aria-label="Reschedule appointment"
-                                >
-                                  <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    aria-hidden="true"
-                                  >
-                                    <path
-                                      d="M4 20h4l10-10-4-4L4 16v4z"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinejoin="round"
-                                    />
-                                    <path
-                                      d="M12 6l4 4"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  className="btn-remove icon-btn"
-                                  onClick={() => cancelAppointment(a)}
-                                  title="Cancel appointment"
-                                  aria-label="Cancel appointment"
-                                >
-                                  <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    aria-hidden="true"
-                                  >
-                                    <path
-                                      d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
-                                </button>
+                                {a.status === "Pending" ? (
+                                  <>
+                                    <button
+                                      className="btn-edit icon-btn"
+                                      onClick={() => openEditModal(a)}
+                                      title="Edit appointment"
+                                      aria-label="Edit appointment"
+                                    >
+                                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                                        <path d="M12 6l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      className="btn-remove icon-btn"
+                                      onClick={() => cancelAppointment(a)}
+                                      title="Cancel appointment"
+                                      aria-label="Cancel appointment"
+                                    >
+                                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="apt-locked-note" title="Only pending appointments can be modified">
+                                    View only
+                                  </span>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -556,61 +601,103 @@ const PetOwnerAppointment = () => {
             <h3>{editing ? "Update Appointment" : "Book Appointment"}</h3>
 
             <form onSubmit={submitBooking} className="user-modal-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Pet</label>
-                  <select
-                    name="petId"
-                    value={form.petId}
-                    onChange={onFieldChange}
-                    required
-                  >
-                    {pets.map((p) => (
+              {/* Pet selection */}
+              <div className="form-group">
+                <label>
+                  Pet <span className="required-star">*</span>
+                </label>
+                <select
+                  name="petId"
+                  value={form.petId}
+                  onChange={onFieldChange}
+                  required
+                  disabled={!!editing}
+                >
+                  {pets.length === 0 ? (
+                    <option value="">No pets found</option>
+                  ) : (
+                    pets.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name}
+                        {p.name} ({p.species})
                       </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Veterinarian</label>
-                  <select
-                    name="vetId"
-                    value={form.vetId}
-                    onChange={onFieldChange}
-                    required
-                  >
-                    {vets.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {`${v.firstName || ""} ${v.lastName || ""}`.trim() ||
-                          v.username}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    ))
+                  )}
+                </select>
+                {pets.length === 0 ? (
+                  <p className="no-pets-hint">
+                    No pets found.{" "}
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => navigate("/pet-owner-pets")}
+                    >
+                      Add a pet first
+                    </button>
+                  </p>
+                ) : (
+                  <p className="add-pet-hint">
+                    Need to add a new pet?{" "}
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => navigate("/pet-owner-pets")}
+                    >
+                      Go to My Pets
+                    </button>
+                  </p>
+                )}
               </div>
 
+              {/* Veterinarian */}
               <div className="form-group">
-                <label>Date</label>
+                <label>
+                  Veterinarian <span className="required-star">*</span>
+                </label>
+                <select
+                  name="vetId"
+                  value={form.vetId}
+                  onChange={onFieldChange}
+                  required
+                >
+                  <option value="">Select veterinarian…</option>
+                  {vets.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {`${v.firstName || ""} ${v.lastName || ""}`.trim() || v.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date */}
+              <div className="form-group">
+                <label>
+                  Date <span className="required-star">*</span>
+                </label>
                 <input
                   type="date"
                   name="date"
                   value={form.date}
                   onChange={onFieldChange}
                   required
+                  min={new Date().toISOString().slice(0, 10)}
                 />
               </div>
 
+              {/* Available Time Slot */}
               <div className="form-group">
-                <label>Available Time Slot</label>
+                <label>
+                  Available Time Slot <span className="required-star">*</span>
+                </label>
                 <select
                   name="slot"
                   value={form.slot}
                   onChange={onFieldChange}
                   required
+                  disabled={!form.vetId || !form.date}
                 >
-                  <option value="">Select a slot</option>
+                  <option value="">
+                    {!form.vetId || !form.date ? "Select vet and date first" : "Select a slot"}
+                  </option>
                   {slots.map((s) => (
                     <option key={s.startsAt} value={s.startsAt}>
                       {new Date(s.startsAt).toLocaleTimeString([], {
@@ -620,36 +707,63 @@ const PetOwnerAppointment = () => {
                     </option>
                   ))}
                 </select>
+                {form.vetId && form.date && slots.length === 0 && (
+                  <p className="add-pet-hint">No available slots for this date.</p>
+                )}
               </div>
 
+              {/* Visit Reason */}
               <div className="form-group">
-                <label>Reason</label>
+                <label>
+                  Visit Reason <span className="required-star">*</span>
+                </label>
                 <select
-                  name="reason"
-                  value={form.reason}
-                  onChange={onFieldChange}
+                  name="visitReason"
+                  value={form.visitReason}
                   required
+                  onChange={(e) => {
+                    const vr = e.target.value;
+                    setForm((prev) => ({ ...prev, visitReason: vr, serviceType: "" }));
+                  }}
                 >
-                  <option value="">Select a reason</option>
-                  <option value="Checkup">Checkup</option>
-                  <option value="Follow-up">Follow-up</option>
-                  <option value="Vaccination">Vaccination</option>
-                  <option value="Dental cleaning">Dental cleaning</option>
-                  <option value="Surgery">Surgery</option>
-                  <option value="Medication refill">Medication refill</option>
-                  <option value="Others">
-                    Others, please specify on Notes
-                  </option>
+                  <option value="">Select visit reason…</option>
+                  {Object.keys(VISIT_REASONS).map((vr) => (
+                    <option key={vr} value={vr}>{vr}</option>
+                  ))}
                 </select>
               </div>
 
+              {/* Service Type — only shown when visitReason is selected */}
+              {form.visitReason && (
+                <div className="form-group">
+                  <label>
+                    Service Type <span className="required-star">*</span>
+                  </label>
+                  <select
+                    name="serviceType"
+                    value={form.serviceType}
+                    required
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, serviceType: e.target.value }))
+                    }
+                  >
+                    <option value="">Select service…</option>
+                    {(VISIT_REASONS[form.visitReason] || []).map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Notes */}
               <div className="form-group">
-                <label>Notes</label>
+                <label>Notes (optional)</label>
                 <textarea
                   name="notes"
                   value={form.notes}
                   onChange={onFieldChange}
                   rows={3}
+                  placeholder="Any additional information for the vet…"
                 />
               </div>
 
