@@ -70,26 +70,43 @@ import PetOwnerPayHis from "./pages/dashboards/PetOwner/PetOwnerPayHis";
 import PetOwnerProfile from "./pages/dashboards/PetOwner/PetOwnerProfile";
 
 function App() {
-  const getStoredUser = () => {
+  const [authState, setAuthState] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("user") || "{}");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const token = localStorage.getItem("token");
+      return { user, token };
     } catch {
-      return {};
+      return { user: {}, token: null };
     }
-  };
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const token = localStorage.getItem("token");
+        setAuthState({ user, token });
+      } catch {
+        setAuthState({ user: {}, token: null });
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  const getStoredUser = () => authState.user;
 
   const canAccessPetOwnerRoutes = () => {
-    const user = getStoredUser();
-    const token = localStorage.getItem("token");
     return Boolean(
-      token && user?.role === "pet_owner" && user?.profileCompleted,
+      authState.token &&
+        authState.user?.role === "pet_owner" &&
+        authState.user?.profileCompleted,
     );
   };
 
   const canAccessProfileSetup = () => {
-    const user = getStoredUser();
-    const token = localStorage.getItem("token");
-    return Boolean(token && user?.role === "pet_owner");
+    return Boolean(authState.token && authState.user?.role === "pet_owner");
   };
 
   const [showTutorial, setShowTutorial] = useState(() => {
