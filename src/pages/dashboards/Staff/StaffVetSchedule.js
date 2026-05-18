@@ -62,7 +62,6 @@ export default function StaffVetSchedule() {
     openTime: "08:00", closeTime: "17:00", breakStart: "", breakEnd: "",
   }));
   const [clinicHours, setClinicHours] = useState(defaultClinicHours);
-  const [, setClinicLoading] = useState(false);
   const [clinicSaving, setClinicSaving] = useState(false);
   const [clinicError, setClinicError] = useState("");
   const [clinicSuccess, setClinicSuccess] = useState("");
