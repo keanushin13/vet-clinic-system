@@ -62,8 +62,10 @@ const Login = () => {
 
       const { token, user } = res.data;
       if (token) localStorage.setItem("token", token);
-      if (user) localStorage.setItem("user", JSON.stringify(user));
-      handleOtpSuccess(user);
+      if (user) {
+        localStorage.setItem("user", JSON.stringify(user));
+        handleOtpSuccess(user);
+      }
     } catch (err) {
       const status = err.response?.status;
       const data = err.response?.data;
@@ -123,14 +125,13 @@ const Login = () => {
   };
 
   const handleOtpSuccess = (user) => {
-    const role = user.role;
-    if (role === "pet_owner" && !user.profileCompleted) {
-      navigate("/profile-setup");
-      return;
-    } else if (role === "admin") navigate("/admin");
+    const role = user?.role;
+    if (role === "admin") navigate("/admin");
     else if (role === "veterinarian") navigate("/vet");
     else if (role === "staff") navigate("/staff");
-    else navigate("/pet-owner");
+    else if (role === "pet_owner") {
+      navigate(user.profileCompleted ? "/pet-owner" : "/profile-setup");
+    }
   };
 
   return (
