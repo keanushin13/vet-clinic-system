@@ -24,6 +24,7 @@ const PetOwnerProfile = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
 
   const [editForm, setEditForm] = useState({
     firstName: "",
@@ -66,6 +67,7 @@ const PetOwnerProfile = () => {
   const openEditModal = () => {
     setError("");
     setSuccess("");
+    setUsernameError("");
     setEditForm({
       firstName: profile?.firstName || "",
       lastName: profile?.lastName || "",
@@ -113,7 +115,12 @@ const PetOwnerProfile = () => {
       setShowEditModal(false);
       setSuccess("Profile updated successfully");
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to update profile");
+      const msg = err.response?.data?.message || "Failed to update profile";
+      if (msg.toLowerCase().includes("username")) {
+        setUsernameError(msg);
+      } else {
+        setError(msg);
+      }
     } finally {
       setSavingProfile(false);
     }
@@ -351,6 +358,7 @@ const PetOwnerProfile = () => {
                     </span>
                   </label>
                   <input
+                    required
                     maxLength="20"
                     value={editForm.firstName}
                     onChange={(e) =>
@@ -369,6 +377,7 @@ const PetOwnerProfile = () => {
                     </span>
                   </label>
                   <input
+                    required
                     maxLength="20"
                     value={editForm.lastName}
                     onChange={(e) =>
@@ -386,10 +395,16 @@ const PetOwnerProfile = () => {
                   <input
                     required
                     value={editForm.username}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, username: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setUsernameError("");
+                      setEditForm((p) => ({ ...p, username: e.target.value }));
+                    }}
                   />
+                  {usernameError && (
+                    <span style={{ color: "#c62828", fontSize: "12px", marginTop: "2px" }}>
+                      {usernameError}
+                    </span>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>
@@ -436,6 +451,7 @@ const PetOwnerProfile = () => {
                     </span>
                   </label>
                   <textarea
+                    required
                     maxLength="50"
                     rows="2"
                     value={editForm.address}
