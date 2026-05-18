@@ -513,3 +513,35 @@
 .cancel-btn:hover {
   background: #f3f4f6;
 }
+
+
+/* =====================
+   BROADCAST BUTTON
+===================== */
+.broadcast-btn {
+  background: #255065;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  white-space: nowrap;
+}
+.broadcast-btn:hover { background: #1a3d4f; }
+
+/* =====================
+   UNREAD / CONCERNS FILTER
+===================== */
+.unread-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}

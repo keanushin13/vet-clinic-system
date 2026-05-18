@@ -53,8 +53,8 @@ export const adminResetPassword = (id, newPassword) =>
 export const toggleUserActive = (id) => API.patch(`/users/${id}/toggle-active`);
 export const updatePassword = (data) =>
   API.post("/users/update-password", data);
-export const getStaffClients = () =>
-  API.get("/users", { params: { role: "pet_owner" } });
+export const getStaffClients = (params = {}) =>
+  API.get("/users", { params: { role: "pet_owner", ...params } });
 export const createStaffClient = (data) => API.post("/users/create", data);
 export const updateStaffClient = (id, data) => API.put(`/users/${id}`, data);
 export const toggleStaffClientActive = (id) =>

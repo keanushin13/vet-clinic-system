@@ -213,3 +213,74 @@
     align-items: flex-start;
   }
 }
+
+/* =====================
+   EXCEPTION PAGINATION
+===================== */
+.exc-pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.exc-page-btn {
+  background: #f0f9ff;
+  color: #438fb5;
+  border: 1.5px solid #438fb5;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.exc-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.exc-page-btn:hover:not(:disabled) { background: #e0f0f8; }
+.exc-page-info { font-size: 12px; color: #555; }
+
+/* =====================
+   CLINIC HOURS
+===================== */
+.clinic-hours-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.clinic-hours-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #f8f9fc;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.clinic-day-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #255065;
+  min-width: 110px;
+  cursor: pointer;
+}
+.clinic-hours-times {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #555;
+}
+.clinic-hours-times input[type="time"] {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #e0e0e0;
+  font-size: 13px;
+  font-family: "Poppins", sans-serif;
+  outline: none;
+}
+.clinic-hours-times input[type="time"]:focus { border-color: #438fb5; }
+.clinic-hours-break { color: #888; font-size: 12px; margin-left: 8px; }
+.clinic-hours-closed { color: #aaa; font-size: 13px; font-style: italic; }

@@ -9,6 +9,8 @@ import {
   getAvailableVets,
   getVetSchedule,
   updateVetSchedule,
+  getClinicSettings,
+  updateClinicSettings,
 } from "../../../api/api";
 import "../../../css/VetSchedule.css";
 import "../../../css/responsive-tables.css";
@@ -48,6 +50,22 @@ export default function StaffVetSchedule() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Exception pagination
+  const [excPage, setExcPage] = useState(1);
+  const EXC_LIMIT = 10;
+
+  // Clinic hours state
+  const clinicDays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const defaultClinicHours = clinicDays.map((_, i) => ({
+    dayOfWeek: i, isOpen: i >= 1 && i <= 6,
+    openTime: "08:00", closeTime: "17:00", breakStart: "", breakEnd: "",
+  }));
+  const [clinicHours, setClinicHours] = useState(defaultClinicHours);
+  const [clinicLoading, setClinicLoading] = useState(false);
+  const [clinicSaving, setClinicSaving] = useState(false);
+  const [clinicError, setClinicError] = useState("");
+  const [clinicSuccess, setClinicSuccess] = useState("");
   const [exceptionForm, setExceptionForm] = useState({
     startsAt: "",
     endsAt: "",
@@ -67,18 +85,52 @@ export default function StaffVetSchedule() {
     setLoading(true);
     setError("");
     try {
-      const res = await getAvailableVets();
-      setVets(res.data || []);
-      if (res.data?.length) {
-        const first = res.data[0];
+      const [vetRes, clinicRes] = await Promise.all([
+        getAvailableVets(),
+        getClinicSettings().catch(() => null),
+      ]);
+      setVets(vetRes.data || []);
+      if (vetRes.data?.length) {
+        const first = vetRes.data[0];
         setSelectedVetId(first.id);
         await loadVetSchedule(first.id, first);
+      }
+      if (clinicRes?.data) {
+        const incoming = Array.isArray(clinicRes.data) ? clinicRes.data : clinicRes.data.settings || [];
+        if (incoming.length) {
+          setClinicHours(
+            defaultClinicHours.map((d) => {
+              const found = incoming.find((s) => s.dayOfWeek === d.dayOfWeek);
+              return found ? { ...d, ...found } : d;
+            })
+          );
+        }
       }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load veterinarians");
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveClinicHours = async () => {
+    setClinicSaving(true);
+    setClinicError("");
+    setClinicSuccess("");
+    try {
+      await updateClinicSettings(clinicHours);
+      setClinicSuccess("Clinic hours saved successfully.");
+    } catch (err) {
+      setClinicError(err.response?.data?.message || "Failed to save clinic hours.");
+    } finally {
+      setClinicSaving(false);
+    }
+  };
+
+  const updateClinicDay = (dayOfWeek, field, value) => {
+    setClinicHours((prev) =>
+      prev.map((d) => d.dayOfWeek === dayOfWeek ? { ...d, [field]: value } : d)
+    );
   };
 
   const loadVetSchedule = async (vetId, fallbackVet) => {
@@ -453,22 +505,67 @@ export default function StaffVetSchedule() {
             <div className="schedule-exceptions">
               <h4>Upcoming Exceptions</h4>
               {!exceptions.length ? <p>No exceptions yet.</p> : null}
-              {exceptions.map((ex) => (
-                <div className="schedule-ex-row" key={ex.id}>
-                  <div>
-                    <strong>{new Date(ex.startsAt).toLocaleString()}</strong>
-                    <span> to {new Date(ex.endsAt).toLocaleString()}</span>
-                    <p>{ex.reason || "No reason"}</p>
+              {exceptions
+                .slice((excPage - 1) * EXC_LIMIT, excPage * EXC_LIMIT)
+                .map((ex) => (
+                  <div className="schedule-ex-row" key={ex.id}>
+                    <div>
+                      <strong>{new Date(ex.startsAt).toLocaleString()}</strong>
+                      <span> to {new Date(ex.endsAt).toLocaleString()}</span>
+                      <p>{ex.reason || "No reason"}</p>
+                    </div>
+                    <button onClick={() => removeException(ex.id)} className="schedule-delete-btn">
+                      Remove
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeException(ex.id)}
-                    className="schedule-delete-btn"
-                  >
-                    Remove
-                  </button>
+                ))}
+              {Math.ceil(exceptions.length / EXC_LIMIT) > 1 && (
+                <div className="exc-pagination">
+                  <button className="exc-page-btn" disabled={excPage === 1} onClick={() => setExcPage((p) => p - 1)}>Prev</button>
+                  <span className="exc-page-info">Page {excPage} of {Math.ceil(exceptions.length / EXC_LIMIT)}</span>
+                  <button className="exc-page-btn" disabled={excPage === Math.ceil(exceptions.length / EXC_LIMIT)} onClick={() => setExcPage((p) => p + 1)}>Next</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Clinic Operating Hours Section */}
+          <div className="schedule-section" style={{ marginTop: "24px" }}>
+            <div className="schedule-section-header">
+              <h3>Clinic Operating Hours</h3>
+            </div>
+            {clinicError && <p className="modal-error">{clinicError}</p>}
+            {clinicSuccess && <p style={{ color: "#166534", fontSize: "13px", marginBottom: "8px" }}>{clinicSuccess}</p>}
+            <div className="clinic-hours-grid">
+              {clinicHours.map((day) => (
+                <div key={day.dayOfWeek} className="clinic-hours-row">
+                  <label className="clinic-day-label">
+                    <input
+                      type="checkbox"
+                      checked={day.isOpen}
+                      onChange={(e) => updateClinicDay(day.dayOfWeek, "isOpen", e.target.checked)}
+                    />
+                    {clinicDays[day.dayOfWeek]}
+                  </label>
+                  {day.isOpen ? (
+                    <div className="clinic-hours-times">
+                      <input type="time" value={day.openTime || ""} onChange={(e) => updateClinicDay(day.dayOfWeek, "openTime", e.target.value)} />
+                      <span>to</span>
+                      <input type="time" value={day.closeTime || ""} onChange={(e) => updateClinicDay(day.dayOfWeek, "closeTime", e.target.value)} />
+                      <span className="clinic-hours-break">Break:</span>
+                      <input type="time" value={day.breakStart || ""} placeholder="Start" onChange={(e) => updateClinicDay(day.dayOfWeek, "breakStart", e.target.value)} />
+                      <span>–</span>
+                      <input type="time" value={day.breakEnd || ""} placeholder="End" onChange={(e) => updateClinicDay(day.dayOfWeek, "breakEnd", e.target.value)} />
+                    </div>
+                  ) : (
+                    <span className="clinic-hours-closed">Closed</span>
+                  )}
                 </div>
               ))}
             </div>
+            <button className="schedule-save-btn" onClick={saveClinicHours} disabled={clinicSaving}>
+              {clinicSaving ? "Saving..." : "Save Clinic Hours"}
+            </button>
           </div>
         </section>
       </main>

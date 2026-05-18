@@ -31,6 +31,10 @@ const StaffPaymentHistory = () => {
   const [linkedAppointmentIds, setLinkedAppointmentIds] = useState([]);
   const [showArchived] = useState(false);
   const [search, setSearch] = useState("");
+  const [payFrom, setPayFrom] = useState("");
+  const [payTo, setPayTo] = useState("");
+  const [payPage, setPayPage] = useState(1);
+  const PAY_LIMIT = 15;
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -107,16 +111,22 @@ const StaffPaymentHistory = () => {
       p.owner?.username ||
       "";
     const query = search.toLowerCase();
-    return (
+    const matchSearch =
       p.id.toLowerCase().includes(query) ||
       ownerName.toLowerCase().includes(query) ||
       (p.service || "").toLowerCase().includes(query) ||
-      (p.status || "").toLowerCase().includes(query)
-    );
+      (p.status || "").toLowerCase().includes(query);
+    if (!matchSearch) return false;
+    if (payFrom && new Date(p.createdAt) < new Date(payFrom)) return false;
+    if (payTo && new Date(p.createdAt) > new Date(payTo + "T23:59:59")) return false;
+    return true;
   });
 
-  // Group payments by status
-  const groupedPayments = filteredPayments.reduce((acc, payment) => {
+  const payTotalPages = Math.max(1, Math.ceil(filteredPayments.length / PAY_LIMIT));
+  const paginatedPayments = filteredPayments.slice((payPage - 1) * PAY_LIMIT, payPage * PAY_LIMIT);
+
+  // Group paginated payments by status
+  const groupedPayments = paginatedPayments.reduce((acc, payment) => {
     const status = payment.status || "Pending";
     if (!acc[status]) acc[status] = [];
     acc[status].push(payment);
@@ -400,11 +410,30 @@ const StaffPaymentHistory = () => {
               <div className="table-header-actions">
                 <input
                   type="text"
-                  placeholder="Search by Transaction ID or Owner..."
+                  placeholder="Search by ID, owner, or service..."
                   className="payment-search"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setPayPage(1); }}
                 />
+                <input
+                  type="date"
+                  className="pay-date-filter"
+                  value={payFrom}
+                  title="From date"
+                  onChange={(e) => { setPayFrom(e.target.value); setPayPage(1); }}
+                />
+                <input
+                  type="date"
+                  className="pay-date-filter"
+                  value={payTo}
+                  title="To date"
+                  onChange={(e) => { setPayTo(e.target.value); setPayPage(1); }}
+                />
+                {(payFrom || payTo) && (
+                  <button className="pay-clear-dates" onClick={() => { setPayFrom(""); setPayTo(""); setPayPage(1); }}>
+                    Clear Dates
+                  </button>
+                )}
                 {/* <label className="archived-toggle">
                   <input
                     type="checkbox"
@@ -740,6 +769,30 @@ const StaffPaymentHistory = () => {
             ) : (
               <p className="list-placeholder">No payments found.</p>
             )}
+
+            {/* Pagination */}
+            {payTotalPages > 1 && (
+              <div className="pay-hist-pagination">
+                <button
+                  className="pay-hist-page-btn"
+                  disabled={payPage === 1}
+                  onClick={() => setPayPage((p) => p - 1)}
+                >
+                  Prev
+                </button>
+                <span className="pay-hist-page-info">
+                  Page {payPage} of {payTotalPages} ({filteredPayments.length} transactions)
+                </span>
+                <button
+                  className="pay-hist-page-btn"
+                  disabled={payPage === payTotalPages}
+                  onClick={() => setPayPage((p) => p + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+
             {error && <p className="modal-error">{error}</p>}
           </div>
         </section>

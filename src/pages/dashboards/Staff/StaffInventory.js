@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/StaffInventory.css";
@@ -24,6 +24,48 @@ import {
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
+const INV_LIMIT = 15;
+
+function daysUntilExpiry(dateStr) {
+  if (!dateStr) return null;
+  return Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
+}
+
+function expiryClass(dateStr) {
+  const days = daysUntilExpiry(dateStr);
+  if (days === null) return "";
+  if (days < 0) return "inv-expired";
+  if (days <= 30) return "inv-expiring-soon";
+  return "";
+}
+
+function buildInventoryCSV(rows, fmt) {
+  const headers = ["Name", "Category", "Stock", "Unit", "Price", "Status", "Expiry Date"];
+  const lines = [headers.join(",")];
+  rows.forEach((i) => {
+    lines.push([
+      `"${i.name}"`,
+      i.category,
+      i.stock,
+      i.unit,
+      i.price != null ? fmt.format(Number(i.price)).replace(/,/g, "") : "",
+      i.status,
+      i.expirationDate ? new Date(i.expirationDate).toLocaleDateString() : "",
+    ].join(","));
+  });
+  return lines.join("\n");
+}
+
+function downloadCSV(csv, filename) {
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const StaffInventory = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -40,6 +82,13 @@ const StaffInventory = () => {
   const [aiModal, setAiModal] = useState(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Filter / pagination state
+  const [invSearch, setInvSearch] = useState("");
+  const [invCategory, setInvCategory] = useState("");
+  const [invStatus, setInvStatus] = useState("");
+  const [invExpiring, setInvExpiring] = useState(false);
+  const [invPage, setInvPage] = useState(1);
   const [form, setForm] = useState({
     name: "",
     category: "Others",
@@ -66,9 +115,27 @@ const StaffInventory = () => {
 
   const activeItems = items.filter((i) => !i.isArchived);
   const totalItems = activeItems.length;
-  const lowStockCount = activeItems.filter(
-    (i) => i.status === "LowStock",
-  ).length;
+  const lowStockCount = activeItems.filter((i) => i.status === "LowStock").length;
+
+  // Filtered + paginated view
+  const filtered = useMemo(() => {
+    return items.filter((i) => {
+      if (invSearch) {
+        const q = invSearch.toLowerCase();
+        if (!(i.name || "").toLowerCase().includes(q) && !(i.notes || "").toLowerCase().includes(q)) return false;
+      }
+      if (invCategory && i.category !== invCategory) return false;
+      if (invStatus && i.status !== invStatus) return false;
+      if (invExpiring) {
+        const days = daysUntilExpiry(i.expirationDate);
+        if (days === null || days > 30) return false;
+      }
+      return true;
+    });
+  }, [items, invSearch, invCategory, invStatus, invExpiring]);
+
+  const invTotalPages = Math.max(1, Math.ceil(filtered.length / INV_LIMIT));
+  const invPaginated = filtered.slice((invPage - 1) * INV_LIMIT, invPage * INV_LIMIT);
 
   const openCreate = () => {
     setEditing(null);
@@ -219,10 +286,60 @@ const StaffInventory = () => {
               <button className="inv-ai-btn" onClick={() => openAiAnalysis()}>
                 AI Analysis
               </button>
+              <button
+                className="inv-export-btn"
+                onClick={() => downloadCSV(buildInventoryCSV(filtered, pesoFormatter), "inventory-report.csv")}
+                disabled={filtered.length === 0}
+              >
+                Export CSV
+              </button>
               <button className="add-item-btn" onClick={openCreate}>
                 + Add New Item
               </button>
             </div>
+          </div>
+
+          {/* Filter bar */}
+          <div className="inv-filter-bar">
+            <input
+              className="inv-search"
+              placeholder="Search item name..."
+              value={invSearch}
+              onChange={(e) => { setInvSearch(e.target.value); setInvPage(1); }}
+            />
+            <select
+              className="inv-filter-select"
+              value={invCategory}
+              onChange={(e) => { setInvCategory(e.target.value); setInvPage(1); }}
+            >
+              <option value="">All Categories</option>
+              {INVENTORY_CATEGORY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              className="inv-filter-select"
+              value={invStatus}
+              onChange={(e) => { setInvStatus(e.target.value); setInvPage(1); }}
+            >
+              <option value="">All Status</option>
+              <option value="InStock">In Stock</option>
+              <option value="LowStock">Low Stock</option>
+              <option value="OutOfStock">Out of Stock</option>
+            </select>
+            <label className="inv-expiry-check">
+              <input
+                type="checkbox"
+                checked={invExpiring}
+                onChange={(e) => { setInvExpiring(e.target.checked); setInvPage(1); }}
+              />
+              Expiring ≤30 days
+            </label>
+            {(invSearch || invCategory || invStatus || invExpiring) && (
+              <button className="inv-reset-btn" onClick={() => { setInvSearch(""); setInvCategory(""); setInvStatus(""); setInvExpiring(false); setInvPage(1); }}>
+                Reset
+              </button>
+            )}
           </div>
 
           <>
@@ -240,8 +357,8 @@ const StaffInventory = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id}>
+                  {invPaginated.map((item) => (
+                    <tr key={item.id} className={expiryClass(item.expirationDate)}>
                       <td className="item-name-cell">{item.name}</td>
                       <td>
                         <span className="cat-badge">
@@ -257,9 +374,18 @@ const StaffInventory = () => {
                           : pesoFormatter.format(Number(item.price))}
                       </td>
                       <td>
-                        {item.expirationDate
-                          ? new Date(item.expirationDate).toLocaleDateString()
-                          : "-"}
+                        {item.expirationDate ? (
+                          <>
+                            {new Date(item.expirationDate).toLocaleDateString()}
+                            {(() => {
+                              const d = daysUntilExpiry(item.expirationDate);
+                              if (d === null) return null;
+                              if (d < 0) return <span className="expiry-badge expired"> Expired</span>;
+                              if (d <= 30) return <span className="expiry-badge expiring"> {d}d left</span>;
+                              return null;
+                            })()}
+                          </>
+                        ) : "—"}
                       </td>
                       <td>
                         <span
@@ -369,8 +495,8 @@ const StaffInventory = () => {
             </div>
 
             <div className="table-mobile table-cards-list">
-              {items.map((item) => (
-                <div className="inventory-card" key={item.id}>
+              {invPaginated.map((item) => (
+                <div className={`inventory-card ${expiryClass(item.expirationDate)}`} key={item.id}>
                   <div className="inventory-card-header">
                     <div className="inventory-card-title">
                       <div className="inventory-card-name">{item.name}</div>
@@ -397,9 +523,18 @@ const StaffInventory = () => {
                     <div className="inventory-card-row">
                       <span className="inventory-card-label">Expiration</span>
                       <span>
-                        {item.expirationDate
-                          ? new Date(item.expirationDate).toLocaleDateString()
-                          : "-"}
+                        {item.expirationDate ? (
+                          <>
+                            {new Date(item.expirationDate).toLocaleDateString()}
+                            {(() => {
+                              const d = daysUntilExpiry(item.expirationDate);
+                              if (d === null) return null;
+                              if (d < 0) return <span className="expiry-badge expired"> Expired</span>;
+                              if (d <= 30) return <span className="expiry-badge expiring"> {d}d left</span>;
+                              return null;
+                            })()}
+                          </>
+                        ) : "—"}
                       </span>
                     </div>
                     <div className="inventory-card-row">
@@ -510,6 +645,15 @@ const StaffInventory = () => {
               ))}
             </div>
           </>
+          {/* Pagination */}
+          {invTotalPages > 1 && (
+            <div className="inv-pagination">
+              <button className="inv-page-btn" disabled={invPage === 1} onClick={() => setInvPage((p) => p - 1)}>Prev</button>
+              <span className="inv-page-info">Page {invPage} of {invTotalPages} ({filtered.length} items)</span>
+              <button className="inv-page-btn" disabled={invPage === invTotalPages} onClick={() => setInvPage((p) => p + 1)}>Next</button>
+            </div>
+          )}
+
           {error && <p className="modal-error">{error}</p>}
         </section>
       </main>
@@ -616,10 +760,13 @@ const StaffInventory = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="ai-insight-header">
-              <span className="ai-generated-badge">AI Generated</span>
+              <span className="ai-generated-badge">AI Generated — Advisory Only</span>
               <h3>Inventory Intelligence Report</h3>
               <p className="ai-insight-subheading">
                 Fast-moving products and near-expiry promotion opportunities.
+              </p>
+              <p className="ai-advisory-note">
+                AI restocking suggestions are advisory only. Please verify before ordering.
               </p>
             </div>
 

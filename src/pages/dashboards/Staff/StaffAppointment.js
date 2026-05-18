@@ -32,6 +32,12 @@ const StaffAppointment = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [apptDateFrom, setApptDateFrom] = useState("");
+  const [apptDateTo, setApptDateTo] = useState("");
+  const [apptVetFilter, setApptVetFilter] = useState("");
+  const [apptStatusFilter, setApptStatusFilter] = useState("");
+  const [apptPage, setApptPage] = useState(1);
+  const APPT_LIMIT = 15;
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -236,12 +242,23 @@ const StaffAppointment = () => {
       a.owner?.username ||
       "";
     const query = search.toLowerCase();
-    return (
+    const matchSearch =
       a.pet?.name?.toLowerCase().includes(query) ||
       ownerName.toLowerCase().includes(query) ||
-      (a.status || "").toLowerCase().includes(query)
-    );
+      (a.status || "").toLowerCase().includes(query);
+    if (!matchSearch) return false;
+    if (apptStatusFilter && a.status !== apptStatusFilter) return false;
+    if (apptVetFilter && a.vetId !== apptVetFilter) return false;
+    if (apptDateFrom && new Date(a.scheduledAt) < new Date(apptDateFrom)) return false;
+    if (apptDateTo && new Date(a.scheduledAt) > new Date(apptDateTo + "T23:59:59")) return false;
+    return true;
   });
+
+  const apptTotalPages = Math.max(1, Math.ceil(filteredAppointments.length / APPT_LIMIT));
+  const paginatedAppointments = filteredAppointments.slice(
+    (apptPage - 1) * APPT_LIMIT,
+    apptPage * APPT_LIMIT
+  );
 
   const monthStart = new Date(
     calendarDate.getFullYear(),
@@ -286,8 +303,8 @@ const StaffAppointment = () => {
 
   const petOptions = currentPetOption ? [currentPetOption, ...pets] : pets;
 
-  // Group appointments by status
-  const groupedAppointments = filteredAppointments.reduce((acc, apt) => {
+  // Group paginated appointments by status (list view)
+  const groupedAppointments = paginatedAppointments.reduce((acc, apt) => {
     const status = apt.status || "Pending";
     if (!acc[status]) acc[status] = [];
     acc[status].push(apt);
@@ -372,8 +389,57 @@ const StaffAppointment = () => {
                 className="apt-search"
                 placeholder="Search pet, owner, or status"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setApptPage(1); }}
               />
+              {viewMode === "list" && (
+                <>
+                  <select
+                    className="apt-filter-select"
+                    value={apptStatusFilter}
+                    onChange={(e) => { setApptStatusFilter(e.target.value); setApptPage(1); }}
+                  >
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                  <select
+                    className="apt-filter-select"
+                    value={apptVetFilter}
+                    onChange={(e) => { setApptVetFilter(e.target.value); setApptPage(1); }}
+                  >
+                    <option value="">All Vets</option>
+                    {vets.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {`${v.firstName || ""} ${v.lastName || ""}`.trim() || v.username}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    className="apt-date-input"
+                    value={apptDateFrom}
+                    title="From date"
+                    onChange={(e) => { setApptDateFrom(e.target.value); setApptPage(1); }}
+                  />
+                  <input
+                    type="date"
+                    className="apt-date-input"
+                    value={apptDateTo}
+                    title="To date"
+                    onChange={(e) => { setApptDateTo(e.target.value); setApptPage(1); }}
+                  />
+                  {(apptStatusFilter || apptVetFilter || apptDateFrom || apptDateTo) && (
+                    <button
+                      className="apt-reset-btn"
+                      onClick={() => { setApptStatusFilter(""); setApptVetFilter(""); setApptDateFrom(""); setApptDateTo(""); setApptPage(1); }}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </>
+              )}
               <button className="add-apt-btn" onClick={openCreate}>
                 + Book Appointment
               </button>
@@ -592,6 +658,29 @@ const StaffAppointment = () => {
                     </div>
                   );
                 })
+              )}
+
+              {/* Pagination for list view */}
+              {apptTotalPages > 1 && (
+                <div className="appt-pagination">
+                  <button
+                    className="appt-page-btn"
+                    disabled={apptPage === 1}
+                    onClick={() => setApptPage((p) => p - 1)}
+                  >
+                    Prev
+                  </button>
+                  <span className="appt-page-info">
+                    Page {apptPage} of {apptTotalPages} ({filteredAppointments.length} appointments)
+                  </span>
+                  <button
+                    className="appt-page-btn"
+                    disabled={apptPage === apptTotalPages}
+                    onClick={() => setApptPage((p) => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
               )}
             </div>
           )}

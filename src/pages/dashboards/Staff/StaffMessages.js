@@ -9,6 +9,7 @@ import {
   getMessageThread,
   sendMessage,
   getUsers,
+  broadcastNotification,
 } from "../../../api/api";
 
 // ASSETS
@@ -27,6 +28,18 @@ const StaffMessages = () => {
   const [showCompose, setShowCompose] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
+
+  // Unread filter for concerns queue
+  const [unreadOnly, setUnreadOnly] = useState(false);
+
+  // Broadcast state
+  const [showBroadcast, setShowBroadcast] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastBody, setBroadcastBody] = useState("");
+  const [broadcastRole, setBroadcastRole] = useState("all");
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastError, setBroadcastError] = useState("");
+  const [broadcastSuccess, setBroadcastSuccess] = useState("");
 
   const loadThreads = () =>
     getMessageThreads()
@@ -77,6 +90,31 @@ const StaffMessages = () => {
       .catch(() => {});
   };
 
+  const sendBroadcast = async (e) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) return;
+    setBroadcastSending(true);
+    setBroadcastError("");
+    setBroadcastSuccess("");
+    try {
+      const res = await broadcastNotification(broadcastTitle, broadcastBody, broadcastRole === "all" ? undefined : broadcastRole);
+      setBroadcastSuccess(`Sent to ${res.data?.count ?? "all"} user(s).`);
+      setBroadcastTitle("");
+      setBroadcastBody("");
+      setBroadcastRole("all");
+    } catch (err) {
+      setBroadcastError(err.response?.data?.message || "Failed to send broadcast.");
+    } finally {
+      setBroadcastSending(false);
+    }
+  };
+
+  const displayedThreads = threads.filter((t) => {
+    if (!unreadOnly) return true;
+    // Show threads where someone is waiting for a response (last message not from current user)
+    return t.unread > 0 || (t.lastSenderId && t.lastSenderId !== user?.id);
+  });
+
   const handleSend = async () => {
     if (!newMsg.trim() || !activeChat) return;
     await sendMessage({ receiverId: activeChat.partner.id, body: newMsg });
@@ -125,19 +163,28 @@ const StaffMessages = () => {
             <div className="contact-sidebar">
               <div
                 className="search-messages"
-                style={{ display: "flex", gap: 8, alignItems: "center" }}
+                style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
               >
                 <input
                   type="text"
                   placeholder="Search contacts..."
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, minWidth: 0 }}
                 />
-                <button className="compose-btn" onClick={openCompose}>
-                  + New
+                <button className="compose-btn" onClick={openCompose}>+ New</button>
+                <button className="broadcast-btn" onClick={() => { setShowBroadcast(true); setBroadcastError(""); setBroadcastSuccess(""); }}>
+                  Broadcast
                 </button>
               </div>
+              <label className="unread-toggle">
+                <input
+                  type="checkbox"
+                  checked={unreadOnly}
+                  onChange={(e) => setUnreadOnly(e.target.checked)}
+                />
+                Unread / Concerns only
+              </label>
               <div className="contact-list">
-                {threads.map((thread) => (
+                {displayedThreads.map((thread) => (
                   <div
                     key={thread.partner.id}
                     className={`contact-item ${activeChat?.partner?.id === thread.partner.id ? "active" : ""} ${thread.unread > 0 ? "unread" : ""}`}
@@ -268,6 +315,54 @@ const StaffMessages = () => {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* BROADCAST MODAL */}
+      {showBroadcast && (
+        <div className="modal-overlay" onClick={() => setShowBroadcast(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <form onSubmit={sendBroadcast} className="user-modal-form">
+              <h3>Broadcast Announcement</h3>
+              <div className="form-group">
+                <label>Title <span style={{ color: "#e53e3e" }}>*</span></label>
+                <input
+                  value={broadcastTitle}
+                  onChange={(e) => setBroadcastTitle(e.target.value)}
+                  placeholder="Announcement title"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Message <span style={{ color: "#e53e3e" }}>*</span></label>
+                <textarea
+                  rows={4}
+                  value={broadcastBody}
+                  onChange={(e) => setBroadcastBody(e.target.value)}
+                  placeholder="Write your announcement here..."
+                  required
+                  style={{ resize: "vertical", fontFamily: "Poppins, sans-serif", fontSize: "13px" }}
+                />
+              </div>
+              <div className="form-group">
+                <label>Target Audience</label>
+                <select value={broadcastRole} onChange={(e) => setBroadcastRole(e.target.value)}>
+                  <option value="all">All Users</option>
+                  <option value="pet_owner">Pet Owners</option>
+                  <option value="veterinarian">Veterinarians</option>
+                  <option value="staff">Staff</option>
+                </select>
+              </div>
+              {broadcastError && <p className="modal-error">{broadcastError}</p>}
+              {broadcastSuccess && <p style={{ color: "#166534", fontSize: "13px" }}>{broadcastSuccess}</p>}
+              <div className="modal-actions">
+                <button type="button" className="cancel-btn" onClick={() => setShowBroadcast(false)}>Cancel</button>
+                <button type="submit" className="save-btn" disabled={broadcastSending}>
+                  {broadcastSending ? "Sending..." : "Send Broadcast"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
