@@ -1,13 +1,4 @@
 import { useEffect, useState } from "react";
-
-function parseNotes(notesStr) {
-  if (!notesStr) return { symptoms: "", notes: "" };
-  const prefix = "Symptoms: ";
-  if (!notesStr.startsWith(prefix)) return { symptoms: "", notes: notesStr };
-  const nl = notesStr.indexOf("\n\n");
-  if (nl === -1) return { symptoms: notesStr.slice(prefix.length), notes: "" };
-  return { symptoms: notesStr.slice(prefix.length, nl), notes: notesStr.slice(nl + 2) };
-}
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/VetMedRec.css";
@@ -27,6 +18,15 @@ import {
 // ASSETS
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
+
+function parseNotes(notesStr) {
+  if (!notesStr) return { symptoms: "", notes: "" };
+  const prefix = "Symptoms: ";
+  if (!notesStr.startsWith(prefix)) return { symptoms: "", notes: notesStr };
+  const nl = notesStr.indexOf("\n\n");
+  if (nl === -1) return { symptoms: notesStr.slice(prefix.length), notes: "" };
+  return { symptoms: notesStr.slice(prefix.length, nl), notes: notesStr.slice(nl + 2) };
+}
 
 const VetMedRec = () => {
   const navigate = useNavigate();
