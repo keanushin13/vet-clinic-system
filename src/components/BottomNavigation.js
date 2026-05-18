@@ -82,17 +82,11 @@ const NAV_BY_ROLE = {
       icon: medicalIcon,
     },
     {
-      key: "account",
-      label: "Account",
-      path: "/vet-profile",
-      icon: profileIcon,
+      key: "messages",
+      label: "Messages",
+      path: "/vet-messages",
+      icon: messageIcon,
     },
-    // {
-    //   key: "schedule",
-    //   label: "Schedule",
-    //   path: "/vet-schedule",
-    //   icon: appointmentIcon,
-    // },
   ],
   pet_owner: [
     {
