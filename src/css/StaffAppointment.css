@@ -581,3 +581,58 @@
     margin-bottom: 0;
   }
 }
+
+/* =====================
+   APPOINTMENT FILTER CONTROLS
+===================== */
+.apt-filter-select,
+.apt-date-input {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #e0e0e0;
+  font-size: 13px;
+  font-family: "Poppins", sans-serif;
+  background: #fff;
+  outline: none;
+}
+.apt-filter-select:focus,
+.apt-date-input:focus { border-color: #438fb5; }
+
+.apt-reset-btn {
+  background: #f0f9ff;
+  color: #438fb5;
+  border: 1.5px solid #438fb5;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  white-space: nowrap;
+}
+.apt-reset-btn:hover { background: #e0f0f8; }
+
+/* =====================
+   APPOINTMENT PAGINATION
+===================== */
+.appt-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+.appt-page-btn {
+  background: #f0f9ff;
+  color: #438fb5;
+  border: 1.5px solid #438fb5;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+}
+.appt-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.appt-page-btn:hover:not(:disabled) { background: #e0f0f8; }
+.appt-page-info { font-size: 13px; color: #555; }

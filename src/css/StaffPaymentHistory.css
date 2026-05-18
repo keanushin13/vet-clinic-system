@@ -541,3 +541,56 @@
     padding: 12px !important;
   }
 }
+
+/* =====================
+   DATE FILTER INPUTS
+===================== */
+.pay-date-filter {
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #e0e0e0;
+  font-size: 13px;
+  font-family: "Poppins", sans-serif;
+  background: #fff;
+  outline: none;
+}
+.pay-date-filter:focus { border-color: #438fb5; }
+
+.pay-clear-dates {
+  background: #f0f9ff;
+  color: #438fb5;
+  border: 1.5px solid #438fb5;
+  border-radius: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  white-space: nowrap;
+}
+.pay-clear-dates:hover { background: #e0f0f8; }
+
+/* =====================
+   PAGINATION
+===================== */
+.pay-hist-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+.pay-hist-page-btn {
+  background: #f0f9ff;
+  color: #438fb5;
+  border: 1.5px solid #438fb5;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+}
+.pay-hist-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pay-hist-page-btn:hover:not(:disabled) { background: #e0f0f8; }
+.pay-hist-page-info { font-size: 13px; color: #555; }
