@@ -1,11 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/VetPatients.css";
 import "../../../css/responsive-tables.css";
 import VetSidebar from "../../../components/VetSidebar";
 import { useSidebar } from "../../../components/useSidebar";
-import { createPet, deletePet, getPets, updatePet } from "../../../api/api";
+import {
+  createPet,
+  deletePet,
+  getAppointments,
+  getMedicalRecords,
+  getPets,
+  updatePet,
+} from "../../../api/api";
 
 // ASSETS
 import bellIcon from "../../../assets/Bell_Icon.png";
@@ -20,6 +27,10 @@ const VetPatients = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [speciesFilter, setSpeciesFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  // Edit modal
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -34,7 +45,13 @@ const VetPatients = () => {
     notes: "",
   });
 
-  // FUNCTION: Guard Clause (Matches your PetOwner format)
+  // Profile modal
+  const [selectedPet, setSelectedPet] = useState(null);
+  const [profileRecords, setProfileRecords] = useState([]);
+  const [profileApts, setProfileApts] = useState([]);
+  const [profileTab, setProfileTab] = useState("details");
+  const [profileLoading, setProfileLoading] = useState(false);
+
   useEffect(() => {
     if (!user || user.role !== "veterinarian") {
       navigate("/login");
@@ -57,25 +74,79 @@ const VetPatients = () => {
     }
   };
 
-  const ownerOptions = Array.from(
-    new Map(
-      patients.filter((p) => p.owner).map((p) => [p.owner.id, p.owner]),
-    ).values(),
+  const ownerOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          patients.filter((p) => p.owner).map((p) => [p.owner.id, p.owner]),
+        ).values(),
+      ),
+    [patients],
   );
 
-  const filteredPatients = patients.filter((p) => {
-    const ownerName =
-      `${p.owner?.firstName || ""} ${p.owner?.lastName || ""}`.trim() ||
-      p.owner?.username ||
-      "";
-    const q = search.toLowerCase();
-    return (
-      (p.name || "").toLowerCase().includes(q) ||
-      (p.species || "").toLowerCase().includes(q) ||
-      ownerName.toLowerCase().includes(q)
-    );
-  });
+  const speciesOptions = useMemo(
+    () => [...new Set(patients.map((p) => p.species).filter(Boolean))],
+    [patients],
+  );
 
+  const filteredPatients = useMemo(
+    () =>
+      patients.filter((p) => {
+        const ownerName =
+          `${p.owner?.firstName || ""} ${p.owner?.lastName || ""}`.trim() ||
+          p.owner?.username ||
+          "";
+        const q = search.toLowerCase();
+        const matchSearch =
+          !q ||
+          (p.name || "").toLowerCase().includes(q) ||
+          (p.species || "").toLowerCase().includes(q) ||
+          ownerName.toLowerCase().includes(q);
+        const matchSpecies = !speciesFilter || p.species === speciesFilter;
+        const matchStatus = !statusFilter || p.status === statusFilter;
+        return matchSearch && matchSpecies && matchStatus;
+      }),
+    [patients, search, speciesFilter, statusFilter],
+  );
+
+  // ── Profile modal ──
+  const openProfile = async (pet) => {
+    setSelectedPet(pet);
+    setProfileTab("details");
+    setProfileLoading(true);
+    setProfileRecords([]);
+    setProfileApts([]);
+    try {
+      const [recsRes, aptsRes] = await Promise.allSettled([
+        getMedicalRecords({ petId: pet.id }),
+        getAppointments({ petId: pet.id }),
+      ]);
+      if (recsRes.status === "fulfilled") {
+        const data = recsRes.value.data;
+        setProfileRecords(
+          Array.isArray(data)
+            ? data
+            : Array.isArray(data?.records)
+              ? data.records
+              : [],
+        );
+      }
+      if (aptsRes.status === "fulfilled") {
+        const data = aptsRes.value.data;
+        setProfileApts(
+          Array.isArray(data)
+            ? data
+            : Array.isArray(data?.appointments)
+              ? data.appointments
+              : [],
+        );
+      }
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  // ── CRUD ──
   const openCreate = () => {
     setEditing(null);
     setForm({
@@ -125,14 +196,10 @@ const VetPatients = () => {
       setError("Name, species, and owner are required");
       return;
     }
-
     setSaving(true);
     setError("");
     try {
-      const payload = {
-        ...form,
-        age: form.age === "" ? null : Number(form.age),
-      };
+      const payload = { ...form, age: form.age === "" ? null : Number(form.age) };
       if (editing) {
         await updatePet(editing.id, payload);
       } else {
@@ -157,35 +224,34 @@ const VetPatients = () => {
     }
   };
 
+  // ── Shared icon SVGs ──
+  const editIcon = (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M12 6l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+  const deleteIcon = (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
   return (
     <div className="dashboard-container">
       <VetSidebar isOpen={isOpen} onClose={close} />
 
-      {/* MAIN CONTENT */}
       <main className="main-area">
         <header className="top-bar">
-          <button
-            className="hamburger-btn"
-            onClick={toggle}
-            aria-label="Toggle menu"
-          >
-            <span />
-            <span />
-            <span />
+          <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
+            <span /><span /><span />
           </button>
           <h2>Patient Management</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/vet-notifications")}
-            >
+            <button className="notif-btn" onClick={() => navigate("/vet-notifications")}>
               <img src={bellIcon} alt="Notifications" />
             </button>
-            <TopbarUserMenu
-              avatarSrc={userIcon}
-              avatarAlt="User"
-              profilePath="/vet-profile"
-            />
+            <TopbarUserMenu avatarSrc={userIcon} avatarAlt="User" profilePath="/vet-profile" />
           </div>
         </header>
 
@@ -202,7 +268,32 @@ const VetPatients = () => {
             </button>
           </div>
 
+          {/* Filter bar */}
+          <div className="patient-filter-bar">
+            <select value={speciesFilter} onChange={(e) => setSpeciesFilter(e.target.value)}>
+              <option value="">All Species</option>
+              {speciesOptions.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="Healthy">Healthy</option>
+              <option value="UnderTreatment">Under Treatment</option>
+              <option value="Deceased">Deceased</option>
+            </select>
+            {(speciesFilter || statusFilter) && (
+              <button
+                className="apt-reset-btn"
+                onClick={() => { setSpeciesFilter(""); setStatusFilter(""); }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
           <div className="patients-list-card">
+            {/* Desktop table */}
             <div className="table-desktop">
               <table className="patients-table">
                 <thead>
@@ -211,6 +302,7 @@ const VetPatients = () => {
                     <th>Species</th>
                     <th>Breed</th>
                     <th>Owner</th>
+                    <th>Status</th>
                     <th>Last Visit</th>
                     <th>Actions</th>
                   </tr>
@@ -218,68 +310,30 @@ const VetPatients = () => {
                 <tbody>
                   {filteredPatients.map((p) => (
                     <tr key={p.id}>
-                      <td style={{ fontWeight: "600", color: "#255065" }}>
-                        {p.name}
-                      </td>
+                      <td style={{ fontWeight: "600", color: "#255065" }}>{p.name}</td>
                       <td>{p.species}</td>
-                      <td>{p.breed}</td>
+                      <td>{p.breed || "—"}</td>
                       <td>
                         {p.owner
-                          ? `${p.owner.firstName ?? ""} ${p.owner.lastName ?? ""}`.trim() ||
-                            p.owner.username
+                          ? `${p.owner.firstName ?? ""} ${p.owner.lastName ?? ""}`.trim() || p.owner.username
                           : "-"}
                       </td>
                       <td>
-                        {p.updatedAt
-                          ? new Date(p.updatedAt).toLocaleDateString()
-                          : "-"}
+                        <span className={`pet-status-badge ${(p.status || "").toLowerCase()}`}>
+                          {p.status}
+                        </span>
                       </td>
+                      <td>{p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "-"}</td>
                       <td>
                         <div className="row-actions">
-                          <button
-                            className="row-btn icon-btn"
-                            onClick={() => openEdit(p)}
-                            title="Edit patient"
-                            aria-label="Edit patient"
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d="M4 20h4l10-10-4-4L4 16v4z"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinejoin="round"
-                              />
-                              <path
-                                d="M12 6l4 4"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                              />
-                            </svg>
+                          <button className="btn-profile" onClick={() => openProfile(p)} title="View profile">
+                            Profile
                           </button>
-                          <button
-                            className="row-btn row-btn-danger icon-btn"
-                            onClick={() => archivePatient(p)}
-                            title="Archive patient"
-                            aria-label="Archive patient"
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
+                          <button className="row-btn icon-btn" onClick={() => openEdit(p)} title="Edit patient">
+                            {editIcon}
+                          </button>
+                          <button className="row-btn row-btn-danger icon-btn" onClick={() => archivePatient(p)} title="Archive patient">
+                            {deleteIcon}
                           </button>
                         </div>
                       </td>
@@ -289,14 +343,16 @@ const VetPatients = () => {
               </table>
             </div>
 
+            {/* Mobile cards */}
             <div className="table-mobile table-cards-list">
               {filteredPatients.map((p) => (
                 <div className="pets-card" key={p.id}>
                   <div className="pets-card-header">
-                    <div className="pets-card-avatar">
-                      {p.name?.charAt(0) || "?"}
-                    </div>
+                    <div className="pets-card-avatar">{p.name?.charAt(0) || "?"}</div>
                     <div className="pets-card-name">{p.name}</div>
+                    <span className={`pet-status-badge ${(p.status || "").toLowerCase()}`}>
+                      {p.status}
+                    </span>
                   </div>
                   <div className="pets-card-body">
                     <div className="pets-card-row">
@@ -305,88 +361,41 @@ const VetPatients = () => {
                     </div>
                     <div className="pets-card-row">
                       <span className="pets-card-label">Breed</span>
-                      <span>{p.breed}</span>
+                      <span>{p.breed || "—"}</span>
                     </div>
                     <div className="pets-card-row">
                       <span className="pets-card-label">Owner</span>
                       <span>
                         {p.owner
-                          ? `${p.owner.firstName ?? ""} ${p.owner.lastName ?? ""}`.trim() ||
-                            p.owner.username
+                          ? `${p.owner.firstName ?? ""} ${p.owner.lastName ?? ""}`.trim() || p.owner.username
                           : "-"}
                       </span>
                     </div>
                     <div className="pets-card-row">
                       <span className="pets-card-label">Last Visit</span>
-                      <span>
-                        {p.updatedAt
-                          ? new Date(p.updatedAt).toLocaleDateString()
-                          : "-"}
-                      </span>
+                      <span>{p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "-"}</span>
                     </div>
                     <div className="pets-card-row">
                       <span className="pets-card-label">Actions</span>
                       <div className="row-actions">
-                        <button
-                          className="row-btn icon-btn"
-                          onClick={() => openEdit(p)}
-                          title="Edit patient"
-                          aria-label="Edit patient"
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M4 20h4l10-10-4-4L4 16v4z"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinejoin="round"
-                            />
-                            <path
-                              d="M12 6l4 4"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          className="row-btn row-btn-danger icon-btn"
-                          onClick={() => archivePatient(p)}
-                          title="Archive patient"
-                          aria-label="Archive patient"
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
+                        <button className="btn-profile" onClick={() => openProfile(p)}>Profile</button>
+                        <button className="row-btn icon-btn" onClick={() => openEdit(p)} title="Edit">{editIcon}</button>
+                        <button className="row-btn row-btn-danger icon-btn" onClick={() => archivePatient(p)} title="Archive">{deleteIcon}</button>
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+
             {loading && <p className="list-feedback">Loading patients...</p>}
-            {!loading && !filteredPatients.length && (
-              <p className="list-feedback">No patients found.</p>
-            )}
+            {!loading && !filteredPatients.length && <p className="list-feedback">No patients found.</p>}
             {error && <p className="list-error">{error}</p>}
           </div>
         </section>
       </main>
 
+      {/* ── Edit / Create modal ── */}
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
@@ -395,24 +404,13 @@ const VetPatients = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Name</label>
-                  <input
-                    name="name"
-                    value={form.name}
-                    onChange={onChange}
-                    required
-                  />
+                  <input name="name" value={form.name} onChange={onChange} required />
                 </div>
                 <div className="form-group">
                   <label>Species</label>
-                  <input
-                    name="species"
-                    value={form.species}
-                    onChange={onChange}
-                    required
-                  />
+                  <input name="species" value={form.species} onChange={onChange} required />
                 </div>
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label>Breed</label>
@@ -420,16 +418,9 @@ const VetPatients = () => {
                 </div>
                 <div className="form-group">
                   <label>Age</label>
-                  <input
-                    type="number"
-                    min="0"
-                    name="age"
-                    value={form.age}
-                    onChange={onChange}
-                  />
+                  <input type="number" min="0" name="age" value={form.age} onChange={onChange} />
                 </div>
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label>Gender</label>
@@ -448,43 +439,180 @@ const VetPatients = () => {
                   </select>
                 </div>
               </div>
-
               <div className="form-group">
                 <label>Owner</label>
-                <select
-                  name="ownerId"
-                  value={form.ownerId}
-                  onChange={onChange}
-                  required
-                >
+                <select name="ownerId" value={form.ownerId} onChange={onChange} required>
                   <option value="">Select owner</option>
                   {ownerOptions.map((owner) => (
                     <option key={owner.id} value={owner.id}>
-                      {`${owner.firstName || ""} ${owner.lastName || ""}`.trim() ||
-                        owner.username}
+                      {`${owner.firstName || ""} ${owner.lastName || ""}`.trim() || owner.username}
                     </option>
                   ))}
                 </select>
               </div>
-
               <div className="form-group">
                 <label>Notes</label>
                 <textarea name="notes" value={form.notes} onChange={onChange} />
               </div>
-
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={closeModal}
-                >
-                  Cancel
-                </button>
+                <button type="button" className="cancel-btn" onClick={closeModal}>Cancel</button>
                 <button type="submit" className="save-btn" disabled={saving}>
                   {saving ? "Saving..." : "Save"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Patient profile modal ── */}
+      {selectedPet && (
+        <div className="modal-overlay" onClick={() => setSelectedPet(null)}>
+          <div className="patient-profile-modal" onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="profile-modal-header">
+              <div className="profile-avatar-lg">
+                {(selectedPet.name || "?").charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2>{selectedPet.name}</h2>
+                <span className={`pet-status-badge ${(selectedPet.status || "").toLowerCase()}`}>
+                  {selectedPet.status}
+                </span>
+              </div>
+              <button className="profile-modal-close" onClick={() => setSelectedPet(null)}>✕</button>
+            </div>
+
+            {/* Tabs */}
+            <div className="profile-tabs">
+              {[
+                { key: "details", label: "Pet Details" },
+                { key: "records", label: "Medical Records" },
+                { key: "appointments", label: "Appointments" },
+                { key: "vaccinations", label: "Vaccinations" },
+              ].map((t) => (
+                <button
+                  key={t.key}
+                  className={`profile-tab ${profileTab === t.key ? "active" : ""}`}
+                  onClick={() => setProfileTab(t.key)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="profile-tab-content">
+              {profileLoading && <p className="dash-empty">Loading...</p>}
+
+              {/* Details */}
+              {!profileLoading && profileTab === "details" && (
+                <div className="profile-details-grid">
+                  {[
+                    ["Name", selectedPet.name],
+                    ["Species", selectedPet.species],
+                    ["Breed", selectedPet.breed || "—"],
+                    ["Gender", selectedPet.gender || "—"],
+                    ["Age", selectedPet.age != null ? selectedPet.age : "—"],
+                    ["Weight", selectedPet.weight ? `${selectedPet.weight} kg` : "—"],
+                    ["Birthday", selectedPet.birthday ? new Date(selectedPet.birthday).toLocaleDateString() : "—"],
+                    ["Status", selectedPet.status],
+                    ["Owner", `${selectedPet.owner?.firstName || ""} ${selectedPet.owner?.lastName || ""}`.trim() || selectedPet.owner?.username || "—"],
+                    ["Notes", selectedPet.notes || "—"],
+                  ].map(([label, val]) => (
+                    <div key={label} className="profile-detail-row">
+                      <span className="profile-detail-label">{label}</span>
+                      <span>{val}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Medical Records */}
+              {!profileLoading && profileTab === "records" && (
+                <div className="profile-records-list">
+                  {profileRecords.length === 0 ? (
+                    <p className="dash-empty">No medical records found.</p>
+                  ) : (
+                    profileRecords.map((r) => (
+                      <div key={r.id} className="profile-record-card">
+                        <div className="profile-record-header">
+                          <span className="profile-record-id">REC-{r.id.slice(-6).toUpperCase()}</span>
+                          <span className={`rec-status-badge ${(r.status || "").toLowerCase()}`}>{r.status}</span>
+                          <span className="profile-record-date">{new Date(r.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p><strong>Diagnosis:</strong> {r.diagnosis}</p>
+                        {r.treatment && <p><strong>Treatment:</strong> {r.treatment}</p>}
+                        {r.prescription && <p><strong>Prescription:</strong> {r.prescription}</p>}
+                        {r.notes && <p><strong>Notes:</strong> {r.notes}</p>}
+                        {r.followUpDate && (
+                          <p><strong>Follow-up:</strong> {new Date(r.followUpDate).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Appointments */}
+              {!profileLoading && profileTab === "appointments" && (
+                <div className="profile-records-list">
+                  {profileApts.length === 0 ? (
+                    <p className="dash-empty">No appointment history found.</p>
+                  ) : (
+                    [...profileApts]
+                      .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt))
+                      .map((a) => (
+                        <div key={a.id} className="profile-record-card">
+                          <div className="profile-record-header">
+                            <span>{new Date(a.scheduledAt).toLocaleString()}</span>
+                            <span className={`apt-status ${(a.status || "").toLowerCase()}`}>{a.status}</span>
+                          </div>
+                          <p><strong>Reason:</strong> {a.reason || "—"}</p>
+                          {a.notes && <p><strong>Notes:</strong> {a.notes}</p>}
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+
+              {/* Vaccinations */}
+              {!profileLoading && profileTab === "vaccinations" && (() => {
+                const vacApts = profileApts.filter((a) =>
+                  (a.reason || "").toLowerCase().includes("vacc"),
+                );
+                const vacRecs = profileRecords.filter(
+                  (r) =>
+                    (r.diagnosis || "").toLowerCase().includes("vacc") ||
+                    (r.treatment || "").toLowerCase().includes("vacc"),
+                );
+                const hasVac = vacApts.length > 0 || vacRecs.length > 0;
+                return (
+                  <div className="profile-records-list">
+                    {!hasVac && <p className="dash-empty">No vaccination records found.</p>}
+                    {vacApts.map((a) => (
+                      <div key={`apt-${a.id}`} className="profile-record-card">
+                        <div className="profile-record-header">
+                          <span>📅 {new Date(a.scheduledAt).toLocaleDateString()}</span>
+                          <span className={`apt-status ${(a.status || "").toLowerCase()}`}>{a.status}</span>
+                        </div>
+                        <p><strong>Service:</strong> {a.reason}</p>
+                      </div>
+                    ))}
+                    {vacRecs.map((r) => (
+                      <div key={`rec-${r.id}`} className="profile-record-card">
+                        <div className="profile-record-header">
+                          <span>📋 REC-{r.id.slice(-6).toUpperCase()}</span>
+                          <span className="profile-record-date">{new Date(r.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p><strong>Diagnosis:</strong> {r.diagnosis}</p>
+                        {r.treatment && <p><strong>Treatment:</strong> {r.treatment}</p>}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}

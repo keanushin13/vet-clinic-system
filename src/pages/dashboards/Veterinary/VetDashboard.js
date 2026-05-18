@@ -1,11 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/VetDashboard.css";
 import "../../../css/DashboardShared.css";
 import VetSidebar from "../../../components/VetSidebar";
 import { useSidebar } from "../../../components/useSidebar";
-import { getVetStats } from "../../../api/api";
+import {
+  getAppointments,
+  getMedicalRecords,
+  getNotifications,
+  getVetStats,
+} from "../../../api/api";
 
 // ASSETS
 import bellIcon from "../../../assets/Bell_Icon.png";
@@ -21,24 +26,85 @@ const VetDashboard = () => {
     todayAppointments: 0,
     totalRecords: 0,
   });
+  const [allApts, setAllApts] = useState([]);
+  const [allRecords, setAllRecords] = useState([]);
+  const [recentNotifs, setRecentNotifs] = useState([]);
 
-  // FUNCTION: Guard Clause (Matches PetOwner logic)
   useEffect(() => {
     if (!user || user.role !== "veterinarian") {
       navigate("/login");
       return;
     }
-    getVetStats()
-      .then((r) => setStats(r.data))
-      .catch(() => {});
+    const load = async () => {
+      const [statsRes, aptsRes, recsRes, notifsRes] = await Promise.allSettled([
+        getVetStats(),
+        getAppointments(),
+        getMedicalRecords(),
+        getNotifications(),
+      ]);
+      if (statsRes.status === "fulfilled") setStats(statsRes.value.data);
+      if (aptsRes.status === "fulfilled") setAllApts(aptsRes.value.data || []);
+      if (recsRes.status === "fulfilled") setAllRecords(recsRes.value.data || []);
+      if (notifsRes.status === "fulfilled")
+        setRecentNotifs((notifsRes.value.data || []).slice(0, 5));
+    };
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const todayStr = new Date().toDateString();
+
+  const todayApts = useMemo(
+    () =>
+      allApts
+        .filter((a) => new Date(a.scheduledAt).toDateString() === todayStr)
+        .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)),
+    [allApts, todayStr],
+  );
+
+  const pendingApts = useMemo(
+    () => allApts.filter((a) => a.status === "Pending"),
+    [allApts],
+  );
+
+  const topServices = useMemo(() => {
+    const counts = {};
+    allApts.forEach((a) => {
+      const svc = (a.reason || "").trim();
+      if (svc) counts[svc] = (counts[svc] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [allApts]);
+
+  const trendData = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toDateString();
+      return {
+        label: d.toLocaleDateString([], { weekday: "short" }),
+        count: allApts.filter(
+          (a) => new Date(a.scheduledAt).toDateString() === dateStr,
+        ).length,
+      };
+    });
+  }, [allApts]);
+
+  const followUpReminders = useMemo(
+    () =>
+      allRecords
+        .filter((r) => r.status === "FollowUp" && r.followUpDate)
+        .sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate))
+        .slice(0, 5),
+    [allRecords],
+  );
 
   return (
     <div className="dashboard-container">
       <VetSidebar isOpen={isOpen} onClose={close} />
 
-      {/* MAIN CONTENT */}
       <main className="main-area">
         <header className="top-bar">
           <button
@@ -50,7 +116,6 @@ const VetDashboard = () => {
             <span />
             <span />
           </button>
-          {/* Functional Greeting: Matches user.name || 'Doctor' pattern */}
           <h2>
             Welcome, Dr. {user?.firstName || user?.username || "Veterinarian"}
           </h2>
@@ -78,6 +143,7 @@ const VetDashboard = () => {
             </p>
           </div>
 
+          {/* Stats */}
           <div className="shared-stats-grid">
             <div className="stat-card blue">
               <div className="stat-info">
@@ -97,6 +163,174 @@ const VetDashboard = () => {
                 <h4>{stats.totalRecords}</h4>
               </div>
             </div>
+          </div>
+
+          {/* Quick Nav */}
+          <div className="dash-quicknav">
+            <button onClick={() => navigate("/vet-calendar")}>Appointments</button>
+            <button onClick={() => navigate("/vet-calendar")}>Calendar</button>
+            <button onClick={() => navigate("/vet-messages")}>Messages</button>
+            <button onClick={() => navigate("/vet-notifications")}>Notifications</button>
+          </div>
+
+          {/* Today's Schedule */}
+          <div className="dash-section-card">
+            <h4 className="dash-section-heading">
+              Today's Schedule
+              <span className="dash-count-badge">{todayApts.length}</span>
+            </h4>
+            {todayApts.length === 0 ? (
+              <p className="dash-empty">No appointments today.</p>
+            ) : (
+              todayApts.map((a) => (
+                <div key={a.id} className="dash-apt-row">
+                  <span className="dash-apt-time">
+                    {new Date(a.scheduledAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <span className="dash-apt-pet">{a.pet?.name || "—"}</span>
+                  <span className="dash-apt-reason">{a.reason || "—"}</span>
+                  <span
+                    className={`apt-status ${(a.status || "").toLowerCase()}`}
+                  >
+                    {a.status}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Pending Requests */}
+          <div className="dash-section-card">
+            <h4 className="dash-section-heading">
+              Pending Requests
+              <span className="dash-count-badge pending">
+                {pendingApts.length}
+              </span>
+            </h4>
+            {pendingApts.length === 0 ? (
+              <p className="dash-empty">No pending requests.</p>
+            ) : (
+              <>
+                {pendingApts.slice(0, 5).map((a) => (
+                  <div key={a.id} className="dash-apt-row">
+                    <span className="dash-apt-pet">{a.pet?.name || "—"}</span>
+                    <span className="dash-apt-owner">
+                      {`${a.owner?.firstName || ""} ${a.owner?.lastName || ""}`.trim() ||
+                        a.owner?.username ||
+                        "—"}
+                    </span>
+                    <span className="dash-apt-time">
+                      {new Date(a.scheduledAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+                {pendingApts.length > 5 && (
+                  <button
+                    className="dash-view-all"
+                    onClick={() => navigate("/vet-calendar")}
+                  >
+                    View all {pendingApts.length} pending
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Follow-up Reminders */}
+          <div className="dash-section-card">
+            <h4 className="dash-section-heading">Follow-up Reminders</h4>
+            {followUpReminders.length === 0 ? (
+              <p className="dash-empty">No upcoming follow-ups.</p>
+            ) : (
+              followUpReminders.map((r) => (
+                <div key={r.id} className="dash-apt-row">
+                  <span className="dash-apt-pet">{r.pet?.name || "—"}</span>
+                  <span className="dash-apt-reason">{r.diagnosis || "—"}</span>
+                  <span className="dash-apt-time">
+                    Due: {new Date(r.followUpDate).toLocaleDateString()}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Most Common Services */}
+          <div className="dash-section-card">
+            <h4 className="dash-section-heading">Most Common Services</h4>
+            {topServices.length === 0 ? (
+              <p className="dash-empty">No appointment data yet.</p>
+            ) : (
+              topServices.map(([svc, count]) => {
+                const max = topServices[0][1];
+                return (
+                  <div key={svc} className="dash-service-row">
+                    <span className="dash-service-name">{svc}</span>
+                    <div className="dash-service-bar-wrap">
+                      <div
+                        className="dash-service-bar"
+                        style={{ width: `${(count / max) * 100}%` }}
+                      />
+                    </div>
+                    <span className="dash-service-count">{count}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Appointment Trend */}
+          <div className="dash-section-card">
+            <h4 className="dash-section-heading">
+              Appointment Trend (Last 7 Days)
+            </h4>
+            <div className="dash-trend-chart">
+              {trendData.map((d, i) => {
+                const max = Math.max(...trendData.map((x) => x.count), 1);
+                return (
+                  <div key={i} className="dash-trend-col">
+                    <span className="dash-trend-count">
+                      {d.count || ""}
+                    </span>
+                    <div className="dash-trend-bar-wrap">
+                      <div
+                        className="dash-trend-bar"
+                        style={{ height: `${(d.count / max) * 100}%` }}
+                      />
+                    </div>
+                    <span className="dash-trend-label">{d.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent Notifications */}
+          <div className="dash-section-card">
+            <h4 className="dash-section-heading">
+              Recent Notifications
+              <button
+                className="dash-view-all"
+                onClick={() => navigate("/vet-notifications")}
+              >
+                View all
+              </button>
+            </h4>
+            {recentNotifs.length === 0 ? (
+              <p className="dash-empty">No notifications.</p>
+            ) : (
+              recentNotifs.map((n) => (
+                <div
+                  key={n.id}
+                  className={`dash-notif-row ${n.isRead ? "" : "unread"}`}
+                >
+                  <span className="dash-notif-title">{n.title}</span>
+                  <span className="dash-notif-body">{n.body}</span>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </main>

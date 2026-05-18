@@ -1,4 +1,13 @@
 import { useEffect, useState } from "react";
+
+function parseNotes(notesStr) {
+  if (!notesStr) return { symptoms: "", notes: "" };
+  const prefix = "Symptoms: ";
+  if (!notesStr.startsWith(prefix)) return { symptoms: "", notes: notesStr };
+  const nl = notesStr.indexOf("\n\n");
+  if (nl === -1) return { symptoms: notesStr.slice(prefix.length), notes: "" };
+  return { symptoms: notesStr.slice(prefix.length, nl), notes: notesStr.slice(nl + 2) };
+}
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/VetMedRec.css";
@@ -39,6 +48,7 @@ const VetMedRec = () => {
     petId: "",
     appointmentId: "",
     diagnosis: "",
+    symptoms: "",
     treatment: "",
     prescription: "",
     notes: "",
@@ -102,6 +112,7 @@ const VetMedRec = () => {
       petId: pets[0]?.id || "",
       appointmentId: "",
       diagnosis: "",
+      symptoms: "",
       treatment: "",
       prescription: "",
       notes: "",
@@ -115,13 +126,15 @@ const VetMedRec = () => {
 
   const openEdit = (record) => {
     setEditing(record);
+    const { symptoms, notes } = parseNotes(record.notes || "");
     setForm({
       petId: record.petId,
       appointmentId: record.appointmentId || "",
       diagnosis: record.diagnosis || "",
+      symptoms,
       treatment: record.treatment || "",
       prescription: record.prescription || "",
-      notes: record.notes || "",
+      notes,
       status: record.status || "Finalized",
       followUpDate: record.followUpDate
         ? new Date(record.followUpDate).toISOString().slice(0, 10)
@@ -131,6 +144,43 @@ const VetMedRec = () => {
     setShowModal(true);
     setError("");
     setSuccess("");
+  };
+
+  const printRecord = (rec) => {
+    const { symptoms, notes } = parseNotes(rec.notes || "");
+    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const html = `<!DOCTYPE html><html><head>
+      <title>Medical Record – ${esc(rec.pet?.name)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 40px; color: #1a1a1a; max-width: 680px; margin: auto; }
+        h1 { font-size: 20px; border-bottom: 2px solid #438fb5; padding-bottom: 8px; margin-bottom: 12px; }
+        h2 { font-size: 13px; color: #255065; margin: 18px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        p { margin: 0; font-size: 13px; line-height: 1.6; }
+        .meta { display: flex; gap: 20px; font-size: 12px; color: #666; margin-bottom: 20px; flex-wrap: wrap; }
+        .badge { background: #e3f2fd; color: #255065; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        @media print { body { padding: 20px; } }
+      </style>
+    </head><body>
+      <h1>Medical Record</h1>
+      <div class="meta">
+        <span>ID: REC-${esc(rec.id.slice(-6).toUpperCase())}</span>
+        <span>Patient: ${esc(rec.pet?.name)}</span>
+        <span>Species: ${esc(rec.pet?.species)}</span>
+        <span>Date: ${new Date(rec.createdAt).toLocaleDateString()}</span>
+        <span class="badge">${esc(rec.status)}</span>
+      </div>
+      <h2>Diagnosis</h2><p>${esc(rec.diagnosis)}</p>
+      ${symptoms ? `<h2>Symptoms</h2><p>${esc(symptoms)}</p>` : ""}
+      ${rec.treatment ? `<h2>Treatment / Treatment Plan</h2><p>${esc(rec.treatment)}</p>` : ""}
+      ${rec.prescription ? `<h2>Prescription / Medications</h2><p>${esc(rec.prescription)}</p>` : ""}
+      ${notes ? `<h2>Notes</h2><p>${esc(notes)}</p>` : ""}
+      ${rec.followUpDate ? `<h2>Follow-up Date</h2><p>${new Date(rec.followUpDate).toLocaleDateString()}</p>` : ""}
+    </body></html>`;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.print();
   };
 
   const closeModal = () => {
@@ -169,8 +219,13 @@ const VetMedRec = () => {
     setError("");
     setSuccess("");
     try {
+      const assembledNotes = form.symptoms.trim()
+        ? `Symptoms: ${form.symptoms.trim()}\n\n${form.notes}`
+        : form.notes;
+      const { symptoms: _s, ...rest } = form;
       const payload = {
-        ...form,
+        ...rest,
+        notes: assembledNotes,
         followUpDate: form.followUpDate || null,
       };
       // only send modificationReason for admin/staff edits
@@ -288,6 +343,13 @@ const VetMedRec = () => {
                       </td>
                       <td>
                         <div className="row-actions">
+                          <button
+                            className="btn-print"
+                            onClick={() => printRecord(rec)}
+                            title="Print / Save as PDF"
+                          >
+                            🖨
+                          </button>
                           <button
                             className="row-btn icon-btn row-btn-ai"
                             onClick={() => openAiInsight(rec)}
@@ -424,6 +486,13 @@ const VetMedRec = () => {
                     <div className="record-card-row">
                       <span className="record-card-label">Actions</span>
                       <div className="row-actions">
+                        <button
+                          className="btn-print"
+                          onClick={() => printRecord(rec)}
+                          title="Print / Save as PDF"
+                        >
+                          🖨
+                        </button>
                         <button
                           className="row-btn icon-btn row-btn-ai"
                           onClick={() => openAiInsight(rec)}
@@ -579,9 +648,20 @@ const VetMedRec = () => {
                 />
               </div>
 
+              <div className="form-group">
+                <label>Symptoms</label>
+                <textarea
+                  name="symptoms"
+                  value={form.symptoms}
+                  onChange={onChange}
+                  rows={2}
+                  placeholder="Describe observed symptoms…"
+                />
+              </div>
+
               <div className="form-row">
                 <div className="form-group">
-                  <label>Treatment</label>
+                  <label>Treatment / Treatment Plan</label>
                   <input
                     name="treatment"
                     value={form.treatment}
@@ -589,7 +669,7 @@ const VetMedRec = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Prescription</label>
+                  <label>Prescription / Medications</label>
                   <input
                     name="prescription"
                     value={form.prescription}

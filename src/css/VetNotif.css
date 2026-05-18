@@ -304,3 +304,20 @@
     padding: 12px !important;
   }
 }
+
+/* ── Notification filter tabs & detail modal ── */
+.notif-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.notif-filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.notif-tab {
+  padding: 6px 16px; border: 1.5px solid #d0dce3; border-radius: 20px;
+  background: #fff; color: #255065; font-size: 13px; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.notif-tab.active { background: #255065; color: #fff; border-color: #255065; }
+.notif-detail-modal { max-width: 420px; }
+.notif-type-badge {
+  display: inline-block; background: #e3f2fd; color: #255065;
+  border-radius: 4px; font-size: 11px; padding: 2px 8px;
+  font-weight: 600; text-transform: capitalize; margin-bottom: 10px;
+}
+.notif-detail-body { color: #444; line-height: 1.6; margin: 10px 0; white-space: pre-wrap; }
