@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import AdminSidebar from "../../../components/AdminSidebar";
@@ -55,7 +55,10 @@ function buildCSV(rows) {
 
 export default function AdminPayments() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = useMemo(
+    () => JSON.parse(localStorage.getItem("user") || "{}"),
+    [],
+  );
   const { isOpen, toggle, close } = useSidebar();
 
   const [payments, setPayments] = useState([]);
