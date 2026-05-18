@@ -281,3 +281,18 @@
 .dash-notif-row.unread { background: #f0f8ff; border-radius: 6px; padding: 8px; }
 .dash-notif-title { font-weight: 600; display: block; }
 .dash-notif-body { color: #666; display: block; font-size: 12px; margin-top: 2px; }
+
+/* ── Most Common Services ── */
+.dash-service-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+.dash-service-name { min-width: 160px; color: #444; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-service-bar-wrap { flex: 1; background: #eef4f7; border-radius: 4px; height: 10px; overflow: hidden; }
+.dash-service-bar { height: 100%; background: #438fb5; border-radius: 4px; transition: width 0.4s; }
+.dash-service-count { min-width: 30px; text-align: right; font-weight: 600; color: #255065; }
+
+/* ── 7-Day Trend Chart ── */
+.dash-trend-chart { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding-top: 16px; }
+.dash-trend-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; height: 100%; }
+.dash-trend-count { font-size: 11px; font-weight: 600; color: #255065; min-height: 16px; }
+.dash-trend-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.dash-trend-bar { width: 100%; background: #438fb5; border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.4s; }
+.dash-trend-label { font-size: 11px; color: #888; }

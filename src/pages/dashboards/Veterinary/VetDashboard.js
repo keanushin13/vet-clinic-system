@@ -67,6 +67,31 @@ const VetDashboard = () => {
     [allApts],
   );
 
+  const topServices = useMemo(() => {
+    const counts = {};
+    allApts.forEach((a) => {
+      const svc = (a.reason || "").trim();
+      if (svc) counts[svc] = (counts[svc] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [allApts]);
+
+  const trendData = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toDateString();
+      return {
+        label: d.toLocaleDateString([], { weekday: "short" }),
+        count: allApts.filter(
+          (a) => new Date(a.scheduledAt).toDateString() === dateStr,
+        ).length,
+      };
+    });
+  }, [allApts]);
+
   const followUpReminders = useMemo(
     () =>
       allRecords
@@ -230,6 +255,56 @@ const VetDashboard = () => {
                 </div>
               ))
             )}
+          </div>
+
+          {/* Most Common Services */}
+          <div className="dash-section-card">
+            <h4 className="dash-section-heading">Most Common Services</h4>
+            {topServices.length === 0 ? (
+              <p className="dash-empty">No appointment data yet.</p>
+            ) : (
+              topServices.map(([svc, count]) => {
+                const max = topServices[0][1];
+                return (
+                  <div key={svc} className="dash-service-row">
+                    <span className="dash-service-name">{svc}</span>
+                    <div className="dash-service-bar-wrap">
+                      <div
+                        className="dash-service-bar"
+                        style={{ width: `${(count / max) * 100}%` }}
+                      />
+                    </div>
+                    <span className="dash-service-count">{count}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Appointment Trend */}
+          <div className="dash-section-card">
+            <h4 className="dash-section-heading">
+              Appointment Trend (Last 7 Days)
+            </h4>
+            <div className="dash-trend-chart">
+              {trendData.map((d, i) => {
+                const max = Math.max(...trendData.map((x) => x.count), 1);
+                return (
+                  <div key={i} className="dash-trend-col">
+                    <span className="dash-trend-count">
+                      {d.count || ""}
+                    </span>
+                    <div className="dash-trend-bar-wrap">
+                      <div
+                        className="dash-trend-bar"
+                        style={{ height: `${(d.count / max) * 100}%` }}
+                      />
+                    </div>
+                    <span className="dash-trend-label">{d.label}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Recent Notifications */}

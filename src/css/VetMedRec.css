@@ -631,3 +631,11 @@
 .rec-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .rec-page-btn:hover:not(:disabled) { background: #e0f0f8; }
 .rec-page-info { font-size: 13px; color: #555; }
+
+/* ── Print button ── */
+.btn-print {
+  background: #f5f8fa; border: 1.5px solid #cdd8de; border-radius: 6px;
+  padding: 4px 8px; cursor: pointer; font-size: 14px; line-height: 1;
+  transition: background 0.15s;
+}
+.btn-print:hover { background: #e3edf2; }
