@@ -92,7 +92,11 @@ function App() {
     };
 
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("authChanged", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("authChanged", handleStorageChange);
+    };
   }, []);
 
   const getStoredUser = () => authState.user;

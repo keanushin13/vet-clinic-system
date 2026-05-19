@@ -54,6 +54,7 @@ const LoginOtp = ({ email, onSuccess, onClose }) => {
       });
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
+      window.dispatchEvent(new Event("authChanged"));
       onSuccess(res.data.user);
     } catch (err) {
       setError(err.response?.data?.message || "Invalid OTP code.");

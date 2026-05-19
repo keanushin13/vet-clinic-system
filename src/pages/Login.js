@@ -64,6 +64,7 @@ const Login = () => {
       if (token) localStorage.setItem("token", token);
       if (user) {
         localStorage.setItem("user", JSON.stringify(user));
+        window.dispatchEvent(new Event("authChanged"));
         handleOtpSuccess(user);
       }
     } catch (err) {
