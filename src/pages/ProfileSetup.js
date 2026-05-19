@@ -145,6 +145,7 @@ export default function ProfileSetup() {
           profileCompleted: data.profileCompleted,
         }),
       );
+      window.dispatchEvent(new Event("authChanged"));
 
       setShowChoice(true);
     } catch (err) {
