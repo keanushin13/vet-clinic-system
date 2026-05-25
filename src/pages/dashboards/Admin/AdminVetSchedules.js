@@ -13,7 +13,6 @@ import {
   updateClinicSettings,
 } from "../../../api/api";
 import "../../../css/AdminVetSchedules.css";
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const DAY_NAMES = [
@@ -207,12 +206,6 @@ export default function AdminVetSchedules() {
           </button>
           <h2>Vet Schedules & Clinic Hours</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin"

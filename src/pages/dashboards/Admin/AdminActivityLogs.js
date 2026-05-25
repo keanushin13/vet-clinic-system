@@ -5,7 +5,6 @@ import AdminSidebar from "../../../components/AdminSidebar";
 import { useSidebar } from "../../../components/useSidebar";
 import { getActivityLogs } from "../../../api/api";
 import "../../../css/AdminActivityLogs.css";
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const CATEGORIES = [
@@ -61,12 +60,12 @@ export default function AdminActivityLogs() {
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const LIMIT = 20;
+  const [limit, setLimit] = useState(25);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page, limit: LIMIT };
+      const params = { page, limit };
       if (category) params.category = category;
       if (search) params.q = search;
       if (statusFilter) params.status = statusFilter;
@@ -91,7 +90,9 @@ export default function AdminActivityLogs() {
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, category, search, statusFilter, dateFrom, dateTo]);
+  }, [page, limit, category, search, statusFilter, dateFrom, dateTo]);
+
+  useEffect(() => { setPage(1); }, [limit, category, search, statusFilter, dateFrom, dateTo]);
 
   const resetPage = () => setPage(1);
 
@@ -122,12 +123,6 @@ export default function AdminActivityLogs() {
           </button>
           <h2>Activity Logs</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin"
@@ -155,6 +150,20 @@ export default function AdminActivityLogs() {
 
           <div className="appt-card">
             <div className="appt-toolbar">
+              <label className="entries-select-label">
+                Show&nbsp;
+                <select
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value))}
+                  className="entries-select"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                &nbsp;entries
+              </label>
               <input
                 className="appt-search"
                 placeholder="Search action, target, staff…"
@@ -300,27 +309,61 @@ export default function AdminActivityLogs() {
               )}
             </div>
 
-            {totalPages > 1 && (
-              <div className="pagination-row">
-                <button
-                  className="page-btn"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  ‹ Prev
-                </button>
-                <span className="page-info">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  className="page-btn"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                >
-                  Next ›
-                </button>
-              </div>
-            )}
+            {/* ── pagination ── */}
+            <div className="pagination-bar">
+              <span className="pagination-info">
+                {loading
+                  ? "Loading..."
+                  : total === 0
+                    ? "No entries"
+                    : `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total} entries`}
+              </span>
+
+              {totalPages > 1 && (
+                <div className="pagination-controls">
+                  <button
+                    className="page-btn"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    &lsaquo; Prev
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => {
+                      if (totalPages <= 5) return true;
+                      if (p === 1 || p === totalPages) return true;
+                      return Math.abs(p - page) <= 1;
+                    })
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push("ellipsis-" + p);
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item) =>
+                      typeof item === "string" ? (
+                        <span key={item} className="page-ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={item}
+                          className={`page-btn${item === page ? " page-btn-active" : ""}`}
+                          onClick={() => setPage(item)}
+                        >
+                          {item}
+                        </button>
+                      ),
+                    )}
+
+                  <button
+                    className="page-btn"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next &rsaquo;
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </main>

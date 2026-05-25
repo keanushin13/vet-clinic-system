@@ -16,7 +16,6 @@ import {
   verifyUser,
 } from "../../../api/api";
 
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -346,12 +345,6 @@ const AdminUserManagement = () => {
           </button>
           <h2>User Management</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin Profile"

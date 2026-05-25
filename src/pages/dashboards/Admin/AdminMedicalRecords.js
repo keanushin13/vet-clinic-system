@@ -10,7 +10,6 @@ import {
   restoreMedicalRecord,
 } from "../../../api/api";
 import "../../../css/AdminMedicalRecords.css";
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const MODIFICATION_REASONS = [
@@ -159,12 +158,6 @@ export default function AdminMedicalRecords() {
           </button>
           <h2>Medical Records</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin"

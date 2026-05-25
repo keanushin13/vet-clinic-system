@@ -13,7 +13,6 @@ import {
   getInventoryAiAnalysis,
 } from "../../../api/api";
 import "../../../css/AdminInventory.css";
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const CATEGORIES = [
@@ -315,12 +314,6 @@ export default function AdminInventory() {
           </button>
           <h2>Inventory</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin"

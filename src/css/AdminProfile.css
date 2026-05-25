@@ -2,6 +2,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  padding-bottom: 40px;
 }
 
 .profile-card {
@@ -10,13 +11,14 @@
   background: white;
   border-radius: 25px;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
 .profile-header-bg {
   height: 140px;
   background: linear-gradient(90deg, #63b6c5 0%, #438fb5 100%);
+  border-radius: 25px 25px 0 0;
 }
 
 .profile-content {
@@ -128,6 +130,7 @@
   font-family: "Poppins", sans-serif;
   cursor: pointer;
   transition: 0.3s;
+  margin-top: 0 !important;
 }
 
 .edit-profile-btn:hover {

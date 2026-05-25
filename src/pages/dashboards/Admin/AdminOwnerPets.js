@@ -12,7 +12,6 @@ import {
 } from "../../../api/api";
 import "../../../css/OwnerPets.css";
 
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const EMPTY_PET_FORM = {
@@ -179,12 +178,6 @@ const AdminOwnerPets = () => {
           </button>
           <h2>Client Pets</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notif" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin Profile"

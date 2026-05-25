@@ -13,7 +13,6 @@ import {
 } from "../../../api/api";
 
 // ASSETS
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const AdminMessages = () => {
@@ -150,12 +149,6 @@ const AdminMessages = () => {
               }}
             >
               📢 Broadcast
-            </button>
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
             </button>
             <TopbarUserMenu
               avatarSrc={userIcon}

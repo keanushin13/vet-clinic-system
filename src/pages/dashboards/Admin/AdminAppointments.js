@@ -12,7 +12,6 @@ import {
   getPets,
 } from "../../../api/api";
 import "../../../css/AdminAppointments.css";
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const STATUS_COLORS = {
@@ -223,12 +222,6 @@ export default function AdminAppointments() {
           </button>
           <h2>Appointments</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin"

@@ -22,7 +22,6 @@ import {
 } from "recharts";
 
 // ASSETS
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const PIE_COLORS = ["#4f8cff", "#63c58d", "#f6b93b", "#e55353", "#a78bfa"];
@@ -84,12 +83,6 @@ const AdminDashboard = () => {
           </button>
           <h2>Welcome, Admin</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin Profile"

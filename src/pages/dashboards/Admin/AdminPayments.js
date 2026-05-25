@@ -9,7 +9,6 @@ import {
   getAppointmentBillingSummary,
 } from "../../../api/api";
 import "../../../css/AdminPayments.css";
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const STATUS_COLORS = {
@@ -172,12 +171,6 @@ export default function AdminPayments() {
           </button>
           <h2>Payments</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={userIcon}
               avatarAlt="Admin"

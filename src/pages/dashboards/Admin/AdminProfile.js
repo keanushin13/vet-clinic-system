@@ -7,7 +7,6 @@ import { useSidebar } from "../../../components/useSidebar";
 import { getMe, updateMe, updatePassword } from "../../../api/api";
 
 // ASSETS
-import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
 const AdminProfile = () => {
@@ -196,12 +195,6 @@ const AdminProfile = () => {
           </button>
           <h2>My Profile</h2>
           <div className="top-bar-right">
-            <button
-              className="notif-btn"
-              onClick={() => navigate("/admin-notifications")}
-            >
-              <img src={bellIcon} alt="Notifications" />
-            </button>
             <TopbarUserMenu
               avatarSrc={avatarSource}
               avatarAlt="Admin Profile"
@@ -263,7 +256,7 @@ const AdminProfile = () => {
               </div>
 
               <div className="profile-actions">
-                <button className="edit-profile-btn" onClick={openEdit}>
+                <button className="edit-profile-btn pt-0" onClick={openEdit}>
                   Edit Profile Information
                 </button>
                 <button
