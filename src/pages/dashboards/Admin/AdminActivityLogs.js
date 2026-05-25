@@ -11,7 +11,7 @@ const CATEGORIES = [
   { value: "", label: "All Activity" },
   { value: "login", label: "Login Activity" },
   { value: "appointments", label: "Appointments" },
-  { value: "medical", label: "Medical Records" },
+  { value: "medical", label: "Pet Medical Records" },
   { value: "inventory", label: "Inventory" },
   { value: "payments", label: "Payments" },
   { value: "users", label: "Users" },

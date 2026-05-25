@@ -14,7 +14,7 @@ const NAV_ITEMS = [
     icon: userManagementIcon,
   },
   {
-    label: "Medical Records",
+    label: "Pet Medical Records",
     path: "/admin-medical-records",
     icon: userManagementIcon,
   },

@@ -1,11 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import AdminSidebar from "../../../components/AdminSidebar";
 import { useSidebar } from "../../../components/useSidebar";
 import {
   getMedicalRecords,
-  updateMedicalRecord,
   deleteMedicalRecord,
   restoreMedicalRecord,
 } from "../../../api/api";
@@ -28,6 +27,17 @@ function fmtDate(d) {
   return d ? new Date(d).toLocaleDateString() : "—";
 }
 
+function ownerName(rec) {
+  const o = rec.pet?.owner;
+  if (!o) return "—";
+  return `${o.firstName || ""} ${o.lastName || ""}`.trim() || o.username || "—";
+}
+
+function vetName(rec) {
+  if (!rec.vet) return "—";
+  return `Dr. ${rec.vet.firstName || ""} ${rec.vet.lastName || ""}`.trim();
+}
+
 export default function AdminMedicalRecords() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -35,23 +45,29 @@ export default function AdminMedicalRecords() {
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [page, setPage] = useState(1);
-  const LIMIT = 15;
 
-  // Edit modal
-  const [editTarget, setEditTarget] = useState(null);
-  const [form, setForm] = useState({});
-  const [formError, setFormError] = useState("");
-  const [saving, setSaving] = useState(false);
+  // Filters
+  const [search, setSearch] = useState("");
+  const [limit, setLimit] = useState(25);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [vetFilter, setVetFilter] = useState("");
+  const [reasonFilter, setReasonFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Pagination
+  const [page, setPage] = useState(1);
+
+  // View modal
+  const [viewTarget, setViewTarget] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const r = await getMedicalRecords({
         includeArchived: showArchived ? "true" : undefined,
-        limit: 200,
+        limit: 500,
       });
       setRecords(Array.isArray(r.data) ? r.data : []);
     } catch {
@@ -70,76 +86,82 @@ export default function AdminMedicalRecords() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showArchived]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [limit, search, statusFilter, vetFilter, reasonFilter, dateFrom, dateTo, showArchived]);
+
+  // Unique vets for dropdown
+  const vetOptions = useMemo(() => {
+    const seen = new Map();
+    for (const r of records) {
+      if (r.vet && !seen.has(r.vet.id)) {
+        seen.set(r.vet.id, vetName(r));
+      }
+    }
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [records]);
+
   const filtered = records.filter((r) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (r.diagnosis || "").toLowerCase().includes(q) ||
-      (r.pet?.name || "").toLowerCase().includes(q) ||
-      (r.vet?.firstName || "").toLowerCase().includes(q) ||
-      (r.vet?.lastName || "").toLowerCase().includes(q)
-    );
+    if (statusFilter && r.status !== statusFilter) return false;
+    if (vetFilter && r.vet?.id !== vetFilter) return false;
+    if (reasonFilter && r.modificationReason !== reasonFilter) return false;
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      if (new Date(r.createdAt) < from) return false;
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      if (new Date(r.createdAt) > to) return false;
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      const matches =
+        (r.pet?.name || "").toLowerCase().includes(q) ||
+        ownerName(r).toLowerCase().includes(q) ||
+        vetName(r).toLowerCase().includes(q) ||
+        (r.diagnosis || "").toLowerCase().includes(q);
+      if (!matches) return false;
+    }
+    return true;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / LIMIT));
-  const paginated = filtered.slice((page - 1) * LIMIT, page * LIMIT);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const paginated = filtered.slice((page - 1) * limit, page * limit);
 
-  const openEdit = (rec) => {
-    setForm({
-      diagnosis: rec.diagnosis || "",
-      treatment: rec.treatment || "",
-      prescription: rec.prescription || "",
-      notes: rec.notes || "",
-      status: rec.status || "Finalized",
-      modificationReason: "",
-    });
-    setFormError("");
-    setEditTarget(rec);
-  };
-
-  const closeModal = () => {
-    setEditTarget(null);
-  };
-
-  const handleChange = (e) =>
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormError("");
-    if (!form.modificationReason) {
-      setFormError("Modification reason is required.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await updateMedicalRecord(editTarget.id, form);
-      closeModal();
-      load();
-    } catch (err) {
-      setFormError(err.response?.data?.message || "Save failed");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Archive this medical record?")) return;
+  const handleArchive = async (id) => {
     try {
       await deleteMedicalRecord(id);
       load();
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const handleRestore = async (id) => {
     try {
       await restoreMedicalRecord(id);
       load();
-    } catch {
-      /* ignore */
+    } catch { /* ignore */ }
+  };
+
+  const handlePrint = (rec) => {
+    setViewTarget({ ...rec, _print: true });
+  };
+
+  useEffect(() => {
+    if (viewTarget?._print) {
+      const t = setTimeout(() => window.print(), 300);
+      return () => clearTimeout(t);
     }
+  }, [viewTarget]);
+
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("");
+    setVetFilter("");
+    setReasonFilter("");
+    setDateFrom("");
+    setDateTo("");
   };
 
   return (
@@ -147,160 +169,142 @@ export default function AdminMedicalRecords() {
       <AdminSidebar isOpen={isOpen} onClose={close} />
       <main className="main-area">
         <header className="top-bar">
-          <button
-            className="hamburger-btn"
-            onClick={toggle}
-            aria-label="Toggle menu"
-          >
-            <span />
-            <span />
-            <span />
+          <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
+            <span /><span /><span />
           </button>
-          <h2>Medical Records</h2>
+          <h2>Pet Medical Records</h2>
           <div className="top-bar-right">
-            <TopbarUserMenu
-              avatarSrc={userIcon}
-              avatarAlt="Admin"
-              profilePath="/admin-profile"
-            />
+            <TopbarUserMenu avatarSrc={userIcon} avatarAlt="Admin" profilePath="/admin-profile" />
           </div>
         </header>
 
         <section className="content-body">
           <div className="appt-card">
-            <div className="appt-toolbar">
+            {/* ── Toolbar ── */}
+            <div className="appt-toolbar medrec-toolbar">
+              <label className="entries-select-label">
+                Show&nbsp;
+                <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="entries-select">
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                &nbsp;entries
+              </label>
+
               <input
                 className="appt-search"
-                placeholder="Search diagnosis, pet, vet…"
+                placeholder="Search pet name, owner, vet, diagnosis…"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearch(e.target.value)}
               />
+
+              <select className="appt-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="">All Status</option>
+                <option value="Finalized">Finalized</option>
+                <option value="FollowUp">Follow Up</option>
+              </select>
+
+              <select className="appt-filter-select" value={vetFilter} onChange={(e) => setVetFilter(e.target.value)}>
+                <option value="">Veterinarian</option>
+                {vetOptions.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+
+              <select className="appt-filter-select" value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)}>
+                <option value="">Modified Reason</option>
+                {MODIFICATION_REASONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+
+              <input type="date" className="appt-date-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="Date Started" />
+              <input type="date" className="appt-date-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="Date Ended" />
+            </div>
+
+            {/* ── Second row: Show Archived + summary ── */}
+            <div className="medrec-subbar">
               <label className="show-deleted-toggle">
                 <input
                   type="checkbox"
                   checked={showArchived}
-                  onChange={(e) => {
-                    setShowArchived(e.target.checked);
-                    setPage(1);
-                  }}
+                  onChange={(e) => setShowArchived(e.target.checked)}
                 />
                 Show Archived
               </label>
+              <span className="table-summary">{filtered.length} record(s)</span>
+              <button className="medrec-reset-btn" onClick={resetFilters}>Reset Filters</button>
             </div>
-            <div className="table-summary">{filtered.length} record(s)</div>
 
+            {/* ── Desktop table ── */}
             <div className="user-table-wrapper table-desktop">
               <table className="user-table">
                 <thead>
                   <tr>
-                    <th>Pet</th>
+                    <th>Pet Name</th>
+                    <th>Pet Owner</th>
                     <th>Veterinarian</th>
-                    <th>Date</th>
+                    <th>Visit Date</th>
                     <th>Diagnosis</th>
                     <th>Status</th>
-                    <th>Modified Reason</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr>
-                      <td colSpan="7" className="empty-row">
-                        Loading…
-                      </td>
-                    </tr>
+                    <tr><td colSpan="7" className="empty-row">Loading…</td></tr>
                   ) : paginated.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="empty-row">
-                        No records found.
-                      </td>
-                    </tr>
+                    <tr><td colSpan="7" className="empty-row">No records found.</td></tr>
                   ) : (
                     paginated.map((rec) => (
-                      <tr
-                        key={rec.id}
-                        className={rec.isArchived ? "row-deleted" : ""}
-                      >
+                      <tr key={rec.id} className={rec.isArchived ? "row-deleted" : ""}>
                         <td>{rec.pet?.name || "—"}</td>
+                        <td>{ownerName(rec)}</td>
+                        <td>{vetName(rec)}</td>
+                        <td>{fmtDate(rec.appointment?.scheduledAt || rec.createdAt)}</td>
+                        <td className="medrec-diagnosis-cell">{rec.diagnosis || "—"}</td>
                         <td>
-                          {rec.vet
-                            ? `Dr. ${rec.vet.firstName || ""} ${rec.vet.lastName || ""}`.trim()
-                            : "—"}
-                        </td>
-                        <td>{fmtDate(rec.createdAt)}</td>
-                        <td>{rec.diagnosis}</td>
-                        <td>
-                          <span
-                            className={`status-pill ${STATUS_COLORS[rec.status] || ""}`}
-                          >
-                            {rec.status}
+                          <span className={`status-pill ${STATUS_COLORS[rec.status] || ""}`}>
+                            {rec.status === "FollowUp" ? "Follow Up" : rec.status}
                           </span>
                         </td>
-                        <td>{rec.modificationReason || "—"}</td>
                         <td>
                           <div className="action-btns">
-                            {!rec.isArchived && (
-                              <button
-                                className="edit-btn icon-btn"
-                                title="Edit"
-                                onClick={() => openEdit(rec)}
-                              >
-                                <svg viewBox="0 0 24 24" fill="none">
-                                  <path
-                                    d="M4 20h4l10-10-4-4L4 16v4z"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinejoin="round"
-                                  />
-                                  <path
-                                    d="M12 6l4 4"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                              </button>
-                            )}
+                            <button
+                              className="icon-btn edit-btn"
+                              title="View Full Record"
+                              onClick={() => setViewTarget(rec)}
+                            >
+                              👁
+                            </button>
+                            <button
+                              className="icon-btn"
+                              title="Print as PDF"
+                              onClick={() => handlePrint(rec)}
+                            >
+                              🖨
+                            </button>
                             {!rec.isArchived ? (
                               <button
-                                className="delete-btn icon-btn"
+                                className="icon-btn delete-btn"
                                 title="Archive"
-                                onClick={() => handleDelete(rec.id)}
+                                onClick={() => handleArchive(rec.id)}
                               >
                                 <svg viewBox="0 0 24 24" fill="none">
-                                  <path
-                                    d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
+                                  <path d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                               </button>
                             ) : (
                               <button
-                                className="restore-btn icon-btn"
+                                className="icon-btn restore-btn"
                                 title="Restore"
                                 onClick={() => handleRestore(rec.id)}
                               >
                                 <svg viewBox="0 0 24 24" fill="none">
-                                  <path
-                                    d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                  <path
-                                    d="M3 3v6h6"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
+                                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  <path d="M3 3v6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                               </button>
                             )}
@@ -313,7 +317,7 @@ export default function AdminMedicalRecords() {
               </table>
             </div>
 
-            {/* Mobile */}
+            {/* ── Mobile cards ── */}
             <div className="table-mobile table-cards-list">
               {loading ? (
                 <p className="empty-row">Loading…</p>
@@ -321,65 +325,45 @@ export default function AdminMedicalRecords() {
                 <p className="empty-row">No records found.</p>
               ) : (
                 paginated.map((rec) => (
-                  <div
-                    className="user-card"
-                    key={rec.id}
-                    style={rec.isArchived ? { opacity: 0.6 } : {}}
-                  >
+                  <div className="user-card" key={rec.id} style={rec.isArchived ? { opacity: 0.6 } : {}}>
                     <div className="user-card-header">
-                      <div className="user-card-avatar">
-                        {(rec.pet?.name || "?").charAt(0)}
-                      </div>
+                      <div className="user-card-avatar">{(rec.pet?.name || "?").charAt(0)}</div>
                       <div className="user-card-name">
-                        {rec.pet?.name} · {fmtDate(rec.createdAt)}
+                        {rec.pet?.name || "—"} · {fmtDate(rec.appointment?.scheduledAt || rec.createdAt)}
                       </div>
                     </div>
                     <div className="user-card-body">
                       <div className="user-card-row">
+                        <span className="user-card-label">Owner</span>
+                        <span>{ownerName(rec)}</span>
+                      </div>
+                      <div className="user-card-row">
                         <span className="user-card-label">Vet</span>
-                        <span>
-                          {rec.vet
-                            ? `Dr. ${rec.vet.firstName || ""} ${rec.vet.lastName || ""}`.trim()
-                            : "—"}
-                        </span>
+                        <span>{vetName(rec)}</span>
                       </div>
                       <div className="user-card-row">
                         <span className="user-card-label">Diagnosis</span>
-                        <span>{rec.diagnosis}</span>
+                        <span>{rec.diagnosis || "—"}</span>
                       </div>
                       <div className="user-card-row">
                         <span className="user-card-label">Status</span>
-                        <span
-                          className={`status-pill ${STATUS_COLORS[rec.status] || ""}`}
-                        >
-                          {rec.status}
+                        <span className={`status-pill ${STATUS_COLORS[rec.status] || ""}`}>
+                          {rec.status === "FollowUp" ? "Follow Up" : rec.status}
                         </span>
                       </div>
                       <div className="user-card-row">
                         <span className="user-card-label">Actions</span>
                         <div className="action-btns">
-                          {!rec.isArchived && (
-                            <button
-                              className="edit-btn icon-btn"
-                              onClick={() => openEdit(rec)}
-                            >
-                              ✎
-                            </button>
-                          )}
+                          <button className="icon-btn edit-btn" onClick={() => setViewTarget(rec)}>👁</button>
+                          <button className="icon-btn" onClick={() => handlePrint(rec)}>🖨</button>
                           {!rec.isArchived ? (
-                            <button
-                              className="delete-btn icon-btn"
-                              onClick={() => handleDelete(rec.id)}
-                            >
-                              🗑
+                            <button className="icon-btn delete-btn" onClick={() => handleArchive(rec.id)}>
+                              <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
                             </button>
                           ) : (
-                            <button
-                              className="restore-btn icon-btn"
-                              onClick={() => handleRestore(rec.id)}
-                            >
-                              ↺
-                            </button>
+                            <button className="icon-btn restore-btn" onClick={() => handleRestore(rec.id)}>↺</button>
                           )}
                         </div>
                       </div>
@@ -389,98 +373,112 @@ export default function AdminMedicalRecords() {
               )}
             </div>
 
-            {totalPages > 1 && (
-              <div className="pagination-row">
-                <button
-                  className="page-btn"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  ‹ Prev
-                </button>
-                <span className="page-info">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  className="page-btn"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                >
-                  Next ›
-                </button>
-              </div>
-            )}
+            {/* ── Pagination ── */}
+            <div className="pagination-bar">
+              <span className="pagination-info">
+                {loading
+                  ? "Loading..."
+                  : filtered.length === 0
+                    ? "No entries"
+                    : `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, filtered.length)} of ${filtered.length} entries`}
+              </span>
+              {totalPages > 1 && (
+                <div className="pagination-controls">
+                  <button className="page-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>&lsaquo; Prev</button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => {
+                      if (totalPages <= 5) return true;
+                      if (p === 1 || p === totalPages) return true;
+                      return Math.abs(p - page) <= 1;
+                    })
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push("ellipsis-" + p);
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item) =>
+                      typeof item === "string" ? (
+                        <span key={item} className="page-ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={item}
+                          className={`page-btn${item === page ? " page-btn-active" : ""}`}
+                          onClick={() => setPage(item)}
+                        >
+                          {item}
+                        </button>
+                      )
+                    )}
+                  <button className="page-btn" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next &rsaquo;</button>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </main>
 
-      {/* Edit Modal */}
-      {editTarget && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3>Edit Medical Record</h3>
-            <p className="modal-hint">Changes are logged to Activity Log.</p>
-            <form onSubmit={handleSubmit}>
-              <label>Diagnosis *</label>
-              <input
-                name="diagnosis"
-                value={form.diagnosis}
-                onChange={handleChange}
-                required
-              />
-              <label>Treatment</label>
-              <textarea
-                name="treatment"
-                value={form.treatment}
-                onChange={handleChange}
-                rows={2}
-              />
-              <label>Prescription</label>
-              <input
-                name="prescription"
-                value={form.prescription}
-                onChange={handleChange}
-              />
-              <label>Notes</label>
-              <textarea
-                name="notes"
-                value={form.notes}
-                onChange={handleChange}
-                rows={2}
-              />
-              <label>Status</label>
-              <select name="status" value={form.status} onChange={handleChange}>
-                <option value="Finalized">Finalized</option>
-                <option value="FollowUp">Follow Up</option>
-              </select>
-              <label>Modification Reason *</label>
-              <select
-                name="modificationReason"
-                value={form.modificationReason}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select reason…</option>
-                {MODIFICATION_REASONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-              {formError && <p className="form-error">{formError}</p>}
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={closeModal}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="save-btn" disabled={saving}>
-                  {saving ? "Saving…" : "Save"}
-                </button>
+      {/* ── View Full Record Modal ── */}
+      {viewTarget && (
+        <div className="modal-overlay" onClick={() => setViewTarget(null)}>
+          <div className="modal-box medrec-view-box" onClick={(e) => e.stopPropagation()}>
+            <div className="medrec-view-header">
+              <h3>Medical Record</h3>
+              <button className="save-btn" onClick={() => window.print()}>🖨 Print as PDF</button>
+            </div>
+
+            <div className="medrec-view-grid">
+              <div className="medrec-view-row">
+                <span className="medrec-view-label">Pet</span>
+                <span>{viewTarget.pet?.name || "—"} ({viewTarget.pet?.species || "—"})</span>
               </div>
-            </form>
+              <div className="medrec-view-row">
+                <span className="medrec-view-label">Owner</span>
+                <span>{ownerName(viewTarget)}</span>
+              </div>
+              <div className="medrec-view-row">
+                <span className="medrec-view-label">Veterinarian</span>
+                <span>{vetName(viewTarget)}</span>
+              </div>
+              <div className="medrec-view-row">
+                <span className="medrec-view-label">Visit Date</span>
+                <span>{fmtDate(viewTarget.appointment?.scheduledAt || viewTarget.createdAt)}</span>
+              </div>
+              <div className="medrec-view-row">
+                <span className="medrec-view-label">Status</span>
+                <span className={`status-pill ${STATUS_COLORS[viewTarget.status] || ""}`}>
+                  {viewTarget.status === "FollowUp" ? "Follow Up" : viewTarget.status}
+                </span>
+              </div>
+            </div>
+
+            <hr className="medrec-divider" />
+
+            <div className="medrec-view-section">
+              <p className="medrec-view-label">Diagnosis</p>
+              <p className="medrec-view-text">{viewTarget.diagnosis || "—"}</p>
+            </div>
+            <div className="medrec-view-section">
+              <p className="medrec-view-label">Treatment</p>
+              <p className="medrec-view-text">{viewTarget.treatment || "—"}</p>
+            </div>
+            <div className="medrec-view-section">
+              <p className="medrec-view-label">Prescription</p>
+              <p className="medrec-view-text">{viewTarget.prescription || "—"}</p>
+            </div>
+            <div className="medrec-view-section">
+              <p className="medrec-view-label">Notes</p>
+              <p className="medrec-view-text">{viewTarget.notes || "—"}</p>
+            </div>
+            {viewTarget.modificationReason && (
+              <div className="medrec-view-section">
+                <p className="medrec-view-label">Modification Reason</p>
+                <p className="medrec-view-text">{viewTarget.modificationReason}</p>
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button className="cancel-btn" onClick={() => setViewTarget(null)}>Close</button>
+            </div>
           </div>
         </div>
       )}
