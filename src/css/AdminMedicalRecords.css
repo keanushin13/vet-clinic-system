@@ -109,22 +109,34 @@
 }
 
 @media print {
-  .dashboard-container > *:not(.main-area) { display: none !important; }
-  .main-area > header,
-  .appt-card .appt-toolbar,
-  .appt-card .medrec-subbar,
-  .appt-card .user-table-wrapper,
-  .appt-card .table-mobile,
-  .appt-card .pagination-bar,
-  .modal-overlay { display: none !important; }
-  .medrec-view-box {
+  /* Hide everything in the page except the modal overlay */
+  .dashboard-container > *:not(.modal-overlay) {
+    display: none !important;
+  }
+
+  /* Flatten the overlay so it renders like a normal block */
+  .modal-overlay {
     position: static !important;
+    background: none !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  .medrec-view-box {
     box-shadow: none !important;
     max-height: none !important;
     overflow: visible !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 24px !important;
   }
-  .modal-actions { display: none !important; }
-  .medrec-view-header .save-btn { display: none !important; }
+
+  .modal-actions,
+  .medrec-view-header .save-btn {
+    display: none !important;
+  }
 }
 
 @media (max-width: 768px) {

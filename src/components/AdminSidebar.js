@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { label: "User Management", path: "/admin-users", icon: userManagementIcon },
   { label: "Appointments", path: "/admin-appointments", icon: dashboardIcon },
   {
-    label: "Vet Schedules",
+    label: "Clinic Schedule",
     path: "/admin-vet-schedules",
     icon: userManagementIcon,
   },

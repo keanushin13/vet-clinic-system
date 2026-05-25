@@ -76,7 +76,7 @@
 .vs-weekly-header,
 .vs-weekly-row {
   display: grid;
-  grid-template-columns: 110px 50px 1fr 1fr 80px;
+  grid-template-columns: 110px 50px 1fr 1fr;
   gap: 10px;
   align-items: center;
   padding: 6px 0;
@@ -91,8 +91,7 @@
 .vs-weekly-row:not(:last-child) {
   border-bottom: 1px solid #f8f8f8;
 }
-.vs-weekly-row input[type="time"],
-.vs-weekly-row input[type="number"] {
+.vs-weekly-row input[type="time"] {
   padding: 7px 10px;
   border-radius: 8px;
   border: 1.5px solid #e0e0e0;
@@ -178,23 +177,75 @@
   margin: 40px 0;
 }
 
-/* Exceptions form */
-.vs-exc-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-  align-items: center;
-}
-.vs-exc-form input {
+/* Shared input + label */
+.vs-input {
   padding: 8px 12px;
   border-radius: 10px;
   border: 1.5px solid #e0e0e0;
   font-size: 13px;
   outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
 }
-.vs-exc-form input:focus {
-  border-color: #4f8cff;
+.vs-input:focus { border-color: #4f8cff; }
+.vs-input:disabled { background: #f5f5f5; color: #bbb; }
+
+.vs-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 160px;
+}
+.vs-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+.vs-hint-text {
+  font-size: 13px;
+  color: #888;
+  margin: -8px 0 16px;
+  line-height: 1.5;
+}
+
+/* Holiday form */
+.vs-holiday-form { margin-bottom: 16px; }
+.vs-holiday-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.vs-holiday-add-btn {
+  flex-shrink: 0;
+  align-self: flex-end;
+  white-space: nowrap;
+}
+.vs-holiday-table { margin-top: 8px; }
+.vs-holiday-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fff3e0;
+  color: #e65100;
+}
+
+/* Exception form (new layout) */
+.vs-exc-form-new {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.vs-exc-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .vs-exc-table {
@@ -292,9 +343,5 @@
   .vs-weekly-header,
   .vs-weekly-row {
     grid-template-columns: 90px 40px 1fr 1fr;
-  }
-  .vs-weekly-header span:nth-child(5),
-  .vs-weekly-row input:nth-child(5) {
-    display: none;
   }
 }

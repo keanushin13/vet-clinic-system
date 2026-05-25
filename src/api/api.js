@@ -163,6 +163,11 @@ export const getClinicSettings = () => API.get("/clinic-settings");
 export const updateClinicSettings = (settings) =>
   API.put("/clinic-settings", { settings });
 
+// ─── HOLIDAYS ─────────────────────────────────────────────────────────────────
+export const getHolidays = (params) => API.get("/holidays", { params });
+export const createHoliday = (data) => API.post("/holidays", data);
+export const deleteHoliday = (id) => API.delete(`/holidays/${id}`);
+
 // ─── STATS ────────────────────────────────────────────────────────────────────
 export const getAdminStats = () => API.get("/stats/admin");
 export const getStaffStats = () => API.get("/stats/staff");
