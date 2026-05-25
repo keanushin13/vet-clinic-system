@@ -16,21 +16,22 @@ import "../../../css/AdminInventory.css";
 import userIcon from "../../../assets/Profile.png";
 
 const CATEGORIES = [
-  "Medication",
-  "Vaccine",
-  "Supplies",
-  "Grooming",
-  "Medical",
-  "TestKits",
-  "Antibiotics",
-  "Supplements",
-  "EyeDrops",
-  "EarDrops",
-  "AntiParasite",
-  "AntiInflammatory",
-  "FoodSupplements",
-  "ShampooAndSoap",
-  "Others",
+  { value: "Medication",       label: "Medication" },
+  { value: "Vaccine",          label: "Vaccine" },
+  { value: "Vaccines",         label: "Vaccines" },
+  { value: "Supplies",         label: "Supplies" },
+  { value: "Grooming",         label: "Grooming" },
+  { value: "Medical",          label: "Medical" },
+  { value: "TestKits",         label: "Test Kits" },
+  { value: "Antibiotics",      label: "Antibiotics" },
+  { value: "Supplements",      label: "Supplements" },
+  { value: "EyeDrops",         label: "Eye Drops" },
+  { value: "EarDrops",         label: "Ear Drops" },
+  { value: "AntiParasite",     label: "Anti-Parasite" },
+  { value: "AntiInflammatory", label: "Anti-Inflammatory" },
+  { value: "FoodSupplements",  label: "Food Supplements" },
+  { value: "ShampooAndSoap",   label: "Shampoo & Soap" },
+  { value: "Others",           label: "Others" },
 ];
 
 const EMPTY_FORM = {
@@ -363,8 +364,8 @@ export default function AdminInventory() {
               >
                 <option value="">All Categories</option>
                 {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </select>
@@ -656,8 +657,8 @@ export default function AdminInventory() {
                 onChange={handleChange}
               >
                 {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </select>
