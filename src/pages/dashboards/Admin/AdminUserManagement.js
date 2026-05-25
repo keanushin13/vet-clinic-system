@@ -13,6 +13,7 @@ import {
   restoreUser,
   toggleUserActive,
   adminResetPassword,
+  verifyUser,
 } from "../../../api/api";
 
 import bellIcon from "../../../assets/Bell_Icon.png";
@@ -100,7 +101,7 @@ const AdminUserManagement = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const LIMIT = 10;
+  const [limit, setLimit] = useState(25);
 
   // filters
   const [search, setSearch] = useState("");
@@ -118,7 +119,7 @@ const AdminUserManagement = () => {
 
   const loadUsers = useCallback(() => {
     setLoading(true);
-    const params = { page, limit: LIMIT };
+    const params = { page, limit };
     if (roleFilter !== "all") params.role = roleFilter;
     if (showDeleted) params.showDeleted = "true";
     if (search) params.q = search;
@@ -137,7 +138,7 @@ const AdminUserManagement = () => {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page, roleFilter, showDeleted, search]);
+  }, [page, limit, roleFilter, showDeleted, search]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
@@ -148,10 +149,10 @@ const AdminUserManagement = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadUsers]);
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters or page size change
   useEffect(() => {
     setPage(1);
-  }, [roleFilter, showDeleted, search]);
+  }, [roleFilter, showDeleted, search, limit]);
 
   // ── actions ────────────────────────────────────────────────────────────────
 
@@ -179,6 +180,14 @@ const AdminUserManagement = () => {
     if (!window.confirm(`Restore ${u.username}?`)) return;
     try {
       await restoreUser(u.id);
+      loadUsers();
+    } catch {}
+  };
+
+  const handleVerify = async (u) => {
+    if (!window.confirm(`Manually verify ${u.username}?`)) return;
+    try {
+      await verifyUser(u.id);
       loadUsers();
     } catch {}
   };
@@ -322,6 +331,21 @@ const AdminUserManagement = () => {
               </div>
 
               <div className="filter-row">
+                <label className="entries-select-label">
+                  Show&nbsp;
+                  <select
+                    value={limit}
+                    onChange={(e) => setLimit(Number(e.target.value))}
+                    className="entries-select"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  &nbsp;entries
+                </label>
+
                 <select
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
@@ -349,12 +373,6 @@ const AdminUserManagement = () => {
               </button>
             </div>
 
-            {/* ── summary ── */}
-            <div className="table-summary">
-              {loading
-                ? "Loading..."
-                : `${total} user${total !== 1 ? "s" : ""} found`}
-            </div>
 
             {/* ── desktop table ── */}
             <div className="user-table-wrapper table-desktop">
@@ -407,6 +425,7 @@ const AdminUserManagement = () => {
                           onDelete={handleSoftDelete}
                           onRestore={handleRestore}
                           onResetPw={openReset}
+                          onVerify={handleVerify}
                         />
                       </td>
                     </tr>
@@ -485,27 +504,64 @@ const AdminUserManagement = () => {
             </div>
 
             {/* ── pagination ── */}
-            {pages > 1 && (
-              <div className="pagination-row">
-                <button
-                  className="page-btn"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  ‹ Prev
-                </button>
-                <span className="page-info">
-                  Page {page} of {pages}
-                </span>
-                <button
-                  className="page-btn"
-                  disabled={page >= pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next ›
-                </button>
-              </div>
-            )}
+            <div className="pagination-bar">
+              <span className="pagination-info">
+                {loading
+                  ? "Loading..."
+                  : total === 0
+                    ? "No entries"
+                    : `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total} entries`}
+              </span>
+
+              {pages > 1 && (
+                <div className="pagination-controls">
+                  <button
+                    className="page-btn"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    &lsaquo; Prev
+                  </button>
+
+                  {Array.from({ length: pages }, (_, i) => i + 1)
+                    .filter((p) => {
+                      if (pages <= 5) return true;
+                      if (p === 1 || p === pages) return true;
+                      return Math.abs(p - page) <= 1;
+                    })
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) {
+                        acc.push("ellipsis-" + p);
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item) =>
+                      typeof item === "string" ? (
+                        <span key={item} className="page-ellipsis">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          className={`page-btn${item === page ? " page-btn-active" : ""}`}
+                          onClick={() => setPage(item)}
+                        >
+                          {item}
+                        </button>
+                      ),
+                    )}
+
+                  <button
+                    className="page-btn"
+                    disabled={page >= pages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next &rsaquo;
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </main>
@@ -759,10 +815,31 @@ function UserActions({
   onDelete,
   onRestore,
   onResetPw,
+  onVerify,
 }) {
   const isDeleted = Boolean(u.deletedAt);
   return (
     <div className="action-btns">
+      {u.role === "pet_owner" && !u.isVerified && !isDeleted && (
+        <button
+          className="verify-btn icon-btn"
+          onClick={() => onVerify(u)}
+          title="Verify user"
+          aria-label="Verify user"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M8 12l3 3 5-5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
+
       {u.role === "pet_owner" && !isDeleted && (
         <button
           className="edit-btn icon-btn"

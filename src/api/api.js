@@ -51,6 +51,7 @@ export const restoreUser = (id) => API.patch(`/users/${id}/restore`);
 export const adminResetPassword = (id, newPassword) =>
   API.post(`/users/${id}/reset-password`, { newPassword });
 export const toggleUserActive = (id) => API.patch(`/users/${id}/toggle-active`);
+export const verifyUser = (id) => API.patch(`/users/${id}/verify`);
 export const updatePassword = (data) =>
   API.post("/users/update-password", data);
 export const getStaffClients = (params = {}) =>

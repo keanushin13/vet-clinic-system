@@ -190,6 +190,18 @@ tr.row-deleted td,
   background: #c8e6c9;
 }
 
+.verify-btn {
+  background: #e8f0fe;
+  color: #1a56db;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+.verify-btn:hover {
+  background: #c7d7fc;
+}
+
 .suspend-btn {
   background: #fff8e1;
   color: #e65100;
@@ -217,6 +229,7 @@ tr.row-deleted td,
 .edit-btn.icon-btn,
 .delete-btn.icon-btn,
 .restore-btn.icon-btn,
+.verify-btn.icon-btn,
 .suspend-btn.icon-btn,
 .activate-btn.icon-btn,
 .icon-btn {
@@ -248,6 +261,24 @@ tr.row-deleted td,
   flex-wrap: wrap;
 }
 
+.entries-select-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #444;
+  white-space: nowrap;
+}
+
+.entries-select {
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+  margin: 0 4px;
+}
+
 .role-filter-select {
   padding: 7px 10px;
   border-radius: 6px;
@@ -274,22 +305,36 @@ tr.row-deleted td,
 }
 
 /* pagination */
-.pagination-row {
+.pagination-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 16px 0 4px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 4px 4px;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: #555;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .page-btn {
-  padding: 6px 16px;
+  padding: 6px 12px;
   border: 1px solid #ccc;
   border-radius: 6px;
   background: #fff;
   cursor: pointer;
   font-size: 13px;
   transition: 0.15s;
+  min-width: 36px;
 }
 .page-btn:hover:not(:disabled) {
   background: #f0f0f0;
@@ -298,10 +343,20 @@ tr.row-deleted td,
   opacity: 0.4;
   cursor: default;
 }
+.page-btn-active {
+  background: #1a56db;
+  color: #fff;
+  border-color: #1a56db;
+  font-weight: 600;
+}
+.page-btn-active:hover:not(:disabled) {
+  background: #1648c0;
+}
 
-.page-info {
+.page-ellipsis {
   font-size: 13px;
-  color: #555;
+  color: #888;
+  padding: 0 4px;
 }
 
 /* modal hint */
