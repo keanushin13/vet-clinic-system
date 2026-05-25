@@ -81,7 +81,7 @@ export default function AdminActivityLogs() {
     } finally {
       setLoading(false);
     }
-  }, [page, category, search, statusFilter, dateFrom, dateTo]);
+  }, [page, limit, category, search, statusFilter, dateFrom, dateTo]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
