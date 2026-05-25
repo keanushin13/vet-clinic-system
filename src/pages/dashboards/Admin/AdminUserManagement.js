@@ -12,7 +12,6 @@ import {
   deleteUser,
   restoreUser,
   toggleUserActive,
-  adminResetPassword,
   sendResetLink,
   verifyUser,
 } from "../../../api/api";
@@ -77,7 +76,6 @@ const EMPTY_ADD_FORM = {
   address: "",
 };
 
-const EMPTY_RESET_FORM = { newPassword: "", confirm: "" };
 
 // ─── component ───────────────────────────────────────────────────────────────
 
@@ -104,7 +102,6 @@ const AdminUserManagement = () => {
   const [editTarget, setEditTarget] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm }
   const [form, setForm] = useState(EMPTY_ADD_FORM);
-  const [resetForm, setResetForm] = useState(EMPTY_RESET_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -232,7 +229,6 @@ const AdminUserManagement = () => {
   };
 
   const openReset = (u) => {
-    setResetForm(EMPTY_RESET_FORM);
     setFieldErrors({});
     setFormError("");
     setEditTarget(u);
