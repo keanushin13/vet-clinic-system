@@ -13,6 +13,7 @@ import {
   restoreUser,
   toggleUserActive,
   adminResetPassword,
+  sendResetLink,
   verifyUser,
 } from "../../../api/api";
 
@@ -56,23 +57,13 @@ const ROLE_LABELS = {
 function editFieldsForRole(role) {
   switch (role) {
     case "pet_owner":
-      return [
-        "username",
-        "firstName",
-        "lastName",
-        "email",
-        "phone",
-        "address",
-        "password",
-      ];
+      return ["username", "firstName", "lastName", "email", "phone", "address"];
     case "veterinarian":
-      return ["username", "firstName", "lastName", "phone", "password"];
     case "staff":
-      return ["username", "firstName", "lastName", "password"];
     case "admin":
-      return ["username", "password"];
+      return ["username", "firstName", "lastName", "email", "phone"];
     default:
-      return ["username", "password"];
+      return ["username", "firstName", "lastName", "email", "phone"];
   }
 }
 
@@ -80,7 +71,6 @@ const EMPTY_ADD_FORM = {
   role: "pet_owner",
   username: "",
   email: "",
-  password: "",
   firstName: "",
   lastName: "",
   phone: "",
@@ -112,8 +102,10 @@ const AdminUserManagement = () => {
   // modals
   const [modalMode, setModalMode] = useState(null); // "add" | "edit" | "reset"
   const [editTarget, setEditTarget] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm }
   const [form, setForm] = useState(EMPTY_ADD_FORM);
   const [resetForm, setResetForm] = useState(EMPTY_RESET_FORM);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -156,24 +148,40 @@ const AdminUserManagement = () => {
 
   // ── actions ────────────────────────────────────────────────────────────────
 
-  const handleToggleActive = async (u) => {
-    if (
-      !window.confirm(`${u.isActive ? "Suspend" : "Activate"} ${u.username}?`)
-    )
+  const handleToggleActive = (u) => {
+    if (!u.isActive) {
+      setConfirmModal({
+        title: `Activate ${u.username}?`,
+        message: `This will restore ${u.username}'s access to the system.`,
+        confirmLabel: "Activate",
+        confirmClass: "save-btn",
+        onConfirm: async () => {
+          try { await toggleUserActive(u.id); loadUsers(); } catch {}
+        },
+      });
       return;
-    try {
-      await toggleUserActive(u.id);
-      loadUsers();
-    } catch {}
+    }
+    setConfirmModal({
+      title: `Suspend ${u.username}?`,
+      message: `${u.username} will no longer be able to log in until reactivated.`,
+      confirmLabel: "Suspend",
+      confirmClass: "danger-btn",
+      onConfirm: async () => {
+        try { await toggleUserActive(u.id); loadUsers(); } catch {}
+      },
+    });
   };
 
-  const handleSoftDelete = async (u) => {
-    if (!window.confirm(`Delete ${u.username}? They can be restored later.`))
-      return;
-    try {
-      await deleteUser(u.id);
-      loadUsers();
-    } catch {}
+  const handleSoftDelete = (u) => {
+    setConfirmModal({
+      title: `Delete ${u.username}?`,
+      message: `This will remove ${u.username} from the active list. They can be restored later.`,
+      confirmLabel: "Delete",
+      confirmClass: "danger-btn",
+      onConfirm: async () => {
+        try { await deleteUser(u.id); loadUsers(); } catch {}
+      },
+    });
   };
 
   const handleRestore = async (u) => {
@@ -184,18 +192,23 @@ const AdminUserManagement = () => {
     } catch {}
   };
 
-  const handleVerify = async (u) => {
-    if (!window.confirm(`Manually verify ${u.username}?`)) return;
-    try {
-      await verifyUser(u.id);
-      loadUsers();
-    } catch {}
+  const handleVerify = (u) => {
+    setConfirmModal({
+      title: `Verify ${u.username}?`,
+      message: `This will manually mark ${u.username} as a verified pet owner.`,
+      confirmLabel: "Verify",
+      confirmClass: "save-btn",
+      onConfirm: async () => {
+        try { await verifyUser(u.id); loadUsers(); } catch {}
+      },
+    });
   };
 
   // ── modals ─────────────────────────────────────────────────────────────────
 
   const openAdd = () => {
     setForm(EMPTY_ADD_FORM);
+    setFieldErrors({});
     setFormError("");
     setEditTarget(null);
     setModalMode("add");
@@ -212,6 +225,7 @@ const AdminUserManagement = () => {
       password: "",
       role: u.role,
     });
+    setFieldErrors({});
     setFormError("");
     setEditTarget(u);
     setModalMode("edit");
@@ -219,6 +233,7 @@ const AdminUserManagement = () => {
 
   const openReset = (u) => {
     setResetForm(EMPTY_RESET_FORM);
+    setFieldErrors({});
     setFormError("");
     setEditTarget(u);
     setModalMode("reset");
@@ -229,24 +244,56 @@ const AdminUserManagement = () => {
     setEditTarget(null);
   };
 
-  const handleFormChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleFormChange = (e) => {
+    const { name } = e.target;
+    setForm((prev) => ({ ...prev, [name]: e.target.value }));
+    // clear the error for this field as the user types
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  // client-side validation → returns fieldErrors object (empty = valid)
+  const validateAdd = () => {
+    const errs = {};
+    if (!form.username.trim()) errs.username = "Username is required";
+    if (!form.email.trim()) {
+      errs.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      errs.email = "Enter a valid email address";
+    }
+    if (!form.firstName.trim()) errs.firstName = "First name is required";
+    if (!form.lastName.trim()) errs.lastName = "Last name is required";
+    if (form.role === "pet_owner" && !form.phone.trim()) {
+      errs.phone = "Phone number is required";
+    } else if (form.phone.trim() && !/^\d{11}$/.test(form.phone.trim())) {
+      errs.phone = "Phone must be exactly 11 digits";
+    }
+    if (form.role === "pet_owner" && !form.address.trim())
+      errs.address = "Address is required";
+    return errs;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
+
+    if (modalMode === "add") {
+      const errs = validateAdd();
+      if (Object.keys(errs).length) {
+        setFieldErrors(errs);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (modalMode === "add") {
         const payload = { ...form };
-        // strip fields not relevant to chosen role
-        if (form.role !== "pet_owner" && form.role !== "veterinarian")
-          delete payload.phone;
         if (form.role !== "pet_owner") delete payload.address;
-        if (form.role === "admin" || form.role === "staff") {
-          delete payload.firstName;
-          delete payload.lastName;
-        }
         await createUser(payload);
       } else {
         const fields = editFieldsForRole(editTarget.role);
@@ -260,25 +307,25 @@ const AdminUserManagement = () => {
       closeModal();
       loadUsers();
     } catch (err) {
-      setFormError(err.response?.data?.message || "Save failed");
+      const data = err.response?.data;
+      if (data?.errors && typeof data.errors === "object") {
+        setFieldErrors(data.errors);
+      } else {
+        setFormError(data?.message || "Save failed");
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  const handleResetSubmit = async (e) => {
-    e.preventDefault();
+  const handleSendResetLink = async () => {
     setFormError("");
-    if (resetForm.newPassword !== resetForm.confirm) {
-      setFormError("Passwords do not match");
-      return;
-    }
     setSaving(true);
     try {
-      await adminResetPassword(editTarget.id, resetForm.newPassword);
+      await sendResetLink(editTarget.id);
       closeModal();
     } catch (err) {
-      setFormError(err.response?.data?.message || "Reset failed");
+      setFormError(err.response?.data?.message || "Failed to send link");
     } finally {
       setSaving(false);
     }
@@ -576,7 +623,7 @@ const AdminUserManagement = () => {
                 : `Edit — ${editTarget?.username}`}
             </h3>
             <form onSubmit={handleSubmit} className="user-modal-form">
-              {/* role selector only on create */}
+              {/* role selector — add only */}
               {modalMode === "add" && (
                 <div className="form-group">
                   <label>Role *</label>
@@ -594,53 +641,41 @@ const AdminUserManagement = () => {
                 </div>
               )}
 
-              {/* shared fields */}
-              {((modalMode === "add" &&
-                (form.role === "pet_owner" ||
-                  form.role === "veterinarian" ||
-                  form.role === "staff")) ||
+              {/* first + last name — all roles */}
+              {(modalMode === "add" ||
                 (modalMode === "edit" &&
-                  editFieldsForRole(editTarget?.role).includes(
-                    "firstName",
-                  ))) && (
+                  editFieldsForRole(editTarget?.role).includes("firstName"))) && (
                 <div className="form-row">
                   <div className="form-group">
-                    <label>
-                      First Name{" "}
-                      {modalMode === "add" && form.role === "pet_owner"
-                        ? "*"
-                        : ""}
-                    </label>
+                    <label>First Name *</label>
                     <input
                       name="firstName"
                       value={form.firstName}
                       onChange={handleFormChange}
                       placeholder="First name"
-                      required={
-                        modalMode === "add" && form.role === "pet_owner"
-                      }
+                      className={fieldErrors.firstName ? "input-error" : ""}
                     />
+                    {fieldErrors.firstName && (
+                      <p className="field-error">{fieldErrors.firstName}</p>
+                    )}
                   </div>
                   <div className="form-group">
-                    <label>
-                      Last Name{" "}
-                      {modalMode === "add" && form.role === "pet_owner"
-                        ? "*"
-                        : ""}
-                    </label>
+                    <label>Last Name *</label>
                     <input
                       name="lastName"
                       value={form.lastName}
                       onChange={handleFormChange}
                       placeholder="Last name"
-                      required={
-                        modalMode === "add" && form.role === "pet_owner"
-                      }
+                      className={fieldErrors.lastName ? "input-error" : ""}
                     />
+                    {fieldErrors.lastName && (
+                      <p className="field-error">{fieldErrors.lastName}</p>
+                    )}
                   </div>
                 </div>
               )}
 
+              {/* username */}
               <div className="form-group">
                 <label>Username *</label>
                 <input
@@ -648,11 +683,15 @@ const AdminUserManagement = () => {
                   value={form.username}
                   onChange={handleFormChange}
                   placeholder="Username"
-                  required
+                  className={fieldErrors.username ? "input-error" : ""}
                 />
+                {fieldErrors.username && (
+                  <p className="field-error">{fieldErrors.username}</p>
+                )}
               </div>
 
-              {((modalMode === "add" && form.role !== "admin") ||
+              {/* email — all roles */}
+              {(modalMode === "add" ||
                 (modalMode === "edit" &&
                   editFieldsForRole(editTarget?.role).includes("email"))) && (
                 <div className="form-group">
@@ -663,70 +702,62 @@ const AdminUserManagement = () => {
                     value={form.email}
                     onChange={handleFormChange}
                     placeholder="Email"
-                    required={modalMode === "add"}
+                    className={fieldErrors.email ? "input-error" : ""}
                   />
+                  {fieldErrors.email && (
+                    <p className="field-error">{fieldErrors.email}</p>
+                  )}
                 </div>
               )}
 
-              {((modalMode === "add" &&
-                (form.role === "pet_owner" || form.role === "veterinarian")) ||
+              {/* phone — all roles */}
+              {(modalMode === "add" ||
                 (modalMode === "edit" &&
                   editFieldsForRole(editTarget?.role).includes("phone"))) && (
                 <div className="form-group">
                   <label>
                     Phone{" "}
-                    {modalMode === "add" && form.role === "pet_owner"
-                      ? "*"
-                      : ""}
+                    {form.role === "pet_owner" ? "*" : ""}
                   </label>
                   <input
                     name="phone"
                     value={form.phone}
                     onChange={handleFormChange}
                     placeholder="09XXXXXXXXX"
-                    required={modalMode === "add" && form.role === "pet_owner"}
+                    className={fieldErrors.phone ? "input-error" : ""}
                   />
+                  {fieldErrors.phone && (
+                    <p className="field-error">{fieldErrors.phone}</p>
+                  )}
                 </div>
               )}
 
+              {/* address */}
               {((modalMode === "add" && form.role === "pet_owner") ||
                 (modalMode === "edit" &&
                   editFieldsForRole(editTarget?.role).includes("address"))) && (
                 <div className="form-group">
-                  <label>
-                    Address{" "}
-                    {modalMode === "add" && form.role === "pet_owner"
-                      ? "*"
-                      : ""}
-                  </label>
+                  <label>Address *</label>
                   <input
                     name="address"
                     value={form.address}
                     onChange={handleFormChange}
                     placeholder="Full address"
-                    required={modalMode === "add" && form.role === "pet_owner"}
+                    className={fieldErrors.address ? "input-error" : ""}
                   />
+                  {fieldErrors.address && (
+                    <p className="field-error">{fieldErrors.address}</p>
+                  )}
                 </div>
               )}
 
-              <div className="form-group">
-                <label>
-                  Password{" "}
-                  {modalMode === "edit" ? "(leave blank to keep current)" : "*"}
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleFormChange}
-                  placeholder={
-                    modalMode === "edit"
-                      ? "New password (optional)"
-                      : "Password"
-                  }
-                  required={modalMode === "add"}
-                />
-              </div>
+
+              {/* add mode hint */}
+              {modalMode === "add" && (
+                <p className="modal-hint">
+                  A "Set Password" link will be emailed to the user to activate their account.
+                </p>
+              )}
 
               {formError && <p className="modal-error">{formError}</p>}
               <div className="modal-actions">
@@ -750,54 +781,64 @@ const AdminUserManagement = () => {
         </div>
       )}
 
+      {/* ── Confirm Modal (Suspend / Delete) ── */}
+      {confirmModal && (
+        <div className="modal-overlay" onClick={() => setConfirmModal(null)}>
+          <div className="modal-box confirm-modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3>{confirmModal.title}</h3>
+            <p className="confirm-modal-message">{confirmModal.message}</p>
+            <div className="modal-actions">
+              <button className="cancel-btn" onClick={() => setConfirmModal(null)}>
+                Cancel
+              </button>
+              <button
+                className={confirmModal.confirmClass}
+                onClick={async () => {
+                  setConfirmModal(null);
+                  await confirmModal.onConfirm();
+                }}
+              >
+                {confirmModal.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Reset Password Modal ── */}
       {modalMode === "reset" && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box confirm-modal-box" onClick={(e) => e.stopPropagation()}>
             <h3>Reset Password — {editTarget?.username}</h3>
-            <form onSubmit={handleResetSubmit} className="user-modal-form">
+            <div className="user-modal-form">
               <div className="form-group">
-                <label>New Password *</label>
+                <label>Email Address</label>
                 <input
-                  type="password"
-                  value={resetForm.newPassword}
-                  onChange={(e) =>
-                    setResetForm((p) => ({ ...p, newPassword: e.target.value }))
-                  }
-                  placeholder="New password"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Confirm Password *</label>
-                <input
-                  type="password"
-                  value={resetForm.confirm}
-                  onChange={(e) =>
-                    setResetForm((p) => ({ ...p, confirm: e.target.value }))
-                  }
-                  placeholder="Confirm new password"
-                  required
+                  type="text"
+                  value={editTarget?.email || ""}
+                  readOnly
+                  className="input-readonly"
                 />
               </div>
               <p className="modal-hint">
-                Min 8 characters, must include a letter, number, and special
-                character.
+                A password reset link will be sent to this email address. The
+                link expires in 24 hours.
               </p>
               {formError && <p className="modal-error">{formError}</p>}
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={closeModal}
-                >
+                <button type="button" className="cancel-btn" onClick={closeModal}>
                   Cancel
                 </button>
-                <button type="submit" className="save-btn" disabled={saving}>
-                  {saving ? "Resetting..." : "Reset Password"}
+                <button
+                  type="button"
+                  className="save-btn"
+                  onClick={handleSendResetLink}
+                  disabled={saving}
+                >
+                  {saving ? "Sending..." : "Send Reset Link"}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

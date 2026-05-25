@@ -548,6 +548,20 @@ tr.row-deleted td,
   margin: 4px 0 12px;
 }
 
+.field-error {
+  color: #dc2626;
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.input-error {
+  border-color: #dc2626 !important;
+}
+.input-error:focus {
+  outline-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -589,4 +603,37 @@ tr.row-deleted td,
 .save-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.danger-btn {
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.danger-btn:hover {
+  background: #b91c1c;
+}
+
+.confirm-modal-box {
+  max-width: 400px;
+}
+
+.confirm-modal-message {
+  margin: 8px 0 24px;
+  font-size: 15px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.input-readonly {
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: default;
 }

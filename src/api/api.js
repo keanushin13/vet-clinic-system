@@ -50,6 +50,7 @@ export const deleteUser = (id) => API.delete(`/users/${id}`);
 export const restoreUser = (id) => API.patch(`/users/${id}/restore`);
 export const adminResetPassword = (id, newPassword) =>
   API.post(`/users/${id}/reset-password`, { newPassword });
+export const sendResetLink = (id) => API.post(`/users/${id}/send-reset-link`);
 export const toggleUserActive = (id) => API.patch(`/users/${id}/toggle-active`);
 export const verifyUser = (id) => API.patch(`/users/${id}/verify`);
 export const updatePassword = (data) =>
