@@ -68,7 +68,7 @@ export default function AdminPayments() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
-  const LIMIT = 15;
+  const [limit, setLimit] = useState(25);
 
   // Invoice modal
   const [invoiceData, setInvoiceData] = useState(null);
@@ -77,12 +77,7 @@ export default function AdminPayments() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = {};
-      if (statusFilter) params.status = statusFilter;
-      if (methodFilter) params.method = methodFilter;
-      if (dateFrom) params.fromDate = dateFrom;
-      if (dateTo) params.toDate = dateTo;
-      const r = await getPayments(params);
+      const r = await getPayments({});
       setPayments(
         Array.isArray(r.data)
           ? r.data
@@ -95,7 +90,7 @@ export default function AdminPayments() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, methodFilter, dateFrom, dateTo]);
+  }, []);
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
@@ -105,21 +100,42 @@ export default function AdminPayments() {
     load();
   }, [user, navigate, load]);
 
+  useEffect(() => { setPage(1); }, [limit, statusFilter, methodFilter, dateFrom, dateTo, search]);
+
   const filtered = payments.filter((p) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    const owner = p.appointment?.owner
-      ? `${p.appointment.owner.firstName || ""} ${p.appointment.owner.lastName || ""}`.toLowerCase()
-      : "";
-    return (
-      owner.includes(q) ||
-      (p.appointment?.pet?.name || "").toLowerCase().includes(q) ||
-      (p.method || "").toLowerCase().includes(q)
-    );
+    if (statusFilter && p.status !== statusFilter) return false;
+    if (methodFilter && p.method !== methodFilter) return false;
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      if (new Date(p.createdAt) < from) return false;
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      if (new Date(p.createdAt) > to) return false;
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      const ownerName = p.owner
+        ? (`${p.owner.firstName || ""} ${p.owner.lastName || ""}`.trim() || p.owner.username || "").toLowerCase()
+        : (p.appointment?.owner
+            ? (`${p.appointment.owner.firstName || ""} ${p.appointment.owner.lastName || ""}`.trim() || p.appointment.owner.username || "").toLowerCase()
+            : "");
+      const petName = (p.pet?.name || p.appointment?.pet?.name || "").toLowerCase();
+      if (
+        !ownerName.includes(q) &&
+        !petName.includes(q) &&
+        !(p.method || "").toLowerCase().includes(q) &&
+        !(p.service || "").toLowerCase().includes(q) &&
+        !(p.status || "").toLowerCase().includes(q)
+      ) return false;
+    }
+    return true;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / LIMIT));
-  const paginated = filtered.slice((page - 1) * LIMIT, page * LIMIT);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const paginated = filtered.slice((page - 1) * limit, page * limit);
 
   const handleRefund = async (id) => {
     if (!window.confirm("Mark this payment as Refunded?")) return;
@@ -182,6 +198,20 @@ export default function AdminPayments() {
         <section className="content-body">
           <div className="appt-card">
             <div className="appt-toolbar">
+              <label className="entries-select-label">
+                Show&nbsp;
+                <select
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value))}
+                  className="entries-select"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                &nbsp;entries
+              </label>
               <input
                 className="appt-search"
                 placeholder="Search owner, pet, method…"
@@ -273,11 +303,12 @@ export default function AdminPayments() {
                     </tr>
                   ) : (
                     paginated.map((p) => {
-                      const owner = p.appointment?.owner
-                        ? `${p.appointment.owner.firstName || ""} ${p.appointment.owner.lastName || ""}`.trim() ||
-                          p.appointment.owner.username
-                        : "—";
-                      const pet = p.appointment?.pet?.name || "—";
+                      const owner = p.owner
+                        ? `${p.owner.firstName || ""} ${p.owner.lastName || ""}`.trim() || p.owner.username
+                        : p.appointment?.owner
+                          ? `${p.appointment.owner.firstName || ""} ${p.appointment.owner.lastName || ""}`.trim() || p.appointment.owner.username
+                          : "—";
+                      const pet = p.pet?.name || p.appointment?.pet?.name || "—";
                       return (
                         <tr key={p.id}>
                           <td>{owner}</td>
@@ -328,10 +359,11 @@ export default function AdminPayments() {
                 <p className="empty-row">No payments found.</p>
               ) : (
                 paginated.map((p) => {
-                  const owner = p.appointment?.owner
-                    ? `${p.appointment.owner.firstName || ""} ${p.appointment.owner.lastName || ""}`.trim() ||
-                      p.appointment.owner.username
-                    : "—";
+                  const owner = p.owner
+                    ? `${p.owner.firstName || ""} ${p.owner.lastName || ""}`.trim() || p.owner.username
+                    : p.appointment?.owner
+                      ? `${p.appointment.owner.firstName || ""} ${p.appointment.owner.lastName || ""}`.trim() || p.appointment.owner.username
+                      : "—";
                   return (
                     <div className="user-card" key={p.id}>
                       <div className="user-card-header">
@@ -385,27 +417,60 @@ export default function AdminPayments() {
               )}
             </div>
 
-            {totalPages > 1 && (
-              <div className="pagination-row">
-                <button
-                  className="page-btn"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  ‹ Prev
-                </button>
-                <span className="page-info">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  className="page-btn"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                >
-                  Next ›
-                </button>
-              </div>
-            )}
+            <div className="pagination-bar">
+              <span className="pagination-info">
+                {loading
+                  ? "Loading..."
+                  : filtered.length === 0
+                    ? "No entries"
+                    : `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, filtered.length)} of ${filtered.length} entries`}
+              </span>
+
+              {totalPages > 1 && (
+                <div className="pagination-controls">
+                  <button
+                    className="page-btn"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    &lsaquo; Prev
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => {
+                      if (totalPages <= 5) return true;
+                      if (p === 1 || p === totalPages) return true;
+                      return Math.abs(p - page) <= 1;
+                    })
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push("ellipsis-" + p);
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item) =>
+                      typeof item === "string" ? (
+                        <span key={item} className="page-ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={item}
+                          className={`page-btn${item === page ? " page-btn-active" : ""}`}
+                          onClick={() => setPage(item)}
+                        >
+                          {item}
+                        </button>
+                      ),
+                    )}
+
+                  <button
+                    className="page-btn"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next &rsaquo;
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </main>
