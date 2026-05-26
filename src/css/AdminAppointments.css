@@ -1,4 +1,129 @@
 /* ===== AdminAppointments.css ===== */
+
+/* Stats grid */
+.appt-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.appt-stat-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  border-top: 4px solid transparent;
+}
+
+.appt-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.appt-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-total  { border-top-color: #4f8cff; }
+.stat-total .appt-stat-value { color: #4f8cff; }
+
+.stat-pending { border-top-color: #e65100; }
+.stat-pending .appt-stat-value { color: #e65100; }
+
+.stat-confirmed { border-top-color: #1565c0; }
+.stat-confirmed .appt-stat-value { color: #1565c0; }
+
+.stat-completed { border-top-color: #2e7d32; }
+.stat-completed .appt-stat-value { color: #2e7d32; }
+
+.stat-cancelled { border-top-color: #c62828; }
+.stat-cancelled .appt-stat-value { color: #c62828; }
+
+.stat-today { border-top-color: #6a1b9a; }
+.stat-today .appt-stat-value { color: #6a1b9a; }
+
+/* Filters toolbar (second row) */
+.appt-toolbar-filters {
+  margin-top: -4px;
+  margin-bottom: 12px;
+}
+
+/* Entries label */
+.entries-select-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #555;
+  font-weight: 600;
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.entries-select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1.5px solid #e0e0e0;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* Full pagination bar */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: #555;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.page-btn-active {
+  background: #4f8cff !important;
+  color: #fff !important;
+  border-color: #4f8cff !important;
+}
+
+.page-ellipsis {
+  font-size: 14px;
+  color: #aaa;
+  padding: 0 2px;
+}
+
+@media (max-width: 1100px) {
+  .appt-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .appt-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .appt-card {
   background: #fff;
   border-radius: 20px;
