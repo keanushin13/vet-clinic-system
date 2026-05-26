@@ -7,11 +7,15 @@ import StaffSidebar from "../../../components/StaffSidebar";
 import { useSidebar } from "../../../components/useSidebar";
 import {
   createAppointment,
-  deleteAppointment,
+  createPet,
+  createStaffClient,
   getAppointments,
   getAvailableVets,
+  getInventory,
   getPets,
+  getStaffClients,
   getVetAvailableSlots,
+  requestPasswordReset,
   updateAppointment,
 } from "../../../api/api";
 
@@ -23,6 +27,221 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, value) => ({
   value,
   label: new Date(2000, value, 1).toLocaleString([], { month: "long" }),
 }));
+const CALENDAR_PAST_YEARS = 100;
+const CALENDAR_FUTURE_YEARS = 25;
+const APPT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_APPT_PAGE_SIZE = 25;
+const REASON_SEPARATOR = " - ";
+const BOOKING_STEPS = [
+  "Owner",
+  "Pet",
+  "Visit Reason",
+  "Date & Time",
+  "Notes",
+];
+const FINAL_BOOKING_STEP_INDEX = BOOKING_STEPS.length - 1;
+const FINAL_STEP_SUBMIT_DELAY_MS = 450;
+const EMPTY_OWNER_FORM = {
+  firstName: "",
+  lastName: "",
+  username: "",
+  email: "",
+  phone: "",
+  address: "",
+};
+const EMPTY_PET_FORM = {
+  name: "",
+  species: "",
+  breed: "",
+  age: "",
+  gender: "",
+  status: "Healthy",
+  notes: "",
+};
+const VISIT_REASONS = {
+  Vaccination: {
+    note: "Check vaccine inventory before confirming.",
+    services: [
+      "Vanguard 5 in 1",
+      "Vanguard 6 in 1",
+      "Anti Rabies",
+      "Single Rabies for Cat",
+      "Purevac",
+      "Other Vaccination",
+    ],
+  },
+  Deworming: {
+    note: "For dogs and cats.",
+    services: ["Dog Deworming", "Cat Deworming"],
+  },
+  "Minor Surgery": {
+    note: "Basic wound repair and C-section.",
+    services: ["Basic Wound Repair", "C-Section"],
+  },
+  "Medical Consult and Testing": {
+    note: "CBC, blood chemistry, and test kits.",
+    groups: [
+      {
+        label: "General Testing",
+        services: ["CBC", "Blood Chemistry"],
+      },
+      {
+        label: "Test Kits for Dogs",
+        services: [
+          "Dog Parvo / Distemper",
+          "Corona Virus",
+          "Blood Parasite Blood Test",
+        ],
+      },
+      {
+        label: "Test Kits for Cats",
+        services: [
+          "Feline Leukemia",
+          "Feline Immunodeficiency",
+          "Feline Rhinotracheitis",
+          "Giardia",
+        ],
+      },
+    ],
+  },
+};
+
+const getVisitServiceGroups = (visitReason) => {
+  const config = VISIT_REASONS[visitReason];
+  if (!config) return [];
+  if (config.groups) return config.groups;
+  return [{ label: visitReason, services: config.services || [] }];
+};
+
+const ownerDisplayName = (owner) => {
+  if (!owner) return "";
+  return (
+    `${owner.firstName ?? ""} ${owner.lastName ?? ""}`.trim() ||
+    owner.username ||
+    owner.email ||
+    "Pet Owner"
+  );
+};
+
+const petOwnerId = (pet) =>
+  pet?.ownerId || pet?.owner?.id || pet?.petOwnerId || pet?.userId || "";
+
+const petDisplayName = (pet) =>
+  pet
+    ? `${pet.name || "Pet"}${pet.species ? ` (${pet.species})` : ""}`
+    : "Pet";
+
+const normalizePhone = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("63") && digits.length === 12) {
+    return `0${digits.slice(2)}`;
+  }
+  return digits.slice(0, 11);
+};
+
+const isValidPhone = (value) => /^09\d{9}$/.test(normalizePhone(value));
+
+const generateTemporaryPassword = () => {
+  const randomPart =
+    window.crypto?.getRandomValues
+      ? Array.from(window.crypto.getRandomValues(new Uint32Array(2)))
+          .map((num) => num.toString(36))
+          .join("")
+      : Math.random().toString(36).slice(2, 12);
+  return `PawCruz@${randomPart}A1`;
+};
+
+const getLocalDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const isPastDateValue = (value) =>
+  Boolean(value && value < getLocalDateKey(new Date()));
+
+const normalizeAppointmentStatus = (appointment, fallback = "") =>
+  String(appointment?.status || fallback).trim().toLowerCase();
+
+const isAppointmentPastDue = (appointment) => {
+  if (!appointment?.scheduledAt) return false;
+  const scheduledDate = new Date(appointment.scheduledAt);
+  if (Number.isNaN(scheduledDate.getTime())) return false;
+  return isPastDateValue(getLocalDateKey(scheduledDate));
+};
+
+const parseAppointmentReason = (reason) => {
+  if (!reason) return { visitReason: "", serviceType: "" };
+
+  const exactSeparatorIndex = reason.indexOf(REASON_SEPARATOR);
+  if (exactSeparatorIndex !== -1) {
+    return {
+      visitReason: reason.slice(0, exactSeparatorIndex),
+      serviceType: reason.slice(exactSeparatorIndex + REASON_SEPARATOR.length),
+    };
+  }
+
+  const knownReason = Object.keys(VISIT_REASONS)
+    .sort((a, b) => b.length - a.length)
+    .find((visitReason) => reason.startsWith(visitReason));
+
+  if (!knownReason) {
+    return { visitReason: "", serviceType: reason };
+  }
+
+  return {
+    visitReason: knownReason,
+    serviceType: reason.slice(knownReason.length).replace(/^[\s\W_]+/, ""),
+  };
+};
+
+const normalizeUsersResponse = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.users)) return data.users;
+  return [];
+};
+
+const fetchStaffOwners = async () => {
+  try {
+    const firstRes = await getStaffClients({ page: 1, limit: 100 });
+    const firstOwners = normalizeUsersResponse(firstRes.data);
+    const totalPages = Number(firstRes.data?.pages || 1);
+
+    if (totalPages <= 1) return firstOwners;
+
+    const pageResponses = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, index) =>
+        getStaffClients({ page: index + 2, limit: 100 }),
+      ),
+    );
+
+    return [
+      ...firstOwners,
+      ...pageResponses.flatMap((response) =>
+        normalizeUsersResponse(response.data),
+      ),
+    ];
+  } catch {
+    const fallbackRes = await getStaffClients();
+    return normalizeUsersResponse(fallbackRes.data);
+  }
+};
+
+const mergeOwnerOptions = (...ownerLists) => {
+  const ownerMap = new Map();
+
+  ownerLists.flat().forEach((owner) => {
+    if (!owner?.id || owner.deletedAt) return;
+    if (owner.role && owner.role !== "pet_owner") return;
+    const key = String(owner.id);
+    ownerMap.set(key, { ...(ownerMap.get(key) || {}), ...owner });
+  });
+
+  return Array.from(ownerMap.values()).sort((a, b) =>
+    ownerDisplayName(a).localeCompare(ownerDisplayName(b)),
+  );
+};
 
 const StaffAppointment = () => {
   const navigate = useNavigate();
@@ -31,8 +250,10 @@ const StaffAppointment = () => {
   const [viewMode, setViewMode] = useState("calendar");
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [appointments, setAppointments] = useState([]);
+  const [owners, setOwners] = useState([]);
   const [pets, setPets] = useState([]);
   const [vets, setVets] = useState([]);
+  const [inventory, setInventory] = useState([]);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -42,24 +263,40 @@ const StaffAppointment = () => {
   const [apptVetFilter, setApptVetFilter] = useState("");
   const [apptStatusFilter, setApptStatusFilter] = useState("");
   const [apptPage, setApptPage] = useState(1);
-  const APPT_LIMIT = 15;
+  const [apptPageSize, setApptPageSize] = useState(DEFAULT_APPT_PAGE_SIZE);
   const [showModal, setShowModal] = useState(false);
+  const [cancelledAppointment, setCancelledAppointment] = useState(null);
+  const [confirmedAppointment, setConfirmedAppointment] = useState(null);
+  const [completedAppointment, setCompletedAppointment] = useState(null);
+  const [pendingAppointment, setPendingAppointment] = useState(null);
+  const [rebookedAppointment, setRebookedAppointment] = useState(null);
+  const [pendingPastDueDate, setPendingPastDueDate] = useState("");
+  const [pendingPastDueAppointment, setPendingPastDueAppointment] =
+    useState(null);
   const [editing, setEditing] = useState(null);
+  const [isRebooking, setIsRebooking] = useState(false);
+  const [finalStepReady, setFinalStepReady] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [bookingStep, setBookingStep] = useState(0);
+  const [showOwnerCreate, setShowOwnerCreate] = useState(false);
+  const [ownerForm, setOwnerForm] = useState(EMPTY_OWNER_FORM);
+  const [ownerSaving, setOwnerSaving] = useState(false);
+  const [ownerCreateError, setOwnerCreateError] = useState("");
+  const [ownerCreateMessage, setOwnerCreateMessage] = useState("");
+  const [showPetCreate, setShowPetCreate] = useState(false);
+  const [petForm, setPetForm] = useState(EMPTY_PET_FORM);
+  const [petSaving, setPetSaving] = useState(false);
+  const [petCreateError, setPetCreateError] = useState("");
   const [form, setForm] = useState({
+    ownerId: "",
     petId: "",
     vetId: "",
     date: "",
     slot: "",
-    reason: "",
+    visitReason: "",
+    serviceType: "",
     notes: "",
     status: "Pending",
-  });
-  const [expandedStatus, setExpandedStatus] = useState({
-    Pending: true,
-    Confirmed: true,
-    Completed: false,
-    Cancelled: false,
   });
 
   const handleApiError = (err, fallbackMessage) => {
@@ -104,14 +341,28 @@ const StaffAppointment = () => {
     setLoading(true);
     setError("");
     try {
-      const [appointmentRes, petRes, vetRes] = await Promise.all([
-        getAppointments(),
-        getPets(),
-        getAvailableVets(),
-      ]);
-      setAppointments(appointmentRes.data || []);
-      setPets(petRes.data || []);
+      const [appointmentRes, petRes, vetRes, ownerData, inventoryRes] =
+        await Promise.all([
+          getAppointments(),
+          getPets(),
+          getAvailableVets(),
+          fetchStaffOwners().catch(() => []),
+          getInventory().catch(() => ({ data: [] })),
+        ]);
+      const appointmentData = appointmentRes.data || [];
+      const petData = petRes.data || [];
+      const ownersFromPets = petData.map((pet) => pet.owner).filter(Boolean);
+      const ownersFromAppointments = appointmentData
+        .map((appointment) => appointment.owner || appointment.pet?.owner)
+        .filter(Boolean);
+
+      setAppointments(appointmentData);
+      setPets(petData);
       setVets(vetRes.data || []);
+      setOwners(
+        mergeOwnerOptions(ownerData, ownersFromPets, ownersFromAppointments),
+      );
+      setInventory(Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
     } catch (err) {
       handleApiError(err, "Failed to load appointments");
     } finally {
@@ -148,22 +399,69 @@ const StaffAppointment = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.vetId, form.date, showModal]);
 
+  useEffect(() => {
+    if (!showModal || bookingStep !== FINAL_BOOKING_STEP_INDEX) {
+      setFinalStepReady(true);
+      return undefined;
+    }
+
+    setFinalStepReady(false);
+    const timer = window.setTimeout(() => {
+      setFinalStepReady(true);
+    }, FINAL_STEP_SUBMIT_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [bookingStep, showModal]);
+
   const closeModal = () => {
     setShowModal(false);
     setEditing(null);
+    setIsRebooking(false);
+    setFinalStepReady(true);
     setSaving(false);
+    setBookingStep(0);
+    setPendingPastDueDate("");
+    setPendingPastDueAppointment(null);
+    setShowOwnerCreate(false);
+    setOwnerForm(EMPTY_OWNER_FORM);
+    setOwnerSaving(false);
+    setOwnerCreateError("");
+    setOwnerCreateMessage("");
+    setShowPetCreate(false);
+    setPetForm(EMPTY_PET_FORM);
+    setPetSaving(false);
+    setPetCreateError("");
     setSlots([]);
     setError("");
   };
 
   const openCreate = () => {
+    setCancelledAppointment(null);
+    setConfirmedAppointment(null);
+    setCompletedAppointment(null);
+    setPendingAppointment(null);
+    setRebookedAppointment(null);
+    setPendingPastDueDate("");
+    setPendingPastDueAppointment(null);
     setEditing(null);
+    setIsRebooking(false);
+    setFinalStepReady(true);
+    setBookingStep(0);
+    setShowOwnerCreate(false);
+    setOwnerForm(EMPTY_OWNER_FORM);
+    setOwnerCreateError("");
+    setOwnerCreateMessage("");
+    setShowPetCreate(false);
+    setPetForm(EMPTY_PET_FORM);
+    setPetCreateError("");
     setForm({
-      petId: pets[0]?.id || "",
+      ownerId: "",
+      petId: "",
       vetId: vets[0]?.id || "",
       date: "",
       slot: "",
-      reason: "",
+      visitReason: "",
+      serviceType: "",
       notes: "",
       status: "Pending",
     });
@@ -172,16 +470,45 @@ const StaffAppointment = () => {
   };
 
   const openEdit = (appointment) => {
+    setCancelledAppointment(null);
+    setConfirmedAppointment(null);
+    setCompletedAppointment(null);
+    setPendingAppointment(null);
+    setRebookedAppointment(null);
+    setPendingPastDueDate("");
+    setPendingPastDueAppointment(null);
+    setIsRebooking(false);
+    setFinalStepReady(true);
     const currentSlotIso = new Date(appointment.scheduledAt).toISOString();
     const currentDate = currentSlotIso.slice(0, 10);
+    const appointmentPet =
+      appointment.pet ||
+      pets.find((pet) => String(pet.id) === String(appointment.petId));
+    const appointmentOwner =
+      appointment.owner || appointmentPet?.owner || null;
+    const parsedReason = parseAppointmentReason(appointment.reason || "");
 
     setEditing(appointment);
+    setBookingStep(0);
+    setShowOwnerCreate(false);
+    setOwnerForm(EMPTY_OWNER_FORM);
+    setOwnerCreateError("");
+    setOwnerCreateMessage("");
+    setShowPetCreate(false);
+    setPetForm(EMPTY_PET_FORM);
+    setPetCreateError("");
     setForm({
+      ownerId:
+        appointment.ownerId ||
+        appointmentOwner?.id ||
+        petOwnerId(appointmentPet) ||
+        "",
       petId: appointment.petId || appointment.pet?.id || "",
       vetId: appointment.vetId || "",
       date: currentDate,
       slot: currentSlotIso,
-      reason: appointment.reason || "",
+      visitReason: parsedReason.visitReason,
+      serviceType: parsedReason.serviceType,
       notes: appointment.notes || "",
       status: appointment.status || "Pending",
     });
@@ -189,40 +516,268 @@ const StaffAppointment = () => {
     setShowModal(true);
   };
 
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    const reset = name === "vetId" || name === "date" ? { slot: "" } : {};
-    setForm((prev) => ({ ...prev, [name]: value, ...reset }));
+  const applyFormChange = (name, value) => {
+    setForm((prev) => {
+      const reset = {};
+      if (name === "ownerId") {
+        reset.petId = "";
+        setShowPetCreate(false);
+        setPetForm(EMPTY_PET_FORM);
+        setPetCreateError("");
+      }
+      if (name === "visitReason") reset.serviceType = "";
+      if (name === "vetId" || name === "date") reset.slot = "";
+      return { ...prev, [name]: value, ...reset };
+    });
   };
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.petId || !form.vetId || !form.slot) {
-      setError("Pet, veterinarian, date, and available slot are required");
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setError("");
+    if (name === "date" && isPastDateValue(value)) {
+      setPendingPastDueDate(value);
+      return;
+    }
+    applyFormChange(name, value);
+  };
+
+  const confirmPastDueDate = () => {
+    if (pendingPastDueAppointment) {
+      const appointment = pendingPastDueAppointment;
+      setPendingPastDueDate("");
+      setPendingPastDueAppointment(null);
+      openCalendarAppointmentDetails(appointment);
       return;
     }
 
+    applyFormChange("date", pendingPastDueDate);
+    setPendingPastDueDate("");
+  };
+
+  const closePastDueConfirm = () => {
+    setPendingPastDueDate("");
+    setPendingPastDueAppointment(null);
+  };
+
+  const onOwnerFormChange = (e) => {
+    const { name, value } = e.target;
+    setOwnerCreateError("");
+    setOwnerCreateMessage("");
+    setOwnerForm((prev) => ({
+      ...prev,
+      [name]: name === "phone" ? normalizePhone(value) : value,
+    }));
+  };
+
+  const onPetFormChange = (e) => {
+    const { name, value } = e.target;
+    setPetCreateError("");
+    setPetForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const isOwnerFormValid =
+    ownerForm.firstName.trim() &&
+    ownerForm.lastName.trim() &&
+    ownerForm.username.trim() &&
+    ownerForm.email.trim() &&
+    isValidPhone(ownerForm.phone);
+
+  const isPetCreateFormValid =
+    petForm.name.trim() &&
+    petForm.species.trim() &&
+    petForm.breed.trim() &&
+    String(petForm.age).trim() &&
+    petForm.gender;
+
+  const submitQuickOwner = async (e) => {
+    e.preventDefault();
+    if (!isOwnerFormValid) {
+      setOwnerCreateError(
+        isValidPhone(ownerForm.phone)
+          ? "Please complete the required owner fields."
+          : "Phone number must be 11 digits and start with 09.",
+      );
+      return;
+    }
+
+    setOwnerSaving(true);
+    setOwnerCreateError("");
+    setOwnerCreateMessage("");
+    try {
+      const payload = {
+        firstName: ownerForm.firstName.trim(),
+        lastName: ownerForm.lastName.trim(),
+        username: ownerForm.username.trim(),
+        email: ownerForm.email.trim(),
+        phone: normalizePhone(ownerForm.phone),
+        address: ownerForm.address.trim(),
+      };
+      const result = await createStaffClient({
+        ...payload,
+        password: generateTemporaryPassword(),
+        role: "pet_owner",
+      });
+      const createdOwner = result.data?.user || result.data || payload;
+      const ownerWithRole = { ...createdOwner, ...payload, role: "pet_owner" };
+
+      try {
+        await requestPasswordReset(payload.email);
+        setOwnerCreateMessage("Owner added and activation link sent.");
+      } catch {
+        setOwnerCreateMessage("Owner added. Activation link was not sent.");
+      }
+
+      setOwners((prev) => mergeOwnerOptions(prev, [ownerWithRole]));
+      setForm((prev) => ({
+        ...prev,
+        ownerId: ownerWithRole.id || createdOwner.id || "",
+        petId: "",
+      }));
+      setOwnerForm(EMPTY_OWNER_FORM);
+      setShowOwnerCreate(false);
+      setShowPetCreate(true);
+      setPetForm(EMPTY_PET_FORM);
+    } catch (err) {
+      setOwnerCreateError(
+        err.response?.data?.message || "Failed to add pet owner.",
+      );
+    } finally {
+      setOwnerSaving(false);
+    }
+  };
+
+  const submitQuickPet = async (e) => {
+    e.preventDefault();
+    if (!form.ownerId) {
+      setPetCreateError("Select a pet owner first.");
+      return;
+    }
+    if (!isPetCreateFormValid) {
+      setPetCreateError("Please complete the required pet fields.");
+      return;
+    }
+
+    setPetSaving(true);
+    setPetCreateError("");
+    try {
+      const payload = {
+        name: petForm.name.trim(),
+        species: petForm.species.trim(),
+        breed: petForm.breed.trim(),
+        age: petForm.age === "" ? null : Number(petForm.age),
+        gender: petForm.gender,
+        status: petForm.status || "Healthy",
+        notes: petForm.notes.trim(),
+        ownerId: form.ownerId,
+      };
+      const result = await createPet(payload);
+      const createdPet = {
+        ...(result.data?.pet || result.data || {}),
+        ...payload,
+        owner: selectedOwner || undefined,
+      };
+
+      setPets((prev) => [createdPet, ...prev]);
+      setForm((prev) => ({ ...prev, petId: createdPet.id || "" }));
+      setPetForm(EMPTY_PET_FORM);
+      setShowPetCreate(false);
+    } catch (err) {
+      setPetCreateError(
+        err.response?.data?.message || "Failed to add pet profile.",
+      );
+    } finally {
+      setPetSaving(false);
+    }
+  };
+
+  const getStepError = (step = bookingStep) => {
+    if (step === 0 && !form.ownerId) return "Please select a pet owner.";
+    if (step === 1 && !form.petId) return "Please select a pet.";
+    if (step === 2 && (!form.visitReason || !form.serviceType)) {
+      return "Please select a visit reason and service.";
+    }
+    if (step === 3 && (!form.vetId || !form.date || !form.slot)) {
+      return "Please select a veterinarian, date, and available time slot.";
+    }
+    return "";
+  };
+
+  const goNextStep = () => {
+    const stepError = getStepError();
+    if (stepError) {
+      setError(stepError);
+      return;
+    }
+    setError("");
+    setBookingStep((step) => Math.min(step + 1, FINAL_BOOKING_STEP_INDEX));
+  };
+
+  const goBackStep = () => {
+    setError("");
+    setBookingStep((step) => Math.max(step - 1, 0));
+  };
+
+  const validateAllSteps = () => {
+    for (let step = 0; step < BOOKING_STEPS.length; step += 1) {
+      const stepError = getStepError(step);
+      if (stepError) {
+        setBookingStep(step);
+        setError(stepError);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const submitAppointment = async () => {
+    if (bookingStep < FINAL_BOOKING_STEP_INDEX) {
+      goNextStep();
+      return;
+    }
+    if (!finalStepReady) return;
+    if (!validateAllSteps()) return;
+
     setSaving(true);
     setError("");
+    const assembledReason = `${form.visitReason}${REASON_SEPARATOR}${form.serviceType}`;
+    let rebookConfirmation = null;
     try {
       if (editing) {
         await updateAppointment(editing.id, {
+          ownerId: form.ownerId,
+          petId: form.petId,
           vetId: form.vetId,
           scheduledAt: form.slot,
-          reason: form.reason,
+          reason: assembledReason,
           notes: form.notes,
           status: form.status,
         });
       } else {
-        await createAppointment({
+        const createPayload = {
+          ownerId: form.ownerId,
           petId: form.petId,
           vetId: form.vetId,
           scheduledAt: form.slot,
-          reason: form.reason,
+          reason: assembledReason,
           notes: form.notes,
-        });
+          ...(isRebooking ? { status: "Confirmed" } : {}),
+        };
+        const result = await createAppointment(createPayload);
+
+        if (isRebooking) {
+          rebookConfirmation = {
+            ...(result.data?.appointment || result.data || {}),
+            ...createPayload,
+            owner: selectedOwner || undefined,
+            pet: selectedPet || undefined,
+            vet: selectedVet || undefined,
+          };
+        }
       }
       closeModal();
+      if (rebookConfirmation) {
+        setRebookedAppointment(rebookConfirmation);
+      }
       await loadData();
     } catch (err) {
       handleApiError(err, "Failed to save appointment");
@@ -231,14 +786,195 @@ const StaffAppointment = () => {
     }
   };
 
-  const handleDelete = async (appointment) => {
-    if (!window.confirm("Cancel this appointment?")) return;
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (bookingStep < FINAL_BOOKING_STEP_INDEX) {
+      goNextStep();
+    }
+  };
+
+  const handleDelete = async (
+    appointment,
+    { skipPrompt = false, showCancelledPopup = false } = {},
+  ) => {
+    if (!skipPrompt && !window.confirm("Cancel this appointment?")) return;
     try {
-      await deleteAppointment(appointment.id);
+      await updateAppointment(appointment.id, { status: "Cancelled" });
       await loadData();
+      setPendingAppointment(null);
+      if (showCancelledPopup) {
+        setConfirmedAppointment(null);
+        setCompletedAppointment(null);
+        setCancelledAppointment({ ...appointment, status: "Cancelled" });
+      }
     } catch (err) {
       handleApiError(err, "Failed to cancel appointment");
     }
+  };
+
+  const handlePending = async (appointment) => {
+    try {
+      await updateAppointment(appointment.id, { status: "Pending" });
+      await loadData();
+      setConfirmedAppointment(null);
+      setCompletedAppointment(null);
+      setCancelledAppointment(null);
+      setRebookedAppointment(null);
+      setPendingAppointment({ ...appointment, status: "Pending" });
+    } catch (err) {
+      handleApiError(err, "Failed to mark appointment as pending");
+    }
+  };
+
+  const handleConfirm = async (appointment) => {
+    if (
+      normalizeAppointmentStatus(appointment, "Pending") === "pending" &&
+      isAppointmentPastDue(appointment)
+    ) {
+      setPendingAppointment(appointment);
+      setError("Past due pending appointments cannot be confirmed.");
+      return;
+    }
+
+    try {
+      await updateAppointment(appointment.id, { status: "Confirmed" });
+      await loadData();
+      setPendingAppointment(null);
+      setCompletedAppointment(null);
+      setCancelledAppointment(null);
+      setRebookedAppointment(null);
+      setConfirmedAppointment({ ...appointment, status: "Confirmed" });
+    } catch (err) {
+      handleApiError(err, "Failed to confirm appointment");
+    }
+  };
+
+  const handleComplete = async (appointment) => {
+    try {
+      await updateAppointment(appointment.id, { status: "Completed" });
+      await loadData();
+      setPendingAppointment(null);
+      setConfirmedAppointment(null);
+      setCancelledAppointment(null);
+      setRebookedAppointment(null);
+      setCompletedAppointment({ ...appointment, status: "Completed" });
+    } catch (err) {
+      handleApiError(err, "Failed to mark appointment as complete");
+    }
+  };
+
+  const openRebook = (appointment) => {
+    setCancelledAppointment(null);
+    setConfirmedAppointment(null);
+    setCompletedAppointment(null);
+    setPendingAppointment(null);
+    setRebookedAppointment(null);
+    const appointmentPet =
+      appointment.pet ||
+      pets.find((pet) => String(pet.id) === String(appointment.petId));
+    const appointmentOwner =
+      appointment.owner || appointmentPet?.owner || null;
+    const parsedReason = parseAppointmentReason(appointment.reason || "");
+    const ownerId =
+      appointment.ownerId ||
+      appointmentOwner?.id ||
+      petOwnerId(appointmentPet) ||
+      "";
+    const petId = appointment.petId || appointmentPet?.id || "";
+
+    if (appointmentOwner?.id) {
+      setOwners((prev) => mergeOwnerOptions(prev, [appointmentOwner]));
+    }
+    if (appointmentPet?.id) {
+      setPets((prev) =>
+        prev.some((pet) => String(pet.id) === String(appointmentPet.id))
+          ? prev
+          : [{ ...appointmentPet, ownerId, owner: appointmentOwner }, ...prev],
+      );
+    }
+
+    setEditing(null);
+    setIsRebooking(true);
+    setFinalStepReady(true);
+    setBookingStep(
+      parsedReason.visitReason && parsedReason.serviceType ? 3 : 2,
+    );
+    setShowOwnerCreate(false);
+    setOwnerForm(EMPTY_OWNER_FORM);
+    setOwnerCreateError("");
+    setOwnerCreateMessage("");
+    setShowPetCreate(false);
+    setPetForm(EMPTY_PET_FORM);
+    setPetCreateError("");
+    setForm({
+      ownerId,
+      petId,
+      vetId: appointment.vetId || vets[0]?.id || "",
+      date: "",
+      slot: "",
+      visitReason: parsedReason.visitReason,
+      serviceType: parsedReason.serviceType,
+      notes: appointment.notes || "",
+      status: "Pending",
+    });
+    setSlots([]);
+    setError("");
+    setShowModal(true);
+  };
+
+  const renderAppointmentActions = (appointment) => {
+    const status = normalizeAppointmentStatus(appointment, "Pending");
+
+    if (status === "pending") {
+      if (isAppointmentPastDue(appointment)) {
+        return <span className="no-action-text">Past Due</span>;
+      }
+
+      return (
+        <button
+          type="button"
+          className="btn-confirm"
+          onClick={() => handleConfirm(appointment)}
+        >
+          Confirm
+        </button>
+      );
+    }
+
+    if (status === "confirmed") {
+      return (
+        <button
+          type="button"
+          className="btn-complete"
+          onClick={() => handleComplete(appointment)}
+        >
+          Mark as Complete
+        </button>
+      );
+    }
+
+    if (status === "cancelled") {
+      return (
+        <button
+          type="button"
+          className="btn-rebook"
+          onClick={() => openRebook(appointment)}
+        >
+          Rebook
+        </button>
+      );
+    }
+
+    if (status === "completed") {
+      return <span className="no-action-text">Done</span>;
+    }
+
+    return <span className="no-action-text">None</span>;
+  };
+
+  const handleApptPageSizeChange = (e) => {
+    setApptPageSize(Number(e.target.value));
+    setApptPage(1);
   };
 
   const filteredAppointments = appointments.filter((a) => {
@@ -246,24 +982,62 @@ const StaffAppointment = () => {
       `${a.owner?.firstName || ""} ${a.owner?.lastName || ""}`.trim() ||
       a.owner?.username ||
       "";
-    const query = search.toLowerCase();
+    const ownerUsername = a.owner?.username || "";
+    const ownerEmail = a.owner?.email || "";
+    const ownerPhone = a.owner?.phone || "";
+    const petName = a.pet?.name || "";
+    const query = search.trim().toLowerCase();
     const matchSearch =
-      a.pet?.name?.toLowerCase().includes(query) ||
+      !query ||
+      petName.toLowerCase().includes(query) ||
       ownerName.toLowerCase().includes(query) ||
+      ownerUsername.toLowerCase().includes(query) ||
+      ownerEmail.toLowerCase().includes(query) ||
+      ownerPhone.toLowerCase().includes(query) ||
       (a.status || "").toLowerCase().includes(query);
     if (!matchSearch) return false;
-    if (apptStatusFilter && a.status !== apptStatusFilter) return false;
+    if (
+      apptStatusFilter === "Due" &&
+      !isPastDateValue(getLocalDateKey(new Date(a.scheduledAt)))
+    ) {
+      return false;
+    }
+    if (
+      apptStatusFilter &&
+      apptStatusFilter !== "Due" &&
+      a.status !== apptStatusFilter
+    ) {
+      return false;
+    }
     if (apptVetFilter && a.vetId !== apptVetFilter) return false;
     if (apptDateFrom && new Date(a.scheduledAt) < new Date(apptDateFrom)) return false;
     if (apptDateTo && new Date(a.scheduledAt) > new Date(apptDateTo + "T23:59:59")) return false;
     return true;
   });
 
-  const apptTotalPages = Math.max(1, Math.ceil(filteredAppointments.length / APPT_LIMIT));
-  const paginatedAppointments = filteredAppointments.slice(
-    (apptPage - 1) * APPT_LIMIT,
-    apptPage * APPT_LIMIT
+  const apptTotalPages = Math.max(
+    1,
+    Math.ceil(filteredAppointments.length / apptPageSize),
   );
+  const currentApptPage = Math.min(apptPage, apptTotalPages);
+  const paginatedAppointments = filteredAppointments.slice(
+    (currentApptPage - 1) * apptPageSize,
+    currentApptPage * apptPageSize,
+  );
+  const apptStartItem =
+    filteredAppointments.length === 0
+      ? 0
+      : (currentApptPage - 1) * apptPageSize + 1;
+  const apptEndItem = Math.min(
+    currentApptPage * apptPageSize,
+    filteredAppointments.length,
+  );
+
+  useEffect(() => {
+    if (apptPage > apptTotalPages) {
+      setApptPage(apptTotalPages);
+    }
+  }, [apptPage, apptTotalPages]);
 
   const monthStart = new Date(
     calendarDate.getFullYear(),
@@ -280,11 +1054,21 @@ const StaffAppointment = () => {
   const selectedMonth = calendarDate.getMonth();
   const selectedYear = calendarDate.getFullYear();
   const currentYear = new Date().getFullYear();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   const appointmentYears = appointments
     .map((appointment) => new Date(appointment.scheduledAt).getFullYear())
     .filter((year) => Number.isInteger(year));
-  const firstYear = Math.min(currentYear - 5, selectedYear, ...appointmentYears);
-  const lastYear = Math.max(currentYear + 5, selectedYear, ...appointmentYears);
+  const firstYear = Math.min(
+    currentYear - CALENDAR_PAST_YEARS,
+    selectedYear,
+    ...appointmentYears,
+  );
+  const lastYear = Math.max(
+    currentYear + CALENDAR_FUTURE_YEARS,
+    selectedYear,
+    ...appointmentYears,
+  );
   const yearOptions = Array.from(
     { length: lastYear - firstYear + 1 },
     (_, index) => firstYear + index,
@@ -306,57 +1090,153 @@ const StaffAppointment = () => {
     setCalendarDate((prev) => new Date(year, prev.getMonth(), 1));
   };
 
+  const openCalendarAppointmentDetails = (appointment) => {
+    const status = normalizeAppointmentStatus(appointment);
+
+    if (status === "cancelled") {
+      setConfirmedAppointment(null);
+      setCompletedAppointment(null);
+      setPendingAppointment(null);
+      setPendingPastDueDate("");
+      setPendingPastDueAppointment(null);
+      setCancelledAppointment(appointment);
+      return;
+    }
+
+    if (status === "confirmed") {
+      setCancelledAppointment(null);
+      setCompletedAppointment(null);
+      setPendingAppointment(null);
+      setPendingPastDueDate("");
+      setPendingPastDueAppointment(null);
+      setConfirmedAppointment(appointment);
+      return;
+    }
+
+    if (status === "completed") {
+      setCancelledAppointment(null);
+      setConfirmedAppointment(null);
+      setPendingAppointment(null);
+      setPendingPastDueDate("");
+      setPendingPastDueAppointment(null);
+      setCompletedAppointment(appointment);
+      return;
+    }
+
+    if (status === "pending") {
+      setCancelledAppointment(null);
+      setConfirmedAppointment(null);
+      setCompletedAppointment(null);
+      setPendingPastDueDate("");
+      setPendingPastDueAppointment(null);
+      setPendingAppointment(appointment);
+      return;
+    }
+
+    openEdit(appointment);
+  };
+
+  const openCalendarAppointment = (appointment) => {
+    const status = normalizeAppointmentStatus(appointment);
+    const appointmentDateKey = getLocalDateKey(
+      new Date(appointment.scheduledAt),
+    );
+
+    if (status === "completed") {
+      openCalendarAppointmentDetails(appointment);
+      return;
+    }
+
+    if (isPastDateValue(appointmentDateKey)) {
+      setCancelledAppointment(null);
+      setConfirmedAppointment(null);
+      setCompletedAppointment(null);
+      setPendingAppointment(null);
+      setPendingPastDueDate("");
+      setPendingPastDueAppointment(appointment);
+      return;
+    }
+
+    openCalendarAppointmentDetails(appointment);
+  };
+
   const onCalendarEventKeyDown = (e, appointment) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      openEdit(appointment);
+      openCalendarAppointment(appointment);
     }
   };
 
+  const currentOwnerOption =
+    editing &&
+    form.ownerId &&
+    !owners.some((owner) => String(owner.id) === String(form.ownerId))
+      ? {
+          ...(editing.owner || {}),
+          id: form.ownerId,
+          username:
+            ownerDisplayName(editing.owner || editing.pet?.owner) ||
+            "Current owner",
+          isCurrent: true,
+        }
+      : null;
+  const ownerOptions = currentOwnerOption
+    ? [currentOwnerOption, ...owners]
+    : owners;
+  const selectedOwner =
+    ownerOptions.find((owner) => String(owner.id) === String(form.ownerId)) ||
+    null;
+  const ownerPets = form.ownerId
+    ? pets.filter((pet) => String(petOwnerId(pet)) === String(form.ownerId))
+    : [];
   const currentPetOption =
-    editing && form.petId && !pets.some((pet) => pet.id === form.petId)
+    editing &&
+    form.petId &&
+    !ownerPets.some((pet) => String(pet.id) === String(form.petId))
       ? {
           id: form.petId,
+          ownerId: form.ownerId,
           name: editing.pet?.name || "Current pet",
           species: editing.pet?.species || "Unknown",
           isCurrent: true,
         }
       : null;
-
-  const petOptions = currentPetOption ? [currentPetOption, ...pets] : pets;
-
-  // Group paginated appointments by status (list view)
-  const groupedAppointments = paginatedAppointments.reduce((acc, apt) => {
-    const status = apt.status || "Pending";
-    if (!acc[status]) acc[status] = [];
-    acc[status].push(apt);
-    return acc;
-  }, {});
-
-  // Define status order for consistent display
-  const statusOrder = ["Pending", "Confirmed", "Completed", "Cancelled"];
-  const sortedStatuses = statusOrder.filter(
-    (s) => groupedAppointments[s]?.length > 0,
-  );
-
-  // Toggle status section collapse
-  const toggleStatus = (status) => {
-    setExpandedStatus((prev) => ({
-      ...prev,
-      [status]: !prev[status],
-    }));
-  };
-
-  // Get status styling
-  const getStatusConfig = (status) => {
-    const configs = {
-      Pending: { icon: "🟡", color: "#ff9800" },
-      Confirmed: { icon: "🟢", color: "#4caf50" },
-      Completed: { icon: "✓", color: "#2196f3" },
-      Cancelled: { icon: "✕", color: "#f44336" },
-    };
-    return configs[status] || configs.Pending;
-  };
+  const petOptions = currentPetOption ? [currentPetOption, ...ownerPets] : ownerPets;
+  const selectedPet =
+    petOptions.find((pet) => String(pet.id) === String(form.petId)) || null;
+  const selectedVet =
+    vets.find((vet) => String(vet.id) === String(form.vetId)) || null;
+  const selectedSlot = slots.find((slot) => slot.startsAt === form.slot);
+  const selectedReasonConfig = VISIT_REASONS[form.visitReason];
+  const serviceGroups = getVisitServiceGroups(form.visitReason);
+  const reasonSummary =
+    form.visitReason && form.serviceType
+      ? `${form.visitReason}${REASON_SEPARATOR}${form.serviceType}`
+      : "";
+  const activeInventory = inventory.filter((item) => !item.isArchived);
+  const vaccineInventory = activeInventory.filter((item) => {
+    const haystack = `${item.name || ""} ${item.category || ""} ${item.notes || ""}`.toLowerCase();
+    return haystack.includes("vaccin") || haystack.includes("rabies");
+  });
+  const serviceWords = form.serviceType
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2);
+  const matchedVaccineInventory = vaccineInventory.filter((item) => {
+    if (!serviceWords.length) return true;
+    const haystack = `${item.name || ""} ${item.category || ""} ${item.notes || ""}`.toLowerCase();
+    return serviceWords.some((word) => haystack.includes(word));
+  });
+  const vaccineInventoryPreview =
+    form.visitReason === "Vaccination"
+      ? (matchedVaccineInventory.length ? matchedVaccineInventory : vaccineInventory).slice(0, 4)
+      : [];
+  const pastDueConfirmDate =
+    pendingPastDueDate ||
+    (pendingPastDueAppointment
+      ? getLocalDateKey(new Date(pendingPastDueAppointment.scheduledAt))
+      : "");
+  const isPendingAppointmentPastDue = isAppointmentPastDue(pendingAppointment);
 
   return (
     <div className="dashboard-container">
@@ -394,7 +1274,11 @@ const StaffAppointment = () => {
             viewMode === "calendar" ? "appointment-calendar-body" : ""
           }`}
         >
-          <div className="calendar-controls">
+          <div
+            className={`calendar-controls ${
+              viewMode === "list" ? "appointment-list-controls" : ""
+            }`}
+          >
             <div className="view-toggle">
               <button
                 className={viewMode === "calendar" ? "active" : ""}
@@ -410,62 +1294,6 @@ const StaffAppointment = () => {
               </button>
             </div>
             <div className="appointment-actions">
-              <input
-                type="text"
-                className="apt-search"
-                placeholder="Search pet, owner, or status"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setApptPage(1); }}
-              />
-              {viewMode === "list" && (
-                <>
-                  <select
-                    className="apt-filter-select"
-                    value={apptStatusFilter}
-                    onChange={(e) => { setApptStatusFilter(e.target.value); setApptPage(1); }}
-                  >
-                    <option value="">All Status</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Confirmed">Confirmed</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                  <select
-                    className="apt-filter-select"
-                    value={apptVetFilter}
-                    onChange={(e) => { setApptVetFilter(e.target.value); setApptPage(1); }}
-                  >
-                    <option value="">All Vets</option>
-                    {vets.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {`${v.firstName || ""} ${v.lastName || ""}`.trim() || v.username}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="date"
-                    className="apt-date-input"
-                    value={apptDateFrom}
-                    title="From date"
-                    onChange={(e) => { setApptDateFrom(e.target.value); setApptPage(1); }}
-                  />
-                  <input
-                    type="date"
-                    className="apt-date-input"
-                    value={apptDateTo}
-                    title="To date"
-                    onChange={(e) => { setApptDateTo(e.target.value); setApptPage(1); }}
-                  />
-                  {(apptStatusFilter || apptVetFilter || apptDateFrom || apptDateTo) && (
-                    <button
-                      className="apt-reset-btn"
-                      onClick={() => { setApptStatusFilter(""); setApptVetFilter(""); setApptDateFrom(""); setApptDateTo(""); setApptPage(1); }}
-                    >
-                      Reset
-                    </button>
-                  )}
-                </>
-              )}
               <button className="add-apt-btn" onClick={openCreate}>
                 + Book Appointment
               </button>
@@ -480,39 +1308,51 @@ const StaffAppointment = () => {
           {!loading && viewMode === "calendar" ? (
             <div className="calendar-container">
               <div className="calendar-month-header">
-                <div className="calendar-picker" aria-label="Calendar date">
-                  <label>
-                    <span>Month</span>
-                    <select
-                      value={selectedMonth}
-                      onChange={onCalendarMonthChange}
-                      aria-label="Choose calendar month"
-                    >
-                      {MONTH_OPTIONS.map((month) => (
-                        <option key={month.value} value={month.value}>
-                          {month.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Year</span>
-                    <select
-                      value={selectedYear}
-                      onChange={onCalendarYearChange}
-                      aria-label="Choose calendar year"
-                    >
-                      {yearOptions.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
                 <div className="month-nav">
-                  <button onClick={() => shiftMonth(-1)}>&lt; Prev</button>
-                  <button onClick={() => shiftMonth(1)}>Next &gt;</button>
+                  <button
+                    type="button"
+                    className="calendar-nav-btn calendar-nav-prev"
+                    onClick={() => shiftMonth(-1)}
+                  >
+                    &lt; Prev
+                  </button>
+                  <div className="calendar-picker" aria-label="Calendar date">
+                    <label>
+                      <span>Month</span>
+                      <select
+                        value={selectedMonth}
+                        onChange={onCalendarMonthChange}
+                        aria-label="Choose calendar month"
+                      >
+                        {MONTH_OPTIONS.map((month) => (
+                          <option key={month.value} value={month.value}>
+                            {month.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Year</span>
+                      <select
+                        value={selectedYear}
+                        onChange={onCalendarYearChange}
+                        aria-label="Choose calendar year"
+                      >
+                        {yearOptions.map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    className="calendar-nav-btn calendar-nav-next"
+                    onClick={() => shiftMonth(1)}
+                  >
+                    Next &gt;
+                  </button>
                 </div>
               </div>
               <div className="calendar-grid">
@@ -535,321 +1375,1267 @@ const StaffAppointment = () => {
                 {Array.from({ length: firstWeekday }).map((_, idx) => (
                   <div key={`empty-${idx}`} className="calendar-day empty" />
                 ))}
-                {days.map((d) => (
-                  <div key={d} className="calendar-day">
-                    <span className="day-num">{d}</span>
-                    <div className="day-events">
-                      {filteredAppointments
-                        .filter((a) => {
-                          const scheduled = new Date(a.scheduledAt);
-                          return (
-                            scheduled.getFullYear() ===
-                              calendarDate.getFullYear() &&
-                            scheduled.getMonth() === calendarDate.getMonth() &&
-                            scheduled.getDate() === d
-                          );
-                        })
-                        .map((apt) => (
-                          <div
-                            key={apt.id}
-                            className={`event-item ${(apt.status || "").toLowerCase()}`}
-                            title={`${apt.pet?.name || "Pet"} - ${apt.status}`}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => openEdit(apt)}
-                            onKeyDown={(e) => onCalendarEventKeyDown(e, apt)}
-                            aria-label={`Edit appointment for ${apt.pet?.name || "pet"} on ${new Date(apt.scheduledAt).toLocaleString()}`}
-                          >
-                            {new Date(apt.scheduledAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}{" "}
-                            {apt.pet?.name}
-                          </div>
-                        ))}
+                {days.map((d) => {
+                  const dayDate = new Date(selectedYear, selectedMonth, d);
+                  const isPastDay = dayDate < todayStart;
+
+                  return (
+                    <div
+                      key={d}
+                      className={`calendar-day ${isPastDay ? "past-due" : ""}`}
+                      title={isPastDay ? "Past due date" : undefined}
+                    >
+                      <span className="day-num">{d}</span>
+                      <div className="day-events">
+                        {filteredAppointments
+                          .filter((a) => {
+                            const scheduled = new Date(a.scheduledAt);
+                            return (
+                              scheduled.getFullYear() === selectedYear &&
+                              scheduled.getMonth() === selectedMonth &&
+                              scheduled.getDate() === d
+                            );
+                          })
+                          .map((apt) => {
+                            const calendarStatus =
+                              normalizeAppointmentStatus(apt);
+                            const isCancelled = calendarStatus === "cancelled";
+                            const isConfirmed = calendarStatus === "confirmed";
+                            const isCompleted = calendarStatus === "completed";
+                            const isPending = calendarStatus === "pending";
+
+                            return (
+                              <div
+                                key={apt.id}
+                                className={`event-item ${(apt.status || "").toLowerCase()}`}
+                                title={`${apt.pet?.name || "Pet"} - ${apt.status}`}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => openCalendarAppointment(apt)}
+                                onKeyDown={(e) =>
+                                  onCalendarEventKeyDown(e, apt)
+                                }
+                                aria-label={`${
+                                  isCancelled
+                                    ? "View cancelled"
+                                    : isConfirmed
+                                      ? "View confirmed"
+                                      : isCompleted
+                                        ? "View completed"
+                                        : isPending
+                                          ? "View pending"
+                                          : "Edit"
+                                } appointment for ${apt.pet?.name || "pet"} on ${new Date(apt.scheduledAt).toLocaleString()}`}
+                              >
+                                {new Date(apt.scheduledAt).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}{" "}
+                                {apt.pet?.name}
+                              </div>
+                            );
+                          })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
             <div className="list-view-container">
-              {sortedStatuses.length === 0 ? (
-                <p className="list-placeholder">No appointments found.</p>
-              ) : (
-                sortedStatuses.map((status) => {
-                  const config = getStatusConfig(status);
-                  const statusApts = groupedAppointments[status];
-                  const isExpanded = expandedStatus[status];
-
-                  return (
-                    <div key={status} className="status-group">
-                      {/* Status Group Header */}
-                      <button
-                        className="status-group-header"
-                        onClick={() => toggleStatus(status)}
-                        aria-expanded={isExpanded}
-                      >
-                        <span className="status-header-left">
-                          <span className="status-icon">{config.icon}</span>
-                          <span className="status-title">{status}</span>
-                          <span className="status-count">
-                            {statusApts.length}
-                          </span>
-                        </span>
-                        <span className="status-toggle-icon">
-                          {isExpanded ? "▼" : "▶"}
-                        </span>
-                      </button>
-
-                      {/* Desktop Table View */}
-                      {isExpanded && (
-                        <div className="table-desktop">
-                          <table className="appointment-table">
-                            <tbody>
-                              {statusApts.map((apt) => (
-                                <tr key={apt.id}>
-                                  <td>{apt.pet?.name || "-"}</td>
-                                  <td>
-                                    {`${apt.owner?.firstName || ""} ${apt.owner?.lastName || ""}`.trim() ||
-                                      apt.owner?.username ||
-                                      "-"}
-                                  </td>
-                                  <td>
-                                    {new Date(apt.scheduledAt).toLocaleString()}
-                                  </td>
-                                  <td>{apt.reason || "-"}</td>
-                                  <td>
-                                    <span
-                                      className={`apt-status ${(apt.status || "").toLowerCase()}`}
-                                    >
-                                      {apt.status}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <div className="action-btns">
-                                      <button
-                                        className="btn-edit"
-                                        onClick={() => openEdit(apt)}
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        className="btn-remove"
-                                        onClick={() => handleDelete(apt)}
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {/* Mobile Card View */}
-                      {isExpanded && (
-                        <div className="table-mobile table-cards-list">
-                          {statusApts.map((apt) => (
-                            <div className="record-card" key={apt.id}>
-                              <div className="record-card-header">
-                                <div className="record-card-title">
-                                  <div className="record-card-id">
-                                    {apt.pet?.name || "-"}
-                                  </div>
-                                  <div className="record-card-patient">
-                                    {`${apt.owner?.firstName || ""} ${apt.owner?.lastName || ""}`.trim() ||
-                                      apt.owner?.username ||
-                                      "-"}
-                                  </div>
-                                </div>
-                                <span
-                                  className={`apt-status ${(apt.status || "").toLowerCase()}`}
-                                >
-                                  {apt.status}
-                                </span>
-                              </div>
-                              <div className="record-card-body">
-                                <div className="record-card-row">
-                                  <span className="record-card-label">
-                                    Date & Time
-                                  </span>
-                                  <span>
-                                    {new Date(apt.scheduledAt).toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="record-card-row">
-                                  <span className="record-card-label">
-                                    Reason
-                                  </span>
-                                  <span>{apt.reason || "-"}</span>
-                                </div>
-                                <div className="record-card-row">
-                                  <span className="record-card-label">
-                                    Actions
-                                  </span>
-                                  <div className="action-btns">
-                                    <button
-                                      className="btn-edit"
-                                      onClick={() => openEdit(apt)}
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      className="btn-remove"
-                                      onClick={() => handleDelete(apt)}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-
-              {/* Pagination for list view */}
-              {apptTotalPages > 1 && (
-                <div className="appt-pagination">
-                  <button
-                    className="appt-page-btn"
-                    disabled={apptPage === 1}
-                    onClick={() => setApptPage((p) => p - 1)}
-                  >
-                    Prev
-                  </button>
-                  <span className="appt-page-info">
-                    Page {apptPage} of {apptTotalPages} ({filteredAppointments.length} appointments)
-                  </span>
-                  <button
-                    className="appt-page-btn"
-                    disabled={apptPage === apptTotalPages}
-                    onClick={() => setApptPage((p) => p + 1)}
-                  >
-                    Next
-                  </button>
+              <div className="appointment-list-description">
+                <div>
+                  <h3>Search & Filter Options</h3>
+                  <p>
+                    Search by name, email, or phone and choose how many
+                    appointments to show per page.
+                  </p>
                 </div>
-              )}
-            </div>
-          )}
-        </section>
-      </main>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <form className="user-modal-form" onSubmit={onSubmit}>
-              <h3>{editing ? "Edit Appointment" : "Book Appointment"}</h3>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Pet</label>
-                  <select
-                    name="petId"
-                    value={form.petId}
-                    onChange={onChange}
-                    required
-                  >
-                    <option value="">Select pet</option>
-                    {petOptions.map((pet) => (
-                      <option key={pet.id} value={pet.id}>
-                        {pet.name} ({pet.species})
-                        {pet.isCurrent ? " (current)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Veterinarian</label>
-                  <select
-                    name="vetId"
-                    value={form.vetId}
-                    onChange={onChange}
-                    required
-                  >
-                    <option value="">Select veterinarian</option>
-                    {vets.map((vet) => (
-                      <option key={vet.id} value={vet.id}>
-                        {`${vet.firstName || ""} ${vet.lastName || ""}`.trim() ||
-                          vet.username}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <span>{filteredAppointments.length} results</span>
               </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Status</label>
+              <div className="appointment-list-toolbar">
+                <div className="appointment-search-box">
+                  <input
+                    type="text"
+                    className="apt-search"
+                    placeholder="Search by name, email, or phone..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setApptPage(1);
+                    }}
+                  />
+                  <label className="apt-entries-control">
+                    <span>Show</span>
+                    <select
+                      className="apt-filter-select apt-entries-select"
+                      value={apptPageSize}
+                      onChange={handleApptPageSizeChange}
+                      aria-label="Entries per page"
+                    >
+                      {APPT_PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                    <span>entries</span>
+                  </label>
                   <select
-                    name="status"
-                    value={form.status}
-                    onChange={onChange}
-                    disabled={!editing}
+                    className="apt-filter-select apt-status-filter-select"
+                    value={apptStatusFilter}
+                    onChange={(e) => {
+                      setApptStatusFilter(e.target.value);
+                      setApptPage(1);
+                    }}
+                    aria-label="Filter by appointment status"
                   >
+                    <option value="">Show All</option>
+                    <option value="Due">Due</option>
                     <option value="Pending">Pending</option>
                     <option value="Confirmed">Confirmed</option>
                     <option value="Completed">Completed</option>
                     <option value="Cancelled">Cancelled</option>
                   </select>
-                </div>
-                <div className="form-group">
-                  <label>Date</label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={form.date}
-                    onChange={onChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Available Slot</label>
                   <select
-                    name="slot"
-                    value={form.slot}
-                    onChange={onChange}
-                    required
+                    className="apt-filter-select"
+                    value={apptVetFilter}
+                    onChange={(e) => {
+                      setApptVetFilter(e.target.value);
+                      setApptPage(1);
+                    }}
+                    aria-label="Filter by vet"
                   >
-                    <option value="">Select time slot</option>
-                    {slots.map((slot) => (
-                      <option key={slot.startsAt} value={slot.startsAt}>
-                        {new Date(slot.startsAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                        {slot.isCurrent ? " (current)" : ""}
+                    <option value="">All Vets</option>
+                    {vets.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {`${v.firstName || ""} ${v.lastName || ""}`.trim() ||
+                          v.username}
                       </option>
                     ))}
                   </select>
+                  <div className="apt-date-range" aria-label="Appointment date range">
+                    <label className="apt-date-field">
+                      <span>From</span>
+                      <input
+                        type="date"
+                        className="apt-date-input"
+                        value={apptDateFrom}
+                        title="From date"
+                        onChange={(e) => {
+                          setApptDateFrom(e.target.value);
+                          setApptPage(1);
+                        }}
+                      />
+                    </label>
+                    <label className="apt-date-field">
+                      <span>To</span>
+                      <input
+                        type="date"
+                        className="apt-date-input"
+                        value={apptDateTo}
+                        title="To date"
+                        onChange={(e) => {
+                          setApptDateTo(e.target.value);
+                          setApptPage(1);
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
-              <div className="form-group">
-                <label>Reason</label>
-                <select name="reason" value={form.reason} onChange={onChange}>
-                  <option value="">Select a reason</option>
-                  <option value="Checkup">Checkup</option>
-                  <option value="Follow-up">Follow-up</option>
-                  <option value="Vaccination">Vaccination</option>
-                  <option value="Dental cleaning">Dental cleaning</option>
-                  <option value="Surgery">Surgery</option>
-                  <option value="Medication refill">Medication refill</option>
-                  <option value="Others">
-                    Others, please specify on Notes
-                  </option>
-                </select>
+              {paginatedAppointments.length === 0 ? (
+                <p className="list-placeholder">No appointments found.</p>
+              ) : (
+                <>
+                  <div className="table-desktop">
+                    <table className="appointment-table">
+                      <thead>
+                        <tr>
+                          <th>Pet</th>
+                          <th>Pet Owner</th>
+                          <th>Date and Time</th>
+                          <th>Reason</th>
+                          <th>Status</th>
+                          <th>Option</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedAppointments.map((apt) => (
+                          <tr key={apt.id}>
+                            <td>{apt.pet?.name || "-"}</td>
+                            <td>
+                              {`${apt.owner?.firstName || ""} ${apt.owner?.lastName || ""}`.trim() ||
+                                apt.owner?.username ||
+                                "-"}
+                            </td>
+                            <td>
+                              {new Date(apt.scheduledAt).toLocaleString()}
+                            </td>
+                            <td>{apt.reason || "-"}</td>
+                            <td>
+                              <span
+                                className={`apt-status ${(apt.status || "").toLowerCase()}`}
+                              >
+                                {apt.status}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="action-btns">
+                                {renderAppointmentActions(apt)}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="table-mobile table-cards-list">
+                    {paginatedAppointments.map((apt) => (
+                      <div className="record-card" key={apt.id}>
+                        <div className="record-card-header">
+                          <div className="record-card-title">
+                            <div className="record-card-id">
+                              {apt.pet?.name || "-"}
+                            </div>
+                            <div className="record-card-patient">
+                              {`${apt.owner?.firstName || ""} ${apt.owner?.lastName || ""}`.trim() ||
+                                apt.owner?.username ||
+                                "-"}
+                            </div>
+                          </div>
+                          <span
+                            className={`apt-status ${(apt.status || "").toLowerCase()}`}
+                          >
+                            {apt.status}
+                          </span>
+                        </div>
+                        <div className="record-card-body">
+                          <div className="record-card-row">
+                            <span className="record-card-label">
+                              Date and Time
+                            </span>
+                            <span>
+                              {new Date(apt.scheduledAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="record-card-row">
+                            <span className="record-card-label">Reason</span>
+                            <span>{apt.reason || "-"}</span>
+                          </div>
+                          <div className="record-card-row">
+                            <span className="record-card-label">Option</span>
+                            <div className="action-btns">
+                              {renderAppointmentActions(apt)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="appt-pagination">
+                <button
+                  className="appt-page-btn"
+                  disabled={currentApptPage === 1}
+                  onClick={() => setApptPage((p) => Math.max(1, p - 1))}
+                >
+                  Prev
+                </button>
+                <span className="appt-page-info">
+                  Showing {apptStartItem}-{apptEndItem} of{" "}
+                  {filteredAppointments.length} appointments | Page{" "}
+                  {currentApptPage} of {apptTotalPages}
+                </span>
+                <button
+                  className="appt-page-btn"
+                  disabled={currentApptPage === apptTotalPages}
+                  onClick={() =>
+                    setApptPage((p) => Math.min(apptTotalPages, p + 1))
+                  }
+                >
+                  Next
+                </button>
               </div>
-              <div className="form-group">
-                <label>Notes</label>
-                <textarea name="notes" value={form.notes} onChange={onChange} />
+            </div>
+          )}
+        </section>
+      </main>
+
+      {rebookedAppointment &&
+        (() => {
+          const rebookedVet =
+            rebookedAppointment.vet ||
+            vets.find(
+              (vet) => String(vet.id) === String(rebookedAppointment.vetId),
+            );
+          const rebookedVetName =
+            rebookedVet
+              ? `${rebookedVet.firstName || ""} ${rebookedVet.lastName || ""}`.trim() ||
+                rebookedVet.username
+              : "-";
+
+          return (
+            <div
+              className="modal-overlay"
+              onClick={() => setRebookedAppointment(null)}
+            >
+              <div
+                className="modal-box rebooked-appointment-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="rebooked-appointment-badge">
+                  Rebook Confirmed
+                </span>
+                <h3>Rebook Confirmed</h3>
+                <p className="rebooked-appointment-copy">
+                  The rebooked appointment has been confirmed and sent to the
+                  pet owner and veterinarian.
+                </p>
+
+                <div className="rebooked-appointment-details">
+                  <div>
+                    <span>Pet</span>
+                    <strong>{rebookedAppointment.pet?.name || "-"}</strong>
+                  </div>
+                  <div>
+                    <span>Pet Owner</span>
+                    <strong>
+                      {ownerDisplayName(
+                        rebookedAppointment.owner ||
+                          rebookedAppointment.pet?.owner,
+                      ) || "-"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Veterinarian</span>
+                    <strong>{rebookedVetName}</strong>
+                  </div>
+                  <div>
+                    <span>Date and Time</span>
+                    <strong>
+                      {new Date(
+                        rebookedAppointment.scheduledAt,
+                      ).toLocaleString()}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Reason</span>
+                    <strong>{rebookedAppointment.reason || "-"}</strong>
+                  </div>
+                </div>
+
+                <div className="modal-actions rebooked-appointment-actions">
+                  <button
+                    type="button"
+                    className="save-btn rebooked-done-btn"
+                    onClick={() => setRebookedAppointment(null)}
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
+            </div>
+          );
+        })()}
+
+      {pendingAppointment && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPendingAppointment(null)}
+        >
+          <div
+            className="modal-box pending-appointment-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="pending-appointment-badge">Pending</span>
+            <h3>Pending Appointment</h3>
+            <p className="pending-appointment-copy">
+              {isPendingAppointmentPastDue
+                ? "This pending appointment is past due and can no longer be confirmed. Cancel it or rebook a new schedule."
+                : "This appointment is waiting for action. Confirm it to notify the pet owner and vet, cancel it, or rebook a new schedule."}
+            </p>
+
+            <div className="pending-appointment-details">
+              <div>
+                <span>Pet</span>
+                <strong>{pendingAppointment.pet?.name || "-"}</strong>
+              </div>
+              <div>
+                <span>Pet Owner</span>
+                <strong>
+                  {ownerDisplayName(
+                    pendingAppointment.owner || pendingAppointment.pet?.owner,
+                  ) || "-"}
+                </strong>
+              </div>
+              <div>
+                <span>Date and Time</span>
+                <strong>
+                  {new Date(pendingAppointment.scheduledAt).toLocaleString()}
+                </strong>
+              </div>
+              <div>
+                <span>Reason</span>
+                <strong>{pendingAppointment.reason || "-"}</strong>
+              </div>
+            </div>
+
+            <div className="modal-actions pending-appointment-actions">
+              <button
+                type="button"
+                className="step-back-btn"
+                onClick={() => setPendingAppointment(null)}
+              >
+                Back
+              </button>
+              {!isPendingAppointmentPastDue && (
+                <button
+                  type="button"
+                  className="btn-confirm"
+                  onClick={() => handleConfirm(pendingAppointment)}
+                >
+                  Confirm
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn-remove"
+                onClick={() =>
+                  handleDelete(pendingAppointment, {
+                    skipPrompt: true,
+                    showCancelledPopup: true,
+                  })
+                }
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-rebook"
+                onClick={() => openRebook(pendingAppointment)}
+              >
+                Rebook
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmedAppointment &&
+        (() => {
+          const confirmedVet =
+            confirmedAppointment.vet ||
+            vets.find(
+              (vet) => String(vet.id) === String(confirmedAppointment.vetId),
+            );
+          const confirmedVetName =
+            confirmedVet
+              ? `${confirmedVet.firstName || ""} ${confirmedVet.lastName || ""}`.trim() ||
+                confirmedVet.username
+              : "-";
+
+          return (
+            <div
+              className="modal-overlay"
+              onClick={() => setConfirmedAppointment(null)}
+            >
+              <div
+                className="modal-box confirmed-appointment-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="confirmed-appointment-badge">Confirmed</span>
+                <h3>Appointment Confirmed</h3>
+                <p className="confirmed-appointment-copy">
+                  This appointment is confirmed. Mark it complete when the
+                  visit is done.
+                </p>
+
+                <div className="confirmed-appointment-details">
+                  <div>
+                    <span>Pet</span>
+                    <strong>{confirmedAppointment.pet?.name || "-"}</strong>
+                  </div>
+                  <div>
+                    <span>Pet Owner</span>
+                    <strong>
+                      {ownerDisplayName(
+                        confirmedAppointment.owner ||
+                          confirmedAppointment.pet?.owner,
+                      ) || "-"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Veterinarian</span>
+                    <strong>{confirmedVetName}</strong>
+                  </div>
+                  <div>
+                    <span>Date and Time</span>
+                    <strong>
+                      {new Date(
+                        confirmedAppointment.scheduledAt,
+                      ).toLocaleString()}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="modal-actions confirmed-appointment-actions">
+                  <button
+                    type="button"
+                    className="step-back-btn"
+                    onClick={() => setConfirmedAppointment(null)}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-complete"
+                    onClick={() => handleComplete(confirmedAppointment)}
+                  >
+                    Mark as Complete
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {completedAppointment &&
+        (() => {
+          const completedVet =
+            completedAppointment.vet ||
+            vets.find(
+              (vet) => String(vet.id) === String(completedAppointment.vetId),
+            );
+          const completedVetName =
+            completedVet
+              ? `${completedVet.firstName || ""} ${completedVet.lastName || ""}`.trim() ||
+                completedVet.username
+              : "-";
+
+          return (
+            <div
+              className="modal-overlay"
+              onClick={() => setCompletedAppointment(null)}
+            >
+              <div
+                className="modal-box completed-appointment-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="completed-appointment-badge">Completed</span>
+                <h3>Completed Appointment</h3>
+                <p className="completed-appointment-copy">
+                  This appointment is already completed and cannot be edited.
+                </p>
+
+                <div className="completed-appointment-details">
+                  <div>
+                    <span>Pet</span>
+                    <strong>{completedAppointment.pet?.name || "-"}</strong>
+                  </div>
+                  <div>
+                    <span>Pet Owner</span>
+                    <strong>
+                      {ownerDisplayName(
+                        completedAppointment.owner ||
+                          completedAppointment.pet?.owner,
+                      ) || "-"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Veterinarian</span>
+                    <strong>{completedVetName}</strong>
+                  </div>
+                  <div>
+                    <span>Date and Time</span>
+                    <strong>
+                      {new Date(
+                        completedAppointment.scheduledAt,
+                      ).toLocaleString()}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Reason</span>
+                    <strong>{completedAppointment.reason || "-"}</strong>
+                  </div>
+                </div>
+
+                <div className="modal-actions completed-appointment-actions">
+                  <button
+                    type="button"
+                    className="step-back-btn"
+                    onClick={() => setCompletedAppointment(null)}
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {cancelledAppointment && (
+        <div
+          className="modal-overlay"
+          onClick={() => setCancelledAppointment(null)}
+        >
+          <div
+            className="modal-box cancelled-appointment-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="cancelled-appointment-badge">Cancelled</span>
+            <h3>Cancelled Appointment</h3>
+            <p className="cancelled-appointment-copy">
+              This appointment has been cancelled and cannot be edited from the
+              calendar. Rebook it to choose a new date and time.
+            </p>
+
+            <div className="cancelled-appointment-details">
+              <div>
+                <span>Pet</span>
+                <strong>{cancelledAppointment.pet?.name || "-"}</strong>
+              </div>
+              <div>
+                <span>Pet Owner</span>
+                <strong>
+                  {ownerDisplayName(
+                    cancelledAppointment.owner ||
+                      cancelledAppointment.pet?.owner,
+                  ) || "-"}
+                </strong>
+              </div>
+              <div>
+                <span>Date and Time</span>
+                <strong>
+                  {new Date(cancelledAppointment.scheduledAt).toLocaleString()}
+                </strong>
+              </div>
+              <div>
+                <span>Reason</span>
+                <strong>{cancelledAppointment.reason || "-"}</strong>
+              </div>
+            </div>
+
+            <div className="modal-actions cancelled-appointment-actions">
+              <button
+                type="button"
+                className="step-back-btn"
+                onClick={() => setCancelledAppointment(null)}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn-pending"
+                onClick={() => handlePending(cancelledAppointment)}
+              >
+                Pending
+              </button>
+              <button
+                type="button"
+                className="btn-confirm"
+                onClick={() => handleConfirm(cancelledAppointment)}
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                className="save-btn cancelled-rebook-btn"
+                onClick={() => openRebook(cancelledAppointment)}
+              >
+                Rebook
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModal && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <form
+              className="user-modal-form appointment-booking-form"
+              onSubmit={onSubmit}
+            >
+              <h3>{editing ? "Edit Appointment" : "Book Appointment"}</h3>
+
+              <div className="appointment-stepper" aria-label="Booking steps">
+                {BOOKING_STEPS.map((step, index) => (
+                  <button
+                    type="button"
+                    key={step}
+                    className={`appointment-step ${index === bookingStep ? "active" : ""} ${
+                      index < bookingStep ? "done" : ""
+                    }`}
+                    onClick={() => {
+                      if (index <= bookingStep) {
+                        setBookingStep(index);
+                        setError("");
+                      }
+                    }}
+                    disabled={index > bookingStep}
+                  >
+                    <span className="appointment-step-number">{index + 1}</span>
+                    <span>{step}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="appointment-step-panel">
+                {bookingStep === 0 && (
+                  <>
+                    <div className="form-group">
+                      <label>Pet Owner</label>
+                      <select
+                        name="ownerId"
+                        value={form.ownerId}
+                        onChange={onChange}
+                        required
+                      >
+                        <option value="">Select pet owner</option>
+                        {ownerOptions.map((owner) => (
+                          <option key={owner.id} value={owner.id}>
+                            {ownerDisplayName(owner)}
+                            {owner.isCurrent ? " (current)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="quick-create-toolbar">
+                      <button
+                        type="button"
+                        className="quick-create-toggle"
+                        onClick={() => {
+                          setShowOwnerCreate((current) => !current);
+                          setOwnerCreateError("");
+                          setOwnerCreateMessage("");
+                        }}
+                      >
+                        {showOwnerCreate ? "Hide Add Owner" : "+ Add Pet Owner"}
+                      </button>
+                    </div>
+                    {showOwnerCreate && (
+                      <div
+                        className="quick-create-panel"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.preventDefault();
+                        }}
+                      >
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>First Name</label>
+                            <input
+                              name="firstName"
+                              value={ownerForm.firstName}
+                              onChange={onOwnerFormChange}
+                              placeholder="First name"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Last Name</label>
+                            <input
+                              name="lastName"
+                              value={ownerForm.lastName}
+                              onChange={onOwnerFormChange}
+                              placeholder="Last name"
+                            />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Username</label>
+                            <input
+                              name="username"
+                              value={ownerForm.username}
+                              onChange={onOwnerFormChange}
+                              placeholder="Username"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Email</label>
+                            <input
+                              type="email"
+                              name="email"
+                              value={ownerForm.email}
+                              onChange={onOwnerFormChange}
+                              placeholder="Email"
+                            />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Phone</label>
+                            <input
+                              name="phone"
+                              value={ownerForm.phone}
+                              onChange={onOwnerFormChange}
+                              placeholder="09XXXXXXXXX"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Address</label>
+                            <input
+                              name="address"
+                              value={ownerForm.address}
+                              onChange={onOwnerFormChange}
+                              placeholder="Address"
+                            />
+                          </div>
+                        </div>
+                        {ownerCreateError && (
+                          <p className="modal-error">{ownerCreateError}</p>
+                        )}
+                        <div className="quick-create-actions">
+                          <button
+                            type="button"
+                            className="step-back-btn"
+                            onClick={() => {
+                              setShowOwnerCreate(false);
+                              setOwnerForm(EMPTY_OWNER_FORM);
+                              setOwnerCreateError("");
+                            }}
+                            disabled={ownerSaving}
+                          >
+                            Cancel Add
+                          </button>
+                          <button
+                            type="button"
+                            className="save-btn"
+                            onClick={submitQuickOwner}
+                            disabled={ownerSaving || !isOwnerFormValid}
+                          >
+                            {ownerSaving ? "Adding..." : "Save Owner"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {ownerCreateMessage && (
+                      <p className="appointment-success-hint">
+                        {ownerCreateMessage}
+                      </p>
+                    )}
+                    {selectedOwner && (
+                      <div className="appointment-summary compact">
+                        <div>
+                          <span>Owner</span>
+                          <strong>{ownerDisplayName(selectedOwner)}</strong>
+                        </div>
+                        {selectedOwner.phone && (
+                          <div>
+                            <span>Phone</span>
+                            <strong>{selectedOwner.phone}</strong>
+                          </div>
+                        )}
+                        {selectedOwner.email && (
+                          <div>
+                            <span>Email</span>
+                            <strong>{selectedOwner.email}</strong>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {bookingStep === 1 && (
+                  <>
+                    <div className="form-group">
+                      <label>Specific Pet</label>
+                      <select
+                        name="petId"
+                        value={form.petId}
+                        onChange={onChange}
+                        required
+                        disabled={!form.ownerId}
+                      >
+                        <option value="">
+                          {form.ownerId ? "Select specific pet" : "Select owner first"}
+                        </option>
+                        {petOptions.map((pet) => (
+                          <option key={pet.id} value={pet.id}>
+                            {petDisplayName(pet)}
+                            {pet.isCurrent ? " (current)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {form.ownerId && (
+                      <div className="quick-create-toolbar">
+                        <button
+                          type="button"
+                          className="quick-create-toggle"
+                          onClick={() => {
+                            setShowPetCreate((current) => !current);
+                            setPetCreateError("");
+                          }}
+                        >
+                          {showPetCreate ? "Hide Add Pet" : "+ Add Pet"}
+                        </button>
+                      </div>
+                    )}
+                    {form.ownerId && showPetCreate && (
+                      <div
+                        className="quick-create-panel"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.preventDefault();
+                        }}
+                      >
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Pet Name</label>
+                            <input
+                              name="name"
+                              value={petForm.name}
+                              onChange={onPetFormChange}
+                              placeholder="Pet name"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Species</label>
+                            <input
+                              name="species"
+                              value={petForm.species}
+                              onChange={onPetFormChange}
+                              placeholder="Dog, Cat"
+                            />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Breed</label>
+                            <input
+                              name="breed"
+                              value={petForm.breed}
+                              onChange={onPetFormChange}
+                              placeholder="Breed"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Age</label>
+                            <input
+                              type="number"
+                              min="0"
+                              name="age"
+                              value={petForm.age}
+                              onChange={onPetFormChange}
+                              placeholder="Age"
+                            />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Gender</label>
+                            <select
+                              name="gender"
+                              value={petForm.gender}
+                              onChange={onPetFormChange}
+                            >
+                              <option value="">Select gender</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label>Status</label>
+                            <select
+                              name="status"
+                              value={petForm.status}
+                              onChange={onPetFormChange}
+                            >
+                              <option value="Healthy">Healthy</option>
+                              <option value="UnderTreatment">
+                                Under Treatment
+                              </option>
+                              <option value="Deceased">Deceased</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label>Notes</label>
+                          <input
+                            name="notes"
+                            value={petForm.notes}
+                            onChange={onPetFormChange}
+                            placeholder="Optional notes"
+                          />
+                        </div>
+                        {petCreateError && (
+                          <p className="modal-error">{petCreateError}</p>
+                        )}
+                        <div className="quick-create-actions">
+                          <button
+                            type="button"
+                            className="step-back-btn"
+                            onClick={() => {
+                              setShowPetCreate(false);
+                              setPetForm(EMPTY_PET_FORM);
+                              setPetCreateError("");
+                            }}
+                            disabled={petSaving}
+                          >
+                            Cancel Add
+                          </button>
+                          <button
+                            type="button"
+                            className="save-btn"
+                            onClick={submitQuickPet}
+                            disabled={petSaving || !isPetCreateFormValid}
+                          >
+                            {petSaving ? "Adding..." : "Save Pet"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {form.ownerId && petOptions.length === 0 && (
+                      <p className="appointment-field-hint">
+                        No pets found for this owner.
+                      </p>
+                    )}
+                    {selectedPet && (
+                      <div className="appointment-summary compact">
+                        <div>
+                          <span>Pet</span>
+                          <strong>{petDisplayName(selectedPet)}</strong>
+                        </div>
+                        {selectedPet.breed && (
+                          <div>
+                            <span>Breed</span>
+                            <strong>{selectedPet.breed}</strong>
+                          </div>
+                        )}
+                        {selectedPet.status && (
+                          <div>
+                            <span>Status</span>
+                            <strong>{selectedPet.status}</strong>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {bookingStep === 2 && (
+                  <>
+                    <div className="form-group">
+                      <label>Visit Reason</label>
+                      <select
+                        name="visitReason"
+                        value={form.visitReason}
+                        onChange={onChange}
+                        required
+                      >
+                        <option value="">Select visit reason</option>
+                        {Object.keys(VISIT_REASONS).map((visitReason) => (
+                          <option key={visitReason} value={visitReason}>
+                            {visitReason}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedReasonConfig?.note && (
+                      <p className="appointment-field-hint">
+                        {selectedReasonConfig.note}
+                      </p>
+                    )}
+
+                    {form.visitReason && (
+                      <div className="form-group">
+                        <label>Service</label>
+                        <select
+                          name="serviceType"
+                          value={form.serviceType}
+                          onChange={onChange}
+                          required
+                        >
+                          <option value="">Select service</option>
+                          {serviceGroups.map((group) => (
+                            <optgroup key={group.label} label={group.label}>
+                              {group.services.map((service) => (
+                                <option key={service} value={service}>
+                                  {service}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {form.visitReason === "Vaccination" && form.serviceType && (
+                      <div className="inventory-check-box">
+                        <div className="inventory-check-header">
+                          <span>Inventory Check</span>
+                          <button
+                            type="button"
+                            className="inventory-link-btn"
+                            onClick={() => navigate("/staff-inventory")}
+                          >
+                            Open Inventory
+                          </button>
+                        </div>
+                        {vaccineInventoryPreview.length > 0 ? (
+                          <ul className="inventory-match-list">
+                            {vaccineInventoryPreview.map((item) => (
+                              <li key={item.id || item.name}>
+                                <span>{item.name}</span>
+                                <strong>
+                                  {item.stock ?? 0} {item.unit || "pcs"}
+                                </strong>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="inventory-empty">
+                            No vaccine item matched. Check inventory before
+                            confirming.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {bookingStep === 3 && (
+                  <>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Veterinarian</label>
+                        <select
+                          name="vetId"
+                          value={form.vetId}
+                          onChange={onChange}
+                          required
+                        >
+                          <option value="">Select veterinarian</option>
+                          {vets.map((vet) => (
+                            <option key={vet.id} value={vet.id}>
+                              {`${vet.firstName || ""} ${vet.lastName || ""}`.trim() ||
+                                vet.username}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Date</label>
+                        <input
+                          type="date"
+                          name="date"
+                          value={form.date}
+                          onChange={onChange}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Available Time Slot</label>
+                        <select
+                          name="slot"
+                          value={form.slot}
+                          onChange={onChange}
+                          required
+                          disabled={!form.vetId || !form.date}
+                        >
+                          <option value="">
+                            {form.vetId && form.date
+                              ? "Select time slot"
+                              : "Select vet and date first"}
+                          </option>
+                          {slots.map((slot) => (
+                            <option key={slot.startsAt} value={slot.startsAt}>
+                              {new Date(slot.startsAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                              {slot.isCurrent ? " (current)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {editing && (
+                        <div className="form-group">
+                          <label>Status</label>
+                          <select
+                            name="status"
+                            value={form.status}
+                            onChange={onChange}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {form.vetId && form.date && slots.length === 0 && (
+                      <p className="appointment-field-hint">
+                        No available slots for this date.
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {bookingStep === 4 && (
+                  <>
+                    <div className="form-group">
+                      <label>Notes</label>
+                      <textarea
+                        name="notes"
+                        value={form.notes}
+                        onChange={onChange}
+                        placeholder="Notes for this appointment"
+                      />
+                    </div>
+                    <div className="appointment-summary">
+                      <div>
+                        <span>Owner</span>
+                        <strong>{ownerDisplayName(selectedOwner) || "-"}</strong>
+                      </div>
+                      <div>
+                        <span>Pet</span>
+                        <strong>{petDisplayName(selectedPet)}</strong>
+                      </div>
+                      <div>
+                        <span>Reason</span>
+                        <strong>{reasonSummary || "-"}</strong>
+                      </div>
+                      <div>
+                        <span>Veterinarian</span>
+                        <strong>
+                          {selectedVet
+                            ? `${selectedVet.firstName || ""} ${selectedVet.lastName || ""}`.trim() ||
+                              selectedVet.username
+                            : "-"}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Date & Time</span>
+                        <strong>
+                          {selectedSlot || form.slot
+                            ? new Date(
+                                selectedSlot?.startsAt || form.slot,
+                              ).toLocaleString()
+                            : "-"}
+                        </strong>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
               {error && <p className="modal-error">{error}</p>}
-              <div className="modal-actions">
+
+              <div className="modal-actions appointment-step-actions">
                 <button
                   type="button"
                   className="cancel-btn"
@@ -857,11 +2643,86 @@ const StaffAppointment = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="save-btn" disabled={saving}>
-                  {saving ? "Saving..." : "Save"}
-                </button>
+                {bookingStep > 0 && (
+                  <button
+                    type="button"
+                    className="step-back-btn"
+                    onClick={goBackStep}
+                    disabled={saving}
+                  >
+                    Back
+                  </button>
+                )}
+                {bookingStep < FINAL_BOOKING_STEP_INDEX ? (
+                  <button
+                    type="button"
+                    className="save-btn"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      goNextStep();
+                    }}
+                    disabled={saving}
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="save-btn"
+                    onClick={submitAppointment}
+                    disabled={saving || !finalStepReady}
+                  >
+                    {saving
+                      ? "Saving..."
+                      : editing
+                        ? "Save Changes"
+                        : isRebooking
+                          ? "Rebook Appointment"
+                          : "Book Appointment"}
+                  </button>
+                )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {pastDueConfirmDate && (
+        <div
+          className="modal-overlay past-due-confirm-overlay"
+          onClick={closePastDueConfirm}
+        >
+          <div
+            className="modal-box past-due-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="past-due-confirm-badge">Past Due</span>
+            <h3>Date Already Due</h3>
+            <p className="past-due-confirm-copy">
+              This date is already due. Do you still want to continue?
+            </p>
+            <div className="past-due-confirm-date">
+              <span>Selected Date</span>
+              <strong>
+                {new Date(`${pastDueConfirmDate}T00:00:00`).toLocaleDateString()}
+              </strong>
+            </div>
+            <div className="modal-actions past-due-confirm-actions">
+              <button
+                type="button"
+                className="step-back-btn"
+                onClick={closePastDueConfirm}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="save-btn past-due-confirm-btn"
+                onClick={confirmPastDueDate}
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

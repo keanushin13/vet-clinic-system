@@ -16,7 +16,6 @@ const StaffOwnerPets = () => {
   const currentUser = JSON.parse(localStorage.getItem("user"));
   const { isOpen, toggle, close } = useSidebar();
 
-  // Owner info passed via navigate state from StaffUserManagement
   const owner = location.state?.owner || null;
 
   const [pets, setPets] = useState([]);
@@ -29,7 +28,9 @@ const StaffOwnerPets = () => {
       return;
     }
     getPets({ ownerId: id })
-      .then((r) => setPets(r.data))
+      .then((r) =>
+        setPets(Array.isArray(r.data) ? r.data : r.data?.pets || [])
+      )
       .catch(() => setPets([]))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,6 +56,21 @@ const StaffOwnerPets = () => {
     if (!status) return "";
     return status.toLowerCase().replace(/\s+/g, "");
   };
+
+  const statusLabel = (status) =>
+    status === "UnderTreatment" ? "Under Treatment" : status || "No status";
+
+  const genderAge = (pet) => {
+    const gender = pet.gender || "Not set";
+    const age =
+      pet.age !== null && pet.age !== undefined ? `${pet.age} yr(s)` : "Age N/A";
+    return `${gender} / ${age}`;
+  };
+
+  const healthyPets = pets.filter((pet) => pet.status === "Healthy").length;
+  const underCarePets = pets.filter(
+    (pet) => pet.status === "UnderTreatment"
+  ).length;
 
   return (
     <div className="dashboard-container">
@@ -87,42 +103,13 @@ const StaffOwnerPets = () => {
           </div>
         </header>
 
-        <section className="content-body">
-          {/* Owner info card */}
-          <div className="owner-header-card">
-            <div className="owner-avatar-lg">
-              {ownerName.charAt(0).toUpperCase()}
-            </div>
-            <div className="owner-header-info">
-              <h3>{ownerName}</h3>
-              <div className="owner-header-meta">
-                {owner?.email && <span>{owner.email}</span>}
-                {owner?.phone && <span>{owner.phone}</span>}
-                {owner && (
-                  <span
-                    className={`owner-status-tag ${owner.isActive ? "active" : "inactive"}`}
-                  >
-                    {owner.isActive ? "Active" : "Inactive"}
-                  </span>
-                )}
-                <span>{pets.length} Pet(s)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Page header row */}
-          <div className="owner-pets-header">
+        <section className="content-body staff-owner-pets">
+          <div className="staff-owner-hero">
             <button
-              className="back-btn"
+              className="staff-owner-back"
               onClick={() => navigate("/staff-users")}
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M19 12H5M12 5l-7 7 7 7"
                   stroke="currentColor"
@@ -133,22 +120,73 @@ const StaffOwnerPets = () => {
               </svg>
               Back to Clients
             </button>
-            <h3>Registered Pets</h3>
+
+            <div className="staff-owner-summary">
+              <div className="owner-avatar-lg staff-owner-avatar">
+                {ownerName.charAt(0).toUpperCase()}
+              </div>
+              <div className="staff-owner-copy">
+                <span className="staff-owner-eyebrow">Client Pet Records</span>
+                <h3>{ownerName}</h3>
+                <div className="staff-owner-meta">
+                  {owner?.email && <span>{owner.email}</span>}
+                  {owner?.phone && <span>{owner.phone}</span>}
+                  {owner && (
+                    <span
+                      className={`owner-status-tag ${
+                        owner.isActive ? "active" : "inactive"
+                      }`}
+                    >
+                      {owner.isActive ? "Active" : "Inactive"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="staff-owner-stats">
+              <div className="staff-owner-stat">
+                <span>Total Pets</span>
+                <strong>{pets.length}</strong>
+              </div>
+              <div className="staff-owner-stat">
+                <span>Healthy</span>
+                <strong>{healthyPets}</strong>
+              </div>
+              <div className="staff-owner-stat">
+                <span>Under Care</span>
+                <strong>{underCarePets}</strong>
+              </div>
+            </div>
           </div>
 
-          {/* Search */}
-          <div className="owner-pets-search">
-            <input
-              type="text"
-              placeholder="Search by pet name, species, or breed..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="staff-pets-toolbar">
+            <div>
+              <h3>Registered Pets</h3>
+              <span>
+                Showing {filteredPets.length} of {pets.length}
+              </span>
+            </div>
+            <label className="staff-pets-search">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search pet name, species, or breed"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
           </div>
 
-          {/* Desktop table / Mobile cards */}
           {loading ? (
-            <div className="op-loading">Loading pets…</div>
+            <div className="op-loading">Loading pets...</div>
           ) : filteredPets.length === 0 ? (
             <div className="op-empty-state">
               <p>
@@ -158,111 +196,57 @@ const StaffOwnerPets = () => {
               </p>
             </div>
           ) : (
-            <>
-              {/* ── Desktop table ── */}
-              <div className="owner-pets-table-card op-desktop-only">
-                <table className="owner-pets-table">
-                  <thead>
-                    <tr>
-                      <th>Pet Name</th>
-                      <th>Species</th>
-                      <th>Breed</th>
-                      <th>Gender / Age</th>
-                      <th>Status</th>
-                      <th>Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPets.map((pet) => (
-                      <tr key={pet.id}>
-                        <td>
-                          <div className="op-pet-name-cell">
-                            <div className="op-pet-avatar">
-                              {pet.image ? (
-                                <img src={pet.image} alt={pet.name} />
-                              ) : (
-                                (pet.name || "?").charAt(0).toUpperCase()
-                              )}
-                            </div>
-                            <span>{pet.name}</span>
-                          </div>
-                        </td>
-                        <td>{pet.species || "—"}</td>
-                        <td>{pet.breed || "—"}</td>
-                        <td>
-                          {pet.gender || "—"}
-                          {pet.age !== null && pet.age !== undefined
-                            ? ` / ${pet.age} yr(s)`
-                            : ""}
-                        </td>
-                        <td>
-                          <span
-                            className={`op-status-tag ${statusClass(pet.status)}`}
-                          >
-                            {pet.status === "UnderTreatment"
-                              ? "Under Treatment"
-                              : pet.status || "—"}
-                          </span>
-                        </td>
-                        <td>{pet.notes || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* ── Mobile cards ── */}
-              <div className="op-cards-list op-mobile-only">
-                {filteredPets.map((pet) => (
-                  <div key={pet.id} className="op-pet-card">
-                    <div className="op-pet-card-header">
-                      <div className="op-pet-avatar">
-                        {pet.image ? (
-                          <img src={pet.image} alt={pet.name} />
-                        ) : (
-                          (pet.name || "?").charAt(0).toUpperCase()
-                        )}
-                      </div>
-                      <div className="op-pet-card-title">
-                        <span className="op-pet-card-name">{pet.name}</span>
-                        <span
-                          className={`op-status-tag ${statusClass(pet.status)}`}
-                        >
-                          {pet.status === "UnderTreatment"
-                            ? "Under Treatment"
-                            : pet.status || "—"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="op-pet-card-body">
-                      <div className="op-pet-card-row">
-                        <span className="op-card-label">Species</span>
-                        <span>{pet.species || "—"}</span>
-                      </div>
-                      <div className="op-pet-card-row">
-                        <span className="op-card-label">Breed</span>
-                        <span>{pet.breed || "—"}</span>
-                      </div>
-                      <div className="op-pet-card-row">
-                        <span className="op-card-label">Gender / Age</span>
-                        <span>
-                          {pet.gender || "—"}
-                          {pet.age !== null && pet.age !== undefined
-                            ? ` / ${pet.age} yr(s)`
-                            : ""}
-                        </span>
-                      </div>
-                      {pet.notes && (
-                        <div className="op-pet-card-row">
-                          <span className="op-card-label">Notes</span>
-                          <span>{pet.notes}</span>
-                        </div>
+            <div className="staff-pet-grid">
+              {filteredPets.map((pet) => (
+                <article key={pet.id} className="staff-pet-box">
+                  <div className="staff-pet-box-header">
+                    <div className="staff-pet-avatar">
+                      {pet.image ? (
+                        <img src={pet.image} alt={pet.name} />
+                      ) : (
+                        (pet.name || "?").charAt(0).toUpperCase()
                       )}
                     </div>
+                    <div className="staff-pet-title">
+                      <h4>{pet.name || "Unnamed Pet"}</h4>
+                      <span
+                        className={`op-status-tag ${statusClass(pet.status)}`}
+                      >
+                        {statusLabel(pet.status)}
+                      </span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </>
+
+                  <div className="staff-pet-details">
+                    <div>
+                      <span>Species</span>
+                      <strong>{pet.species || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span>Breed</span>
+                      <strong>{pet.breed || "N/A"}</strong>
+                    </div>
+                    <div>
+                      <span>Gender / Age</span>
+                      <strong>{genderAge(pet)}</strong>
+                    </div>
+                    <div>
+                      <span>Weight</span>
+                      <strong>
+                        {pet.weight !== null && pet.weight !== undefined
+                          ? `${pet.weight} kg`
+                          : "N/A"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="staff-pet-notes">
+                    <span>Notes</span>
+                    <p>{pet.notes || "No notes available."}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           )}
         </section>
       </main>
