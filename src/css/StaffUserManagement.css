@@ -36,6 +36,87 @@
   padding: 10px 12px;
 }
 
+.required-mark {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+.user-modal-form input.input-invalid {
+  border-color: #dc2626;
+  background: #fff7f7;
+}
+
+.user-modal-form input.readonly-input {
+  background: #eef3f6;
+  color: #607780;
+  cursor: not-allowed;
+}
+
+.phone-input-wrap {
+  display: block;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.activation-link-group {
+  margin-top: 4px;
+}
+
+.activation-link-box {
+  border: 1px solid #9bd6e4;
+  border-radius: 10px;
+  background: #f0f9ff;
+  padding: 13px 14px;
+}
+
+.activation-link-box span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  border-radius: 8px;
+  background: #5db7c7;
+  color: #fff;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.activation-link-box p {
+  margin: 10px 0 0;
+  color: #4d6573;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.reset-password-btn {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #438fb5;
+  border-radius: 10px;
+  background: #f0f9ff;
+  color: #255065;
+  font-family: "Poppins", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reset-password-btn:hover {
+  background: #e0f0f8;
+}
+
+.reset-password-copy {
+  color: #607780;
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -62,6 +143,12 @@
   color: #fff;
 }
 
+.save-btn:disabled {
+  background: #aeb8c0;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
 .modal-error {
   color: #dc2626;
   font-size: 13px;
@@ -71,6 +158,14 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 25px;
+  gap: 14px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .user-search {
@@ -79,6 +174,57 @@
   border-radius: 25px;
   border: 1px solid #c9eaf7;
   outline: none;
+}
+
+.user-status-filter {
+  min-height: 42px;
+  width: 220px;
+  border: 1px solid #c9eaf7;
+  border-radius: 14px;
+  background: #fff;
+  color: #255065;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+.user-status-filter:focus {
+  border-color: #438fb5;
+  box-shadow: 0 0 0 3px rgba(99, 182, 197, 0.18);
+}
+
+.entries-control {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #255065;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.entries-select {
+  min-width: 76px;
+  height: 42px;
+  border: 1px solid #c9eaf7;
+  border-radius: 12px;
+  background: #fff;
+  color: #255065;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.entries-select:focus {
+  border-color: #438fb5;
+  box-shadow: 0 0 0 3px rgba(99, 182, 197, 0.18);
 }
 
 .add-user-btn {
@@ -202,6 +348,14 @@
   border: 1px solid #d7dde4;
   background: #fff;
   font-size: 15px;
+}
+
+.user-status-filter {
+  border-color: #d7dde4;
+}
+
+.entries-select {
+  border-color: #d7dde4;
 }
 
 .add-user-btn {
@@ -375,8 +529,20 @@
 
   /* Search inputs */
   .search-box input,
+  .user-status-filter,
+  .entries-control,
+  .entries-select,
   .log-search {
     width: 100% !important;
+  }
+
+  .entries-control {
+    justify-content: space-between;
+  }
+
+  .entries-control .entries-select {
+    width: auto !important;
+    flex: 1;
   }
 
   /* Admin recent flex */
@@ -466,6 +632,13 @@
   color: #166534;
   font-size: 14px;
   font-weight: 500;
+}
+.new-client-prompt small {
+  display: block;
+  margin-top: 5px;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 600;
 }
 .new-client-prompt-actions {
   display: flex;

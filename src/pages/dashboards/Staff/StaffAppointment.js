@@ -19,6 +19,11 @@ import {
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, value) => ({
+  value,
+  label: new Date(2000, value, 1).toLocaleString([], { month: "long" }),
+}));
+
 const StaffAppointment = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -272,11 +277,33 @@ const StaffAppointment = () => {
   ).getDate();
   const firstWeekday = monthStart.getDay();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const selectedMonth = calendarDate.getMonth();
+  const selectedYear = calendarDate.getFullYear();
+  const currentYear = new Date().getFullYear();
+  const appointmentYears = appointments
+    .map((appointment) => new Date(appointment.scheduledAt).getFullYear())
+    .filter((year) => Number.isInteger(year));
+  const firstYear = Math.min(currentYear - 5, selectedYear, ...appointmentYears);
+  const lastYear = Math.max(currentYear + 5, selectedYear, ...appointmentYears);
+  const yearOptions = Array.from(
+    { length: lastYear - firstYear + 1 },
+    (_, index) => firstYear + index,
+  );
 
   const shiftMonth = (delta) => {
     setCalendarDate(
       (prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1),
     );
+  };
+
+  const onCalendarMonthChange = (e) => {
+    const month = Number(e.target.value);
+    setCalendarDate((prev) => new Date(prev.getFullYear(), month, 1));
+  };
+
+  const onCalendarYearChange = (e) => {
+    const year = Number(e.target.value);
+    setCalendarDate((prev) => new Date(year, prev.getMonth(), 1));
   };
 
   const onCalendarEventKeyDown = (e, appointment) => {
@@ -285,11 +312,6 @@ const StaffAppointment = () => {
       openEdit(appointment);
     }
   };
-
-  const monthLabel = calendarDate.toLocaleString([], {
-    month: "long",
-    year: "numeric",
-  });
 
   const currentPetOption =
     editing && form.petId && !pets.some((pet) => pet.id === form.petId)
@@ -367,7 +389,11 @@ const StaffAppointment = () => {
           </div>
         </header>
 
-        <section className="content-body">
+        <section
+          className={`content-body ${
+            viewMode === "calendar" ? "appointment-calendar-body" : ""
+          }`}
+        >
           <div className="calendar-controls">
             <div className="view-toggle">
               <button
@@ -454,7 +480,36 @@ const StaffAppointment = () => {
           {!loading && viewMode === "calendar" ? (
             <div className="calendar-container">
               <div className="calendar-month-header">
-                <h3>{monthLabel}</h3>
+                <div className="calendar-picker" aria-label="Calendar date">
+                  <label>
+                    <span>Month</span>
+                    <select
+                      value={selectedMonth}
+                      onChange={onCalendarMonthChange}
+                      aria-label="Choose calendar month"
+                    >
+                      {MONTH_OPTIONS.map((month) => (
+                        <option key={month.value} value={month.value}>
+                          {month.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Year</span>
+                    <select
+                      value={selectedYear}
+                      onChange={onCalendarYearChange}
+                      aria-label="Choose calendar year"
+                    >
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <div className="month-nav">
                   <button onClick={() => shiftMonth(-1)}>&lt; Prev</button>
                   <button onClick={() => shiftMonth(1)}>Next &gt;</button>

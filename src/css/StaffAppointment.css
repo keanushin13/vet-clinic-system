@@ -54,6 +54,18 @@
   margin-bottom: 0;
 }
 
+.appointment-calendar-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.appointment-calendar-body .calendar-controls {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+
 .calendar-container {
   background: white;
   border-radius: 15px;
@@ -61,11 +73,69 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
+.appointment-calendar-body .calendar-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+}
+
 .calendar-month-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  gap: 12px;
+}
+
+.appointment-calendar-body .calendar-month-header {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+}
+
+.appointment-calendar-body .calendar-month-header h3 {
+  margin: 0;
+}
+
+.calendar-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.calendar-picker label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #255065;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.calendar-picker select {
+  min-width: 128px;
+  height: 40px;
+  border: 1px solid #d7dde4;
+  border-radius: 10px;
+  background: #fff;
+  color: #255065;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.calendar-picker label:last-child select {
+  min-width: 92px;
+}
+
+.calendar-picker select:focus {
+  border-color: #438fb5;
+  box-shadow: 0 0 0 3px rgba(99, 182, 197, 0.18);
 }
 
 .month-nav {
@@ -100,6 +170,12 @@
   border-left: 1px solid #eee;
 }
 
+.appointment-calendar-body .calendar-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+}
+
 .weekday-label {
   padding: 12px;
   text-align: center;
@@ -121,6 +197,28 @@
   border-bottom: 1px solid #eee;
 }
 
+.appointment-calendar-body .weekday-label {
+  padding: 8px;
+  line-height: 1.2;
+}
+
+.appointment-calendar-body .calendar-day {
+  min-height: 0;
+  padding: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.appointment-calendar-body .day-num {
+  flex: 0 0 auto;
+}
+
+.appointment-calendar-body .day-events {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .calendar-day.empty {
   background: #fbfcfe;
 }
@@ -140,6 +238,12 @@
   transition:
     filter 0.15s ease,
     transform 0.15s ease;
+}
+
+.appointment-calendar-body .event-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .event-item:hover {
@@ -403,6 +507,26 @@
     padding: 16px !important;
     padding-top: calc(16px + var(--topbar-height)) !important;
     margin-top: var(--topbar-height) !important;
+  }
+
+  .calendar-month-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .calendar-picker,
+  .month-nav {
+    width: 100%;
+  }
+
+  .calendar-picker label,
+  .month-nav button {
+    flex: 1;
+  }
+
+  .calendar-picker select {
+    width: 100%;
+    min-width: 0;
   }
 
   /* Stats grid: 2 columns on tablet, 1 on phone */

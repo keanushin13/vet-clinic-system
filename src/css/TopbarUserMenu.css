@@ -39,3 +39,25 @@
 .topbar-user-menu-item-danger:hover {
   background: #fdecec;
 }
+
+.staff-topbar-profile-img {
+  filter: brightness(0) invert(1) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.top-bar-right:has(.staff-topbar-user-menu) .notif-btn {
+  width: 45px !important;
+  height: 45px !important;
+  min-width: 45px !important;
+  min-height: 45px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+.top-bar-right:has(.staff-topbar-user-menu) .notif-btn img {
+  width: 45px !important;
+  height: 45px !important;
+  object-fit: contain !important;
+}
