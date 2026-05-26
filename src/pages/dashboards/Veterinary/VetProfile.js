@@ -390,31 +390,15 @@ const VetProfile = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Phone</label>
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{ marginRight: "8px", fontWeight: "500" }}>
-                      +63
-                    </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontWeight: "500", whiteSpace: "nowrap" }}>+63</span>
                     <input
-                      type="number"
                       name="phone"
-                      value={editForm.phone?.replace(/^63/, "") || ""}
-                      placeholder="Enter number"
+                      value={editForm.phone || ""}
+                      placeholder="09XXXXXXXXX"
                       maxLength="11"
-                      pattern="[0-9]*"
+                      onChange={onEditChange}
                       style={{ flex: 1 }}
-                      onChange={(e) => {
-                        const numOnly = e.target.value.replace(/[^0-9]/g, "");
-                        const phone = numOnly.replace(/^63/, "").slice(0, 10);
-                        const fullPhone = phone ? `63${phone}` : "";
-                        onEditChange({
-                          ...e,
-                          target: {
-                            ...e.target,
-                            name: "phone",
-                            value: fullPhone,
-                          },
-                        });
-                      }}
                     />
                   </div>
                 </div>
