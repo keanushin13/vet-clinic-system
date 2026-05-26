@@ -493,54 +493,65 @@ export default function AdminPayments() {
                   </button>
                 </div>
                 <div className="invoice-body">
-                  {invoiceData.billing ? (
-                    <>
-                      <div className="invoice-row">
-                        <span>Owner</span>
-                        <span>{invoiceData.billing.ownerName || "—"}</span>
-                      </div>
-                      <div className="invoice-row">
-                        <span>Pet</span>
-                        <span>{invoiceData.billing.petName || "—"}</span>
-                      </div>
-                      <div className="invoice-row">
-                        <span>Veterinarian</span>
-                        <span>{invoiceData.billing.vetName || "—"}</span>
-                      </div>
-                      <div className="invoice-row">
-                        <span>Appointment</span>
-                        <span>
-                          {invoiceData.billing.scheduledAt
-                            ? new Date(
-                                invoiceData.billing.scheduledAt,
-                              ).toLocaleString()
-                            : "—"}
-                        </span>
-                      </div>
-                      <div className="invoice-row">
-                        <span>Diagnosis</span>
-                        <span>{invoiceData.billing.diagnosis || "—"}</span>
-                      </div>
-                      <hr />
-                      {Array.isArray(invoiceData.billing.items) &&
-                        invoiceData.billing.items.map((item, i) => (
+                  {invoiceData.billing ? (() => {
+                    const b = invoiceData.billing;
+                    const appt = b.appointment || {};
+                    const owner = appt.owner
+                      ? `${appt.owner.firstName || ""} ${appt.owner.lastName || ""}`.trim() || appt.owner.username
+                      : "—";
+                    const vet = appt.vet
+                      ? `${appt.vet.firstName || ""} ${appt.vet.lastName || ""}`.trim() || appt.vet.username
+                      : "—";
+                    return (
+                      <>
+                        <div className="invoice-row">
+                          <span>Owner</span>
+                          <span>{owner}</span>
+                        </div>
+                        <div className="invoice-row">
+                          <span>Pet</span>
+                          <span>{appt.pet?.name || "—"}</span>
+                        </div>
+                        <div className="invoice-row">
+                          <span>Veterinarian</span>
+                          <span>{vet}</span>
+                        </div>
+                        <div className="invoice-row">
+                          <span>Appointment</span>
+                          <span>
+                            {appt.scheduledAt
+                              ? new Date(appt.scheduledAt).toLocaleString()
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="invoice-row">
+                          <span>Reason</span>
+                          <span>{appt.reason || "—"}</span>
+                        </div>
+                        <hr />
+                        <div className="invoice-row">
+                          <span>Checkup Fee</span>
+                          <span>{fmtCurrency(b.checkupRate)}</span>
+                        </div>
+                        {Array.isArray(b.usageLines) && b.usageLines.map((line, i) => (
                           <div className="invoice-row" key={i}>
-                            <span>{item.name}</span>
-                            <span>{fmtCurrency(item.total)}</span>
+                            <span>
+                              {line.inventoryItemName}
+                              {line.quantityUsed ? ` × ${line.quantityUsed}` : ""}
+                            </span>
+                            <span>{fmtCurrency(line.lineTotal)}</span>
                           </div>
                         ))}
-                      <hr />
-                      <div className="invoice-row total-row">
-                        <span>Total</span>
-                        <span>
-                          {fmtCurrency(
-                            invoiceData.billing.total ??
-                              invoiceData.payment.amount,
-                          )}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
+                        <hr />
+                        <div className="invoice-row total-row">
+                          <span>Total</span>
+                          <span>
+                            {fmtCurrency(b.total ?? invoiceData.payment.amount)}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })() : (
                     <>
                       <div className="invoice-row">
                         <span>Amount</span>

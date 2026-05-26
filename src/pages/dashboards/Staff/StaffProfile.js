@@ -4,7 +4,12 @@ import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/StaffProfile.css";
 import StaffSidebar from "../../../components/StaffSidebar";
 import { useSidebar } from "../../../components/useSidebar";
-import { getMe, updateMe, updatePassword } from "../../../api/api";
+import {
+  getMe,
+  updateMe,
+  updatePassword,
+  uploadAvatar,
+} from "../../../api/api";
 
 // ASSETS
 import bellIcon from "../../../assets/Bell_Icon.png";
@@ -32,6 +37,7 @@ const StaffProfile = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
 
   const [editForm, setEditForm] = useState({
     firstName: "",
@@ -123,12 +129,14 @@ const StaffProfile = () => {
       profileImage: profile?.profileImage || "",
     });
     setAvatarPreview(profile?.profileImage || "");
+    setAvatarFile(null);
     setShowEditModal(true);
   };
 
   const closeEditModal = () => {
     setShowEditModal(false);
     setAvatarPreview("");
+    setAvatarFile(null);
   };
 
   const closePasswordModal = () => {
@@ -159,17 +167,18 @@ const StaffProfile = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      setAvatarPreview(result);
-      setEditForm((prev) => ({ ...prev, profileImage: result }));
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be 5MB or less");
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const removeAvatar = () => {
     setAvatarPreview("");
+    setAvatarFile(null);
     setEditForm((prev) => ({ ...prev, profileImage: "" }));
   };
 
@@ -184,13 +193,20 @@ const StaffProfile = () => {
     setError("");
     setMessage("");
     try {
+      let profileImageUrl = editForm.profileImage || null;
+
+      if (avatarFile) {
+        const uploadRes = await uploadAvatar(avatarFile);
+        profileImageUrl = uploadRes.data.url;
+      }
+
       const payload = {
         ...editForm,
         firstName: editForm.firstName.trim(),
         lastName: editForm.lastName.trim(),
         phone: normalizePhoneForForm(editForm.phone),
         address: editForm.address.trim() || "N/A",
-        profileImage: editForm.profileImage || null,
+        profileImage: profileImageUrl,
       };
       const r = await updateMe(payload);
       const updatedProfile = {

@@ -4,7 +4,7 @@ import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/PetOwnerProfile.css";
 import PetOwnerSidebar from "../../../components/PetOwnerSidebar";
 import { useSidebar } from "../../../components/useSidebar";
-import { getMe, updateMe, updatePassword } from "../../../api/api";
+import { getMe, updateMe, updatePassword, uploadAvatar } from "../../../api/api";
 import { STORAGE_KEY } from "../../../components/PetOwnerTutorial";
 
 import bellIcon from "../../../assets/Bell_Icon.png";
@@ -25,6 +25,8 @@ const PetOwnerProfile = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [usernameError, setUsernameError] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
 
   const [editForm, setEditForm] = useState({
     firstName: "",
@@ -68,6 +70,8 @@ const PetOwnerProfile = () => {
     setError("");
     setSuccess("");
     setUsernameError("");
+    setAvatarFile(null);
+    setAvatarPreview(profile?.profileImage || "");
     setEditForm({
       firstName: profile?.firstName || "",
       lastName: profile?.lastName || "",
@@ -86,13 +90,20 @@ const PetOwnerProfile = () => {
     setError("");
     setSuccess("");
     try {
+      let profileImageUrl = editForm.profileImage || null;
+
+      if (avatarFile) {
+        const uploadRes = await uploadAvatar(avatarFile);
+        profileImageUrl = uploadRes.data.url;
+      }
+
       const payload = {
         ...editForm,
         firstName: editForm.firstName || null,
         lastName: editForm.lastName || null,
         phone: editForm.phone || null,
         address: editForm.address || null,
-        profileImage: editForm.profileImage || null,
+        profileImage: profileImageUrl,
       };
       const r = await updateMe(payload);
       setProfile(r.data || payload);
@@ -164,14 +175,12 @@ const PetOwnerProfile = () => {
       setError("Please select an image file");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setEditForm((prev) => ({
-        ...prev,
-        profileImage: String(reader.result || ""),
-      }));
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be 5MB or less");
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const avatarSource = profile?.profileImage || userIcon;
@@ -328,13 +337,13 @@ const PetOwnerProfile = () => {
       </main>
 
       {showEditModal && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowEditModal(false); setAvatarFile(null); setAvatarPreview(""); }}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <form className="user-modal-form" onSubmit={submitProfile}>
               <h3>Edit Profile</h3>
               <div className="avatar-upload-wrap">
                 <img
-                  src={editForm.profileImage || avatarSource}
+                  src={avatarPreview || avatarSource}
                   alt="Preview"
                   className="avatar-preview"
                 />
@@ -470,7 +479,7 @@ const PetOwnerProfile = () => {
                 <button
                   type="button"
                   className="cancel-btn"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => { setShowEditModal(false); setAvatarFile(null); setAvatarPreview(""); }}
                 >
                   Cancel
                 </button>

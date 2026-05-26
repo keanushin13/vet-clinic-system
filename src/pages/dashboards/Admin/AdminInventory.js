@@ -37,16 +37,15 @@ const CATEGORIES = [
 const EMPTY_FORM = {
   name: "",
   category: "Supplies",
-  quantity: 0,
+  stock: 0,
   unit: "",
-  reorderLevel: 5,
   price: "",
-  expiryDate: "",
+  expirationDate: "",
   description: "",
 };
 
 const STATUS_COLORS = {
-  Available: "status-active",
+  InStock: "status-active",
   LowStock: "status-pending",
   OutOfStock: "status-suspended",
 };
@@ -66,9 +65,8 @@ function buildCSV(rows) {
     "ID",
     "Name",
     "Category",
-    "Quantity",
+    "Stock",
     "Unit",
-    "Reorder Level",
     "Price",
     "Status",
     "Expiry Date",
@@ -80,12 +78,11 @@ function buildCSV(rows) {
         i.id,
         `"${i.name}"`,
         i.category,
-        i.quantity,
+        i.stock,
         i.unit || "",
-        i.reorderLevel || "",
         i.price || "",
         i.status,
-        fmtDate(i.expiryDate),
+        fmtDate(i.expirationDate),
       ].join(","),
     );
   }
@@ -124,7 +121,6 @@ export default function AdminInventory() {
     setLoading(true);
     try {
       const params = {};
-      if (categoryFilter) params.category = categoryFilter;
       if (showArchived) params.includeArchived = "true";
       const r = await getInventory(params);
       setItems(Array.isArray(r.data) ? r.data : []);
@@ -133,7 +129,7 @@ export default function AdminInventory() {
     } finally {
       setLoading(false);
     }
-  }, [categoryFilter, showArchived]);
+  }, [showArchived]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
@@ -142,10 +138,11 @@ export default function AdminInventory() {
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryFilter, showArchived]);
+  }, [showArchived]);
 
   const filtered = items.filter((i) => {
-    if (expiringOnly && !isExpiringSoon(i.expiryDate)) return false;
+    if (categoryFilter && i.category !== categoryFilter) return false;
+    if (expiringOnly && !isExpiringSoon(i.expirationDate)) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -167,11 +164,10 @@ export default function AdminInventory() {
     setForm({
       name: item.name,
       category: item.category || "Supplies",
-      quantity: item.quantity,
+      stock: item.stock,
       unit: item.unit || "",
-      reorderLevel: item.reorderLevel || 5,
       price: item.price || "",
-      expiryDate: item.expiryDate ? item.expiryDate.slice(0, 10) : "",
+      expirationDate: item.expirationDate ? item.expirationDate.slice(0, 10) : "",
       description: item.description || "",
     });
     setFormError("");
@@ -199,8 +195,7 @@ export default function AdminInventory() {
     try {
       const payload = {
         ...form,
-        quantity: Number(form.quantity),
-        reorderLevel: Number(form.reorderLevel),
+        stock: Number(form.stock),
         price: form.price ? Number(form.price) : undefined,
       };
       if (modalMode === "add") await createInventoryItem(payload);
@@ -219,7 +214,7 @@ export default function AdminInventory() {
     setFormError("");
     setSaving(true);
     try {
-      await updateStock(editTarget.id, { quantity: Number(stockAdjust) });
+      await updateStock(editTarget.id, { stock: Number(stockAdjust) });
       closeModal();
       load();
     } catch (err) {
@@ -411,7 +406,6 @@ export default function AdminInventory() {
                     <th>Category</th>
                     <th>Qty</th>
                     <th>Unit</th>
-                    <th>Reorder</th>
                     <th>Status</th>
                     <th>Expiry</th>
                     <th>Actions</th>
@@ -420,13 +414,13 @@ export default function AdminInventory() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="8" className="empty-row">
+                      <td colSpan="7" className="empty-row">
                         Loading…
                       </td>
                     </tr>
                   ) : paginated.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="empty-row">
+                      <td colSpan="7" className="empty-row">
                         No items found.
                       </td>
                     </tr>
@@ -437,16 +431,15 @@ export default function AdminInventory() {
                         className={
                           item.isArchived
                             ? "row-deleted"
-                            : isExpiringSoon(item.expiryDate)
+                            : isExpiringSoon(item.expirationDate)
                               ? "row-expiring"
                               : ""
                         }
                       >
                         <td>{item.name}</td>
                         <td>{item.category}</td>
-                        <td>{item.quantity}</td>
+                        <td>{item.stock}</td>
                         <td>{item.unit || "—"}</td>
-                        <td>{item.reorderLevel || "—"}</td>
                         <td>
                           <span
                             className={`status-pill ${STATUS_COLORS[item.status] || ""}`}
@@ -455,8 +448,8 @@ export default function AdminInventory() {
                           </span>
                         </td>
                         <td>
-                          {fmtDate(item.expiryDate)}
-                          {isExpiringSoon(item.expiryDate) && (
+                          {fmtDate(item.expirationDate)}
+                          {isExpiringSoon(item.expirationDate) && (
                             <span className="expiry-warn"> ⚠</span>
                           )}
                         </td>
@@ -551,10 +544,8 @@ export default function AdminInventory() {
                         <span>{item.category}</span>
                       </div>
                       <div className="user-card-row">
-                        <span className="user-card-label">Qty / Reorder</span>
-                        <span>
-                          {item.quantity} / {item.reorderLevel}
-                        </span>
+                        <span className="user-card-label">Qty</span>
+                        <span>{item.stock}</span>
                       </div>
                       <div className="user-card-row">
                         <span className="user-card-label">Status</span>
@@ -567,8 +558,8 @@ export default function AdminInventory() {
                       <div className="user-card-row">
                         <span className="user-card-label">Expiry</span>
                         <span>
-                          {fmtDate(item.expiryDate)}
-                          {isExpiringSoon(item.expiryDate) && " ⚠"}
+                          {fmtDate(item.expirationDate)}
+                          {isExpiringSoon(item.expirationDate) && " ⚠"}
                         </span>
                       </div>
                       <div className="user-card-row">
@@ -665,9 +656,9 @@ export default function AdminInventory() {
               <label>Quantity *</label>
               <input
                 type="number"
-                name="quantity"
+                name="stock"
                 min="0"
-                value={form.quantity}
+                value={form.stock}
                 onChange={handleChange}
                 required
               />
@@ -677,14 +668,6 @@ export default function AdminInventory() {
                 value={form.unit}
                 onChange={handleChange}
                 placeholder="e.g. pcs, ml, kg"
-              />
-              <label>Reorder Level</label>
-              <input
-                type="number"
-                name="reorderLevel"
-                min="0"
-                value={form.reorderLevel}
-                onChange={handleChange}
               />
               <label>Price</label>
               <input
@@ -698,8 +681,8 @@ export default function AdminInventory() {
               <label>Expiry Date</label>
               <input
                 type="date"
-                name="expiryDate"
-                value={form.expiryDate}
+                name="expirationDate"
+                value={form.expirationDate}
                 onChange={handleChange}
               />
               <label>Description</label>
@@ -733,7 +716,7 @@ export default function AdminInventory() {
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <h3>Adjust Stock — {editTarget.name}</h3>
             <p>
-              Current quantity: <strong>{editTarget.quantity}</strong>
+              Current quantity: <strong>{editTarget.stock}</strong>
             </p>
             <form onSubmit={handleStockSave}>
               <label>New Quantity *</label>

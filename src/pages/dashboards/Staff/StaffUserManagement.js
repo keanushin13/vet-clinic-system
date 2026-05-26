@@ -22,10 +22,14 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const DEFAULT_PAGE_SIZE = 25;
 
 function accountStatus(u) {
-  if (u.deletedAt)   return { label: "Deleted",              cls: "status-deleted" };
-  if (!u.isActive)   return { label: "Suspended",            cls: "status-suspended" };
-  if (!u.isVerified) return { label: "Pending Verification", cls: "status-pending-verification" };
-  return                    { label: "Active",               cls: "status-active" };
+  if (u.deletedAt) return { label: "Deleted", cls: "status-deleted" };
+  if (!u.isActive) return { label: "Suspended", cls: "status-suspended" };
+  if (!u.isVerified)
+    return {
+      label: "Pending Verification",
+      cls: "status-pending-verification",
+    };
+  return { label: "Active", cls: "status-active" };
 }
 
 const emptyForm = {
@@ -105,7 +109,7 @@ const StaffUserManagement = () => {
       setUserPage(
         data && Array.isArray(data.users)
           ? data
-          : { users: Array.isArray(data) ? data : [], total: 0, pages: 1 }
+          : { users: Array.isArray(data) ? data : [], total: 0, pages: 1 },
       );
     } catch {
       setUserPage({ users: [], total: 0, pages: 1 });
@@ -310,7 +314,9 @@ const StaffUserManagement = () => {
       });
       closePetModal();
     } catch (err) {
-      setPetError(err.response?.data?.message || "Failed to create pet profile");
+      setPetError(
+        err.response?.data?.message || "Failed to create pet profile",
+      );
     } finally {
       setPetSaving(false);
     }
@@ -319,31 +325,68 @@ const StaffUserManagement = () => {
   // ── Shared icon components ──────────────────────────────────
   const viewPetsIcon = (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 2C8 2 5 5.5 5 9c0 2.5 1.5 4.5 3 6l4 5 4-5c1.5-1.5 3-3.5 3-6 0-3.5-3-7-7-7z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path
+        d="M12 2C8 2 5 5.5 5 9c0 2.5 1.5 4.5 3 6l4 5 4-5c1.5-1.5 3-3.5 3-6 0-3.5-3-7-7-7z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
       <circle cx="12" cy="9" r="2" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
   const viewIcon = (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path
+        d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
   const editIcon = (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M12 6l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M4 20h4l10-10-4-4L4 16v4z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 6l4 4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
   const deactivateIcon = (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
   const activateIcon = (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M8 7H5l3-3m-3 3 3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5 7h8a5 5 0 1 1 0 10h-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M8 7H5l3-3m-3 3 3 3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 7h8a5 5 0 1 1 0 10h-2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 
@@ -360,15 +403,28 @@ const StaffUserManagement = () => {
 
       <main className="main-area">
         <header className="top-bar">
-          <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
-            <span /><span /><span />
+          <button
+            className="hamburger-btn"
+            onClick={toggle}
+            aria-label="Toggle menu"
+          >
+            <span />
+            <span />
+            <span />
           </button>
           <h2>User Management</h2>
           <div className="top-bar-right">
-            <button className="notif-btn" onClick={() => navigate("/staff-notifications")}>
+            <button
+              className="notif-btn"
+              onClick={() => navigate("/staff-notifications")}
+            >
               <img src={bellIcon} alt="Notif" />
             </button>
-            <TopbarUserMenu avatarSrc={userIcon} avatarAlt="Profile" profilePath="/staff-profile" />
+            <TopbarUserMenu
+              avatarSrc={userIcon}
+              avatarAlt="Profile"
+              profilePath="/staff-profile"
+            />
           </div>
         </header>
 
@@ -383,13 +439,17 @@ const StaffUserManagement = () => {
                     ? " An activation link was sent to "
                     : " The account was created, but the activation link was not sent to "}
                   <strong>{createdUser.activationEmail || createdUser.email}</strong>.
+                  {" "}Would you like to add a pet profile now?
                 </p>
                 {createdUser.activationLinkError && (
                   <small>{createdUser.activationLinkError}</small>
                 )}
               </div>
               <div className="new-client-prompt-actions">
-                <button className="cancel-btn" onClick={() => setCreatedUser(null)}>
+                <button
+                  className="cancel-btn"
+                  onClick={() => setCreatedUser(null)}
+                >
                   Skip
                 </button>
                 <button className="save-btn" onClick={openPetModal}>
@@ -448,6 +508,7 @@ const StaffUserManagement = () => {
                 <tr>
                   <th>Client Name</th>
                   <th>Contact Info</th>
+                  <th>Address</th>
                   <th>Registered Pets</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -456,7 +517,14 @@ const StaffUserManagement = () => {
               <tbody>
                 {displayUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", color: "#888", padding: "24px" }}>
+                    <td
+                      colSpan={6}
+                      style={{
+                        textAlign: "center",
+                        color: "#888",
+                        padding: "24px",
+                      }}
+                    >
                       No clients found.
                     </td>
                   </tr>
@@ -471,7 +539,9 @@ const StaffUserManagement = () => {
                               {(u.firstName || u.username).charAt(0)}
                             </div>
                             <strong>
-                              {u.firstName ? `${u.firstName} ${u.lastName}` : u.username}
+                              {u.firstName
+                                ? `${u.firstName} ${u.lastName}`
+                                : u.username}
                             </strong>
                           </div>
                         </td>
@@ -481,15 +551,30 @@ const StaffUserManagement = () => {
                             <small>{u.phone || "—"}</small>
                           </div>
                         </td>
+                        <td
+                          style={{
+                            fontSize: "13px",
+                            color: "#555",
+                            maxWidth: "160px",
+                          }}
+                        >
+                          {u.address || "—"}
+                        </td>
                         <td>{u._count?.pets ?? 0} Pet(s)</td>
                         <td>
-                          <span className={`user-status ${st.cls}`}>{st.label}</span>
+                          <span className={`user-status ${st.cls}`}>
+                            {st.label}
+                          </span>
                         </td>
                         <td>
                           <div className="action-btns">
                             <button
                               className="btn-view icon-btn"
-                              onClick={() => navigate(`/staff-users/${u.id}/pets`, { state: { owner: u } })}
+                              onClick={() =>
+                                navigate(`/staff-users/${u.id}/pets`, {
+                                  state: { owner: u },
+                                })
+                              }
                               title="View pets"
                               aria-label="View pets"
                             >
@@ -515,8 +600,16 @@ const StaffUserManagement = () => {
                               <button
                                 className={`${u.isActive ? "btn-remove" : "btn-edit"} icon-btn`}
                                 onClick={() => toggleStatus(u)}
-                                title={u.isActive ? "Suspend client" : "Activate client"}
-                                aria-label={u.isActive ? "Suspend client" : "Activate client"}
+                                title={
+                                  u.isActive
+                                    ? "Suspend client"
+                                    : "Activate client"
+                                }
+                                aria-label={
+                                  u.isActive
+                                    ? "Suspend client"
+                                    : "Activate client"
+                                }
                               >
                                 {u.isActive ? deactivateIcon : activateIcon}
                               </button>
@@ -542,7 +635,9 @@ const StaffUserManagement = () => {
                       {(u.firstName || u.username).charAt(0)}
                     </div>
                     <div className="user-card-name">
-                      {u.firstName ? `${u.firstName} ${u.lastName}` : u.username}
+                      {u.firstName
+                        ? `${u.firstName} ${u.lastName}`
+                        : u.username}
                     </div>
                   </div>
                   <div className="user-card-body">
@@ -555,19 +650,29 @@ const StaffUserManagement = () => {
                       <span>{u.phone || "—"}</span>
                     </div>
                     <div className="user-card-row">
+                      <span className="user-card-label">Address</span>
+                      <span>{u.address || "—"}</span>
+                    </div>
+                    <div className="user-card-row">
                       <span className="user-card-label">Pets</span>
                       <span>{u._count?.pets ?? 0} Pet(s)</span>
                     </div>
                     <div className="user-card-row">
                       <span className="user-card-label">Status</span>
-                      <span className={`user-status ${st.cls}`}>{st.label}</span>
+                      <span className={`user-status ${st.cls}`}>
+                        {st.label}
+                      </span>
                     </div>
                     <div className="user-card-row">
                       <span className="user-card-label">Actions</span>
                       <div className="action-btns">
                         <button
                           className="btn-view icon-btn"
-                          onClick={() => navigate(`/staff-users/${u.id}/pets`, { state: { owner: u } })}
+                          onClick={() =>
+                            navigate(`/staff-users/${u.id}/pets`, {
+                              state: { owner: u },
+                            })
+                          }
                           title="View pets"
                           aria-label="View pets"
                         >
@@ -593,8 +698,12 @@ const StaffUserManagement = () => {
                           <button
                             className={`${u.isActive ? "btn-remove" : "btn-edit"} icon-btn`}
                             onClick={() => toggleStatus(u)}
-                            title={u.isActive ? "Suspend client" : "Activate client"}
-                            aria-label={u.isActive ? "Suspend client" : "Activate client"}
+                            title={
+                              u.isActive ? "Suspend client" : "Activate client"
+                            }
+                            aria-label={
+                              u.isActive ? "Suspend client" : "Activate client"
+                            }
                           >
                             {u.isActive ? deactivateIcon : activateIcon}
                           </button>
@@ -610,13 +719,20 @@ const StaffUserManagement = () => {
           {/* Pagination */}
           {userPage.pages > 1 && (
             <div className="pagination-row">
-              <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 Prev
               </button>
               <span>
-                Page {page} of {userPage.pages} ({userPage.total} client{userPage.total !== 1 ? "s" : ""})
+                Page {page} of {userPage.pages} ({userPage.total} client
+                {userPage.total !== 1 ? "s" : ""})
               </span>
-              <button disabled={page === userPage.pages} onClick={() => setPage((p) => p + 1)}>
+              <button
+                disabled={page === userPage.pages}
+                onClick={() => setPage((p) => p + 1)}
+              >
                 Next
               </button>
             </div>
@@ -635,27 +751,50 @@ const StaffUserManagement = () => {
                   const st = accountStatus(selectedUser);
                   return (
                     <>
-                      <p><strong>Name:</strong> {selectedUser.firstName || ""} {selectedUser.lastName || ""}</p>
-                      <p><strong>Username:</strong> {selectedUser.username}</p>
-                      <p><strong>Email:</strong> {selectedUser.email}</p>
-                      <p><strong>Phone:</strong> {selectedUser.phone || "—"}</p>
-                      <p><strong>Address:</strong> {selectedUser.address || "—"}</p>
-                      <p><strong>Pets:</strong> {selectedUser._count?.pets ?? 0}</p>
+                      <p>
+                        <strong>Name:</strong> {selectedUser.firstName || ""}{" "}
+                        {selectedUser.lastName || ""}
+                      </p>
+                      <p>
+                        <strong>Username:</strong> {selectedUser.username}
+                      </p>
+                      <p>
+                        <strong>Email:</strong> {selectedUser.email}
+                      </p>
+                      <p>
+                        <strong>Phone:</strong> {selectedUser.phone || "—"}
+                      </p>
+                      <p>
+                        <strong>Address:</strong> {selectedUser.address || "—"}
+                      </p>
+                      <p>
+                        <strong>Pets:</strong> {selectedUser._count?.pets ?? 0}
+                      </p>
                       <p>
                         <strong>Status:</strong>{" "}
-                        <span className={`user-status ${st.cls}`}>{st.label}</span>
+                        <span className={`user-status ${st.cls}`}>
+                          {st.label}
+                        </span>
                       </p>
                     </>
                   );
                 })()}
                 <div className="modal-actions">
-                  <button type="button" className="cancel-btn" onClick={closeModal}>Close</button>
+                  <button
+                    type="button"
+                    className="cancel-btn"
+                    onClick={closeModal}
+                  >
+                    Close
+                  </button>
                   <button
                     type="button"
                     className="save-btn"
                     onClick={() => {
                       closeModal();
-                      navigate(`/staff-users/${selectedUser.id}/pets`, { state: { owner: selectedUser } });
+                      navigate(`/staff-users/${selectedUser.id}/pets`, {
+                        state: { owner: selectedUser },
+                      });
                     }}
                   >
                     View Pets
@@ -678,7 +817,9 @@ const StaffUserManagement = () => {
               </>
             ) : (
               <form onSubmit={submitForm} className="user-modal-form">
-                <h3>{modalMode === "add" ? "Add New Client" : "Edit Client"}</h3>
+                <h3>
+                  {modalMode === "add" ? "Add New Client" : "Edit Client"}
+                </h3>
                 <div className="form-row">
                   <div className="form-group">
                     <label>
@@ -706,7 +847,9 @@ const StaffUserManagement = () => {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Username <span style={{ color: "#e53e3e" }}>*</span></label>
+                  <label>
+                    Username <span style={{ color: "#e53e3e" }}>*</span>
+                  </label>
                   <input
                     name="username"
                     value={form.username}
@@ -716,7 +859,9 @@ const StaffUserManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Email <span style={{ color: "#e53e3e" }}>*</span></label>
+                  <label>
+                    Email <span style={{ color: "#e53e3e" }}>*</span>
+                  </label>
                   <input
                     type="email"
                     name="email"
@@ -811,22 +956,48 @@ const StaffUserManagement = () => {
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={submitPet} className="user-modal-form">
               <h3>Add Pet Profile</h3>
-              <p style={{ color: "#666", fontSize: "13px", marginBottom: "12px" }}>
-                For client: <strong>{createdUser.firstName || createdUser.username}</strong>
+              <p
+                style={{
+                  color: "#666",
+                  fontSize: "13px",
+                  marginBottom: "12px",
+                }}
+              >
+                For client:{" "}
+                <strong>{createdUser.firstName || createdUser.username}</strong>
               </p>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Pet Name <span style={{ color: "#e53e3e" }}>*</span></label>
-                  <input name="name" value={petForm.name} onChange={onPetChange} required />
+                  <label>
+                    Pet Name <span style={{ color: "#e53e3e" }}>*</span>
+                  </label>
+                  <input
+                    name="name"
+                    value={petForm.name}
+                    onChange={onPetChange}
+                    required
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Species <span style={{ color: "#e53e3e" }}>*</span></label>
-                  <input name="species" value={petForm.species} onChange={onPetChange} placeholder="Dog, Cat…" required />
+                  <label>
+                    Species <span style={{ color: "#e53e3e" }}>*</span>
+                  </label>
+                  <input
+                    name="species"
+                    value={petForm.species}
+                    onChange={onPetChange}
+                    placeholder="Dog, Cat…"
+                    required
+                  />
                 </div>
               </div>
               <div className="form-group">
                 <label>Breed</label>
-                <input name="breed" value={petForm.breed} onChange={onPetChange} />
+                <input
+                  name="breed"
+                  value={petForm.breed}
+                  onChange={onPetChange}
+                />
               </div>
               <div className="form-row">
                 <div className="form-group">
@@ -852,7 +1023,12 @@ const StaffUserManagement = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Birthday</label>
-                  <input type="date" name="birthday" value={petForm.birthday} onChange={onPetChange} />
+                  <input
+                    type="date"
+                    name="birthday"
+                    value={petForm.birthday}
+                    onChange={onPetChange}
+                  />
                 </div>
                 <div className="form-group">
                   <label>Weight (kg)</label>
@@ -868,7 +1044,13 @@ const StaffUserManagement = () => {
               </div>
               {petError && <p className="modal-error">{petError}</p>}
               <div className="modal-actions">
-                <button type="button" className="cancel-btn" onClick={closePetModal}>Skip</button>
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={closePetModal}
+                >
+                  Skip
+                </button>
                 <button type="submit" className="save-btn" disabled={petSaving}>
                   {petSaving ? "Saving..." : "Save Pet"}
                 </button>

@@ -125,22 +125,8 @@ const Login = () => {
     }
   };
 
-  const isMobile = () =>
-    /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-    window.innerWidth <= 768;
-
   const handleOtpSuccess = (user) => {
     const role = user?.role;
-    if (role === "pet_owner" && !isMobile()) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      setAlertModal({
-        show: true,
-        message: "Pet owner accounts can only be accessed via the mobile app.",
-        extraAction: null,
-      });
-      return;
-    }
     if (role === "admin") navigate("/admin");
     else if (role === "veterinarian") navigate("/vet");
     else if (role === "staff") navigate("/staff");

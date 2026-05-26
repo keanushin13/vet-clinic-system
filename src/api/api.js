@@ -163,6 +163,15 @@ export const getClinicSettings = () => API.get("/clinic-settings");
 export const updateClinicSettings = (settings) =>
   API.put("/clinic-settings", { settings });
 
+// ─── UPLOAD ───────────────────────────────────────────────────────────────────
+export const uploadAvatar = (file) => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  return API.post("/upload/avatar", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
 // ─── HOLIDAYS ─────────────────────────────────────────────────────────────────
 export const getHolidays = (params) => API.get("/holidays", { params });
 export const createHoliday = (data) => API.post("/holidays", data);
