@@ -75,7 +75,6 @@ const EMPTY_ADD_FORM = {
   address: "",
 };
 
-
 // ─── component ───────────────────────────────────────────────────────────────
 
 const AdminUserManagement = () => {
@@ -93,7 +92,7 @@ const AdminUserManagement = () => {
   // filters
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [showDeleted, setShowDeleted] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(false);
 
   // modals
@@ -107,26 +106,46 @@ const AdminUserManagement = () => {
 
   const loadUsers = useCallback(() => {
     setLoading(true);
-    const params = { page, limit };
-    if (roleFilter !== "all") params.role = roleFilter;
-    if (showDeleted) params.showDeleted = "true";
-    if (search) params.q = search;
-    getUsers(params)
+    // specific statuses need client-side filtering → fetch all, paginate locally
+    const isClientFiltered = statusFilter !== "all";
+    const serverParams = {
+      page: isClientFiltered ? 1 : page,
+      limit: isClientFiltered ? 1000 : limit,
+    };
+    if (roleFilter !== "all") serverParams.role = roleFilter;
+    if (statusFilter === "deleted") serverParams.showDeleted = "true";
+    if (search) serverParams.q = search;
+
+    getUsers(serverParams)
       .then((r) => {
-        // Support both paginated { users, total, pages } and legacy array
-        if (Array.isArray(r.data)) {
-          setUsers(r.data);
-          setTotal(r.data.length);
-          setPages(1);
+        let allUsers = Array.isArray(r.data) ? r.data : (r.data.users || []);
+
+        if (statusFilter === "active") {
+          allUsers = allUsers.filter(u => !u.deletedAt && u.isActive && u.isVerified);
+        } else if (statusFilter === "suspended") {
+          allUsers = allUsers.filter(u => !u.deletedAt && !u.isActive);
+        } else if (statusFilter === "unverified") {
+          allUsers = allUsers.filter(u => !u.deletedAt && u.isActive && !u.isVerified);
+        } else if (statusFilter === "deleted") {
+          allUsers = allUsers.filter(u => u.deletedAt);
+        }
+
+        if (isClientFiltered) {
+          const filteredTotal = allUsers.length;
+          const filteredPages = Math.ceil(filteredTotal / limit) || 1;
+          const start = (page - 1) * limit;
+          setUsers(allUsers.slice(start, start + limit));
+          setTotal(filteredTotal);
+          setPages(filteredPages);
         } else {
-          setUsers(r.data.users || []);
-          setTotal(r.data.total || 0);
-          setPages(r.data.pages || 1);
+          setUsers(allUsers);
+          setTotal(Array.isArray(r.data) ? allUsers.length : (r.data.total || 0));
+          setPages(Array.isArray(r.data) ? 1 : (r.data.pages || 1));
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page, limit, roleFilter, showDeleted, search]);
+  }, [page, limit, roleFilter, statusFilter, search]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
@@ -140,7 +159,7 @@ const AdminUserManagement = () => {
   // Reset to page 1 when filters or page size change
   useEffect(() => {
     setPage(1);
-  }, [roleFilter, showDeleted, search, limit]);
+  }, [roleFilter, statusFilter, search, limit]);
 
   // ── actions ────────────────────────────────────────────────────────────────
 
@@ -152,7 +171,10 @@ const AdminUserManagement = () => {
         confirmLabel: "Activate",
         confirmClass: "save-btn",
         onConfirm: async () => {
-          try { await toggleUserActive(u.id); loadUsers(); } catch {}
+          try {
+            await toggleUserActive(u.id);
+            loadUsers();
+          } catch {}
         },
       });
       return;
@@ -163,7 +185,10 @@ const AdminUserManagement = () => {
       confirmLabel: "Suspend",
       confirmClass: "danger-btn",
       onConfirm: async () => {
-        try { await toggleUserActive(u.id); loadUsers(); } catch {}
+        try {
+          await toggleUserActive(u.id);
+          loadUsers();
+        } catch {}
       },
     });
   };
@@ -175,7 +200,10 @@ const AdminUserManagement = () => {
       confirmLabel: "Delete",
       confirmClass: "danger-btn",
       onConfirm: async () => {
-        try { await deleteUser(u.id); loadUsers(); } catch {}
+        try {
+          await deleteUser(u.id);
+          loadUsers();
+        } catch {}
       },
     });
   };
@@ -195,7 +223,10 @@ const AdminUserManagement = () => {
       confirmLabel: "Verify",
       confirmClass: "save-btn",
       onConfirm: async () => {
-        try { await verifyUser(u.id); loadUsers(); } catch {}
+        try {
+          await verifyUser(u.id);
+          loadUsers();
+        } catch {}
       },
     });
   };
@@ -394,21 +425,23 @@ const AdminUserManagement = () => {
                   <option value="admin">Admin</option>
                 </select>
 
-                <label className="show-deleted-toggle">
-                  <input
-                    type="checkbox"
-                    checked={showDeleted}
-                    onChange={(e) => setShowDeleted(e.target.checked)}
-                  />
-                  Show Deleted
-                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="role-filter-select"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                  <option value="unverified">Unverified</option>
+                  <option value="deleted">Deleted</option>
+                </select>
               </div>
 
               <button className="add-user-btn" onClick={openAdd}>
                 + Add New User
               </button>
             </div>
-
 
             {/* ── desktop table ── */}
             <div className="user-table-wrapper table-desktop">
@@ -633,7 +666,9 @@ const AdminUserManagement = () => {
               {/* first + last name — all roles */}
               {(modalMode === "add" ||
                 (modalMode === "edit" &&
-                  editFieldsForRole(editTarget?.role).includes("firstName"))) && (
+                  editFieldsForRole(editTarget?.role).includes(
+                    "firstName",
+                  ))) && (
                 <div className="form-row">
                   <div className="form-group">
                     <label>First Name *</label>
@@ -704,16 +739,14 @@ const AdminUserManagement = () => {
                 (modalMode === "edit" &&
                   editFieldsForRole(editTarget?.role).includes("phone"))) && (
                 <div className="form-group">
-                  <label>
-                    Phone{" "}
-                    {form.role === "pet_owner" ? "*" : ""}
-                  </label>
+                  <label>Phone {form.role === "pet_owner" ? "*" : ""}</label>
                   <input
                     name="phone"
                     value={form.phone}
                     onChange={handleFormChange}
                     placeholder="09XXXXXXXXX"
                     className={fieldErrors.phone ? "input-error" : ""}
+                    maxLength="11"
                   />
                   {fieldErrors.phone && (
                     <p className="field-error">{fieldErrors.phone}</p>
@@ -740,11 +773,11 @@ const AdminUserManagement = () => {
                 </div>
               )}
 
-
               {/* add mode hint */}
               {modalMode === "add" && (
                 <p className="modal-hint">
-                  A "Set Password" link will be emailed to the user to activate their account.
+                  A "Set Password" link will be emailed to the user to activate
+                  their account.
                 </p>
               )}
 
@@ -773,11 +806,17 @@ const AdminUserManagement = () => {
       {/* ── Confirm Modal (Suspend / Delete) ── */}
       {confirmModal && (
         <div className="modal-overlay" onClick={() => setConfirmModal(null)}>
-          <div className="modal-box confirm-modal-box" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-box confirm-modal-box"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3>{confirmModal.title}</h3>
             <p className="confirm-modal-message">{confirmModal.message}</p>
             <div className="modal-actions">
-              <button className="cancel-btn" onClick={() => setConfirmModal(null)}>
+              <button
+                className="cancel-btn"
+                onClick={() => setConfirmModal(null)}
+              >
                 Cancel
               </button>
               <button
@@ -797,7 +836,10 @@ const AdminUserManagement = () => {
       {/* ── Reset Password Modal ── */}
       {modalMode === "reset" && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box confirm-modal-box" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-box confirm-modal-box"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3>Reset Password — {editTarget?.username}</h3>
             <div className="user-modal-form">
               <div className="form-group">
@@ -815,7 +857,11 @@ const AdminUserManagement = () => {
               </p>
               {formError && <p className="modal-error">{formError}</p>}
               <div className="modal-actions">
-                <button type="button" className="cancel-btn" onClick={closeModal}>
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={closeModal}
+                >
                   Cancel
                 </button>
                 <button
@@ -858,7 +904,13 @@ function UserActions({
           aria-label="Verify user"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
             <path
               d="M8 12l3 3 5-5"
               stroke="currentColor"

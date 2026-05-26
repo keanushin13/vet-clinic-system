@@ -4,7 +4,12 @@ import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/VetProfile.css";
 import VetSidebar from "../../../components/VetSidebar";
 import { useSidebar } from "../../../components/useSidebar";
-import { getMe, updateMe, updatePassword } from "../../../api/api";
+import {
+  getMe,
+  updateMe,
+  updatePassword,
+  uploadAvatar,
+} from "../../../api/api";
 
 // ASSETS
 import bellIcon from "../../../assets/Bell_Icon.png";
@@ -24,6 +29,7 @@ const VetProfile = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
 
   const [editForm, setEditForm] = useState({
     firstName: "",
@@ -77,12 +83,14 @@ const VetProfile = () => {
       profileImage: profile?.profileImage || "",
     });
     setAvatarPreview(profile?.profileImage || "");
+    setAvatarFile(null);
     setShowEditModal(true);
   };
 
   const closeEditModal = () => {
     setShowEditModal(false);
     setAvatarPreview("");
+    setAvatarFile(null);
   };
 
   const closePasswordModal = () => {
@@ -113,13 +121,13 @@ const VetProfile = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      setAvatarPreview(result);
-      setEditForm((prev) => ({ ...prev, profileImage: result }));
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be 5MB or less");
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const submitProfile = async (e) => {
@@ -128,13 +136,20 @@ const VetProfile = () => {
     setError("");
     setMessage("");
     try {
+      let profileImageUrl = editForm.profileImage || null;
+
+      if (avatarFile) {
+        const uploadRes = await uploadAvatar(avatarFile);
+        profileImageUrl = uploadRes.data.url;
+      }
+
       const payload = {
         ...editForm,
         firstName: editForm.firstName || null,
         lastName: editForm.lastName || null,
         phone: editForm.phone || null,
         address: editForm.address || null,
-        profileImage: editForm.profileImage || null,
+        profileImage: profileImageUrl,
       };
       const r = await updateMe(payload);
       setProfile(r.data || payload);
@@ -384,7 +399,7 @@ const VetProfile = () => {
                       name="phone"
                       value={editForm.phone?.replace(/^63/, "") || ""}
                       placeholder="Enter number"
-                      maxLength="10"
+                      maxLength="11"
                       pattern="[0-9]*"
                       style={{ flex: 1 }}
                       onChange={(e) => {

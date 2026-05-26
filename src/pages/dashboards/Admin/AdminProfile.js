@@ -4,7 +4,12 @@ import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/AdminProfile.css";
 import AdminSidebar from "../../../components/AdminSidebar";
 import { useSidebar } from "../../../components/useSidebar";
-import { getMe, updateMe, updatePassword } from "../../../api/api";
+import {
+  getMe,
+  updateMe,
+  updatePassword,
+  uploadAvatar,
+} from "../../../api/api";
 
 // ASSETS
 import userIcon from "../../../assets/Profile.png";
@@ -29,6 +34,7 @@ const AdminProfile = () => {
   const [saving, setSaving] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
 
   useEffect(() => {
     if (!localUser || localUser.role !== "admin") {
@@ -64,6 +70,7 @@ const AdminProfile = () => {
       profileImage: profile?.profileImage || "",
     });
     setAvatarPreview(profile?.profileImage || "");
+    setAvatarFile(null);
     setFormError("");
     setShowEdit(true);
   };
@@ -83,13 +90,13 @@ const AdminProfile = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      setAvatarPreview(result);
-      setForm((prev) => ({ ...prev, profileImage: result }));
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) {
+      setFormError("Image must be 5MB or less");
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const handleSave = async (e) => {
@@ -98,13 +105,20 @@ const AdminProfile = () => {
     setMessage("");
     setSaving(true);
     try {
+      let profileImageUrl = form.profileImage || null;
+
+      if (avatarFile) {
+        const uploadRes = await uploadAvatar(avatarFile);
+        profileImageUrl = uploadRes.data.url;
+      }
+
       const payload = {
         ...form,
         firstName: form.firstName || null,
         lastName: form.lastName || null,
         phone: form.phone || null,
         address: form.address || null,
-        profileImage: form.profileImage || null,
+        profileImage: profileImageUrl,
       };
       const res = await updateMe(payload);
       setProfile(res.data || payload);
@@ -351,7 +365,7 @@ const AdminProfile = () => {
                     name="phone"
                     value={form.phone?.replace(/^63/, "") || ""}
                     placeholder="Enter number"
-                    maxLength="10"
+                    maxLength="11"
                     pattern="[0-9]*"
                     style={{ flex: 1 }}
                     onChange={(e) => {

@@ -288,14 +288,6 @@ tr.row-deleted td,
   cursor: pointer;
 }
 
-.show-deleted-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  user-select: none;
-}
 
 /* table summary */
 .table-summary {
