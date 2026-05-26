@@ -49,6 +49,13 @@ function fmtDate(d) {
   return new Date(d).toLocaleString();
 }
 
+function toLocalDatetimeInput(d) {
+  if (!d) return "";
+  const date = new Date(d);
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
 function isToday(d) {
   if (!d) return false;
   const t = new Date(d);
@@ -108,10 +115,10 @@ export default function AdminAppointments() {
       return;
     }
     load();
-    getUsers({ role: "veterinarian" })
+    getUsers({ role: "veterinarian", limit: 1000 })
       .then((r) => setVets(r.data?.users || r.data || []))
       .catch(() => {});
-    getUsers({ role: "pet_owner" })
+    getUsers({ role: "pet_owner", limit: 1000 })
       .then((r) => setPetOwners(r.data?.users || r.data || []))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,16 +198,35 @@ export default function AdminAppointments() {
   };
 
   const openEdit = (a) => {
+    const ownerId = a.ownerId || a.owner?.id || "";
+    const vetId = a.vetId || a.vet?.id || "";
+    const petId = a.petId || a.pet?.id || "";
+
+    // Ensure the appointment's owner is in the dropdown even if not in the paginated list
+    if (ownerId && a.owner) {
+      setPetOwners((prev) => {
+        const exists = prev.some((o) => o.id === ownerId);
+        return exists ? prev : [a.owner, ...prev];
+      });
+    }
+    // Ensure the appointment's vet is in the dropdown
+    if (vetId && a.vet) {
+      setVets((prev) => {
+        const exists = prev.some((v) => v.id === vetId);
+        return exists ? prev : [a.vet, ...prev];
+      });
+    }
+
     setForm({
-      petId: a.petId || "",
-      ownerId: a.ownerId || "",
-      vetId: a.vetId || "",
-      scheduledAt: a.scheduledAt ? new Date(a.scheduledAt).toISOString().slice(0, 16) : "",
+      petId,
+      ownerId,
+      vetId,
+      scheduledAt: toLocalDatetimeInput(a.scheduledAt),
       reason: a.reason || "",
       status: a.status || "Pending",
       notes: a.notes || "",
     });
-    fetchOwnerPets(a.ownerId);
+    fetchOwnerPets(ownerId);
     setFormError("");
     setEditTarget(a);
     setModalMode("edit");
