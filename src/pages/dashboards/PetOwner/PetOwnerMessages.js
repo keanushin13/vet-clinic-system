@@ -573,10 +573,6 @@ const PetOwnerMessages = () => {
                       <div className="compose-name">
                         {getFullName(u)}
                       </div>
-                      <div className="compose-role">
-                        {getMessageRole(u) === "veterinarian" ? "Veterinarian" : "Staff"}
-                        {u.email ? ` - ${u.email}` : ""}
-                      </div>
                     </div>
                   </div>
                 ))
