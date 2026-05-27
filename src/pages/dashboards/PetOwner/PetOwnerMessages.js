@@ -6,7 +6,7 @@ import PetOwnerSidebar from "../../../components/PetOwnerSidebar";
 import { useSidebar } from "../../../components/useSidebar";
 import {
   deleteMessage,
-  getAvailableVets,
+  getMessageContacts,
   getMessageThread,
   getMessageThreads,
   sendMessage,
@@ -46,7 +46,7 @@ const PetOwnerMessages = () => {
   }, []);
 
   const openCompose = () => {
-    getAvailableVets()
+    getMessageContacts()
       .then((r) => {
         setAllUsers(r.data.filter((u) => u.id !== user.id));
         setUserSearch("");
@@ -316,7 +316,9 @@ const PetOwnerMessages = () => {
                           ? `${u.firstName} ${u.lastName || ""}`.trim()
                           : u.username}
                       </div>
-                      <div className="compose-role">{u.email}</div>
+                      <div className="compose-role">
+                        {u.role === "veterinarian" ? "Veterinarian" : "Staff"} · {u.email}
+                      </div>
                     </div>
                   </div>
                 ))}
