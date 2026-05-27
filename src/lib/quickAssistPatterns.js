@@ -123,6 +123,9 @@ const hasDayName = (normalized) =>
     normalized,
   );
 
+const hasTomorrowWord = (normalized) =>
+  /\b(tomorrow|tmr|tmrw|tomm?orow|tom)\b/.test(normalized);
+
 const matchOpenDayTimeQuestion = (normalized) => {
   if (
     !/\b(open|hours?|operating hours?|clinic hours?|available)\b/.test(
@@ -149,7 +152,7 @@ const matchDayComeQuestion = (normalized) => {
   if (!/\b(can i come|may i come)\b/.test(normalized)) return null;
 
   if (/\btoday\b/.test(normalized)) return replyOpenToday();
-  if (/\btomorrow\b/.test(normalized)) return replyTomorrow();
+  if (hasTomorrowWord(normalized)) return replyTomorrow();
   if (
     /\b(monday|mon|tuesday|tue|tues|wednesday|wed|thursday|thu|thur|thurs|friday|fri|saturday|sat|sunday|sun)\b/.test(
       normalized,
@@ -236,9 +239,8 @@ export const QUICK_ASSIST_PATTERNS = [
   {
     id: "open_tomorrow",
     match: (normalized) =>
-      /\b(can i come tomorrow|open tomorrow|are you open tomorrow)\b/.test(
-        normalized,
-      ),
+      /\b(open|come|available|hours?)\b/.test(normalized) &&
+      hasTomorrowWord(normalized),
     reply: () => replyTomorrow(),
   },
   {
