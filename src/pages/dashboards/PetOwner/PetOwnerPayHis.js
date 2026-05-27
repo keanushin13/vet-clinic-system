@@ -31,43 +31,103 @@ function statusClass(s) {
 }
 
 function printReceipt(p) {
+  const statusColor = { paid: "#166534", pending: "#854d0e", refunded: "#991b1b" };
+  const statusBg   = { paid: "#dcfce7",  pending: "#fef9c3", refunded: "#fee2e2" };
+  const key = (p.status || "").toLowerCase();
+
+  const optionalRows = [
+    p.reference
+      ? `<tr><td class="td-lbl">Reference #</td><td class="td-val">${p.reference}</td></tr>`
+      : "",
+    p.appointment?.scheduledAt
+      ? `<tr><td class="td-lbl">Appointment Date</td><td class="td-val">${fmtDate(p.appointment.scheduledAt)}</td></tr>`
+      : "",
+    p.notes
+      ? `<tr><td class="td-lbl">Notes</td><td class="td-val" style="font-style:italic;color:#555">${p.notes}</td></tr>`
+      : "",
+  ].join("");
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8"/>
   <title>Receipt — ${p.service || "Payment"}</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 40px; max-width: 480px; margin: 0 auto; color: #222; }
-    h1 { color: #255065; font-size: 20px; margin-bottom: 2px; }
-    .sub { color: #63b6c5; font-size: 13px; margin-bottom: 24px; }
-    .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
-    .lbl { color: #888; }
-    .total { font-weight: 700; font-size: 16px; border-top: 2px solid #255065 !important; border-bottom: none !important; padding-top: 10px !important; }
-    .s-paid { color: #166534; } .s-pending { color: #854d0e; } .s-refunded { color: #c62828; }
-    .footer { margin-top: 28px; font-size: 11px; color: #aaa; border-top: 1px solid #eee; padding-top: 10px; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a1a}
+    .page{max-width:580px;margin:0 auto;padding:40px 48px}
+
+    /* ── header ── */
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:3px solid #255065;margin-bottom:26px}
+    .clinic-name{font-size:20px;font-weight:700;color:#255065;letter-spacing:.3px}
+    .clinic-sub{font-size:11px;color:#63b6c5;margin-top:3px}
+    .badge{background:#255065;color:#fff;padding:5px 13px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-top:2px}
+
+    /* ── meta grid ── */
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-bottom:26px}
+    .m-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-bottom:1px}
+    .m-val{font-size:13px;font-weight:500;word-break:break-all}
+
+    /* ── billing table ── */
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    thead th{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#999;padding:0 0 7px;border-bottom:1px solid #ddd}
+    thead th:last-child{text-align:right}
+    .td-lbl{font-size:13px;color:#555;padding:9px 0;border-bottom:1px solid #f3f3f3;width:55%}
+    .td-val{font-size:13px;font-weight:500;text-align:right;padding:9px 0;border-bottom:1px solid #f3f3f3}
+    .tr-total .td-lbl,.tr-total .td-val{border-top:2px solid #255065;border-bottom:none;padding-top:12px;font-size:15px;font-weight:700;color:#255065}
+
+    /* ── status chip ── */
+    .chip{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+
+    /* ── footer ── */
+    .footer{margin-top:30px;padding-top:10px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:9px;color:#bbb}
+
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style>
 </head>
 <body>
-  <h1>PawCruz Veterinary Clinic</h1>
-  <div class="sub">Official Payment Receipt</div>
-  <div class="row"><span class="lbl">Transaction ID</span><span>${p.id}</span></div>
-  <div class="row"><span class="lbl">Date</span><span>${fmtDate(p.createdAt)}</span></div>
-  <div class="row"><span class="lbl">Pet Name</span><span>${p.pet?.name || "—"}</span></div>
-  <div class="row"><span class="lbl">Service</span><span>${p.service || "—"}</span></div>
-  <div class="row"><span class="lbl">Payment Method</span><span>${p.method || "—"}</span></div>
-  ${p.reference ? `<div class="row"><span class="lbl">Reference #</span><span>${p.reference}</span></div>` : ""}
-  ${p.appointment?.scheduledAt ? `<div class="row"><span class="lbl">Appointment Date</span><span>${fmtDate(p.appointment.scheduledAt)}</span></div>` : ""}
-  <div class="row total"><span>Amount</span><span>${fmtCurrency(p.amount)}</span></div>
-  <div class="row"><span class="lbl">Status</span><span class="s-${(p.status || "").toLowerCase()}">${p.status || "—"}</span></div>
-  <div class="footer">PawCruz Veterinary Clinic &middot; Generated ${new Date().toLocaleString()} &middot; Read-only copy</div>
-  <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); };</script>
+<div class="page">
+
+  <div class="hdr">
+    <div>
+      <div class="clinic-name">PawCruz Veterinary Clinic</div>
+      <div class="clinic-sub">Official Payment Receipt</div>
+    </div>
+    <div class="badge">Receipt</div>
+  </div>
+
+  <div class="meta">
+    <div><div class="m-lbl">Transaction ID</div><div class="m-val" style="font-size:11px">${p.id}</div></div>
+    <div><div class="m-lbl">Date Issued</div><div class="m-val">${fmtDate(p.createdAt)}</div></div>
+    <div><div class="m-lbl">Pet Name</div><div class="m-val">${p.pet?.name || "—"}</div></div>
+    <div><div class="m-lbl">Payment Method</div><div class="m-val">${p.method || "—"}</div></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Description</th><th>Amount</th></tr></thead>
+    <tbody>
+      <tr><td class="td-lbl">${p.service || "Veterinary Service"}</td><td class="td-val">${fmtCurrency(p.amount)}</td></tr>
+      ${optionalRows}
+      <tr class="tr-total"><td class="td-lbl">Total Amount</td><td class="td-val">${fmtCurrency(p.amount)}</td></tr>
+    </tbody>
+  </table>
+
+  <div style="margin-bottom:20px">
+    <span style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-right:8px">Status</span>
+    <span class="chip" style="background:${statusBg[key]||"#f3f4f6"};color:${statusColor[key]||"#374151"}">${p.status || "—"}</span>
+  </div>
+
+  <div class="footer">
+    <span>PawCruz Veterinary Clinic</span>
+    <span>Generated ${new Date().toLocaleString("en-PH")} &middot; Read-only copy</span>
+  </div>
+</div>
+<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script>
 </body>
 </html>`;
+
   const w = window.open("", "_blank");
-  if (w) {
-    w.document.write(html);
-    w.document.close();
-  }
+  if (w) { w.document.write(html); w.document.close(); }
 }
 
 const PetOwnerPayHis = () => {

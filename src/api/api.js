@@ -142,6 +142,7 @@ export const getInventoryAiAnalysis = (refresh = false) =>
 // ─── MESSAGES ─────────────────────────────────────────────────────────────────
 export const getMessageThreads = () => API.get("/messages/threads");
 export const getMessageThread = (userId) => API.get(`/messages/${userId}`);
+export const getMessageContacts = () => API.get("/messages/contacts");
 export const sendMessage = (data) => API.post("/messages", data);
 export const updateMessage = (id, data) => API.patch(`/messages/${id}`, data);
 export const deleteMessage = (id) => API.delete(`/messages/${id}`);

@@ -28,6 +28,130 @@ function fmtCurrency(n) {
   });
 }
 
+function printInvoice(data) {
+  const b = data.billing;
+  const p = data.payment;
+  const appt = b?.appointment || {};
+
+  const ownerName = appt.owner
+    ? `${appt.owner.firstName || ""} ${appt.owner.lastName || ""}`.trim() || appt.owner.username
+    : "—";
+  const vetName = appt.vet
+    ? `${appt.vet.firstName || ""} ${appt.vet.lastName || ""}`.trim() || appt.vet.username
+    : "—";
+
+  const itemRows = b
+    ? [
+        `<tr><td class="td-desc">Consultation / Checkup Fee</td><td class="td-amt">${fmtCurrency(b.checkupRate)}</td></tr>`,
+        ...(b.usageLines || []).map(
+          (l) =>
+            `<tr><td class="td-desc">${l.inventoryItemName || "Item"} &times; ${l.quantityUsed}</td><td class="td-amt">${fmtCurrency(l.lineTotal)}</td></tr>`,
+        ),
+      ].join("")
+    : `<tr><td class="td-desc">${p.service || "Veterinary Service"}</td><td class="td-amt">${fmtCurrency(p.amount)}</td></tr>`;
+
+  const total = b ? (b.total ?? p.amount) : p.amount;
+  const statusKey = (p.status || "").toLowerCase();
+  const statusColor = { paid: "#166534", pending: "#854d0e", refunded: "#991b1b" };
+  const statusBg   = { paid: "#dcfce7",  pending: "#fef9c3", refunded: "#fee2e2" };
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Invoice — ${p.service || "Payment"}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a1a}
+    .page{max-width:640px;margin:0 auto;padding:40px 52px}
+
+    /* header */
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:3px solid #255065;margin-bottom:28px}
+    .clinic-name{font-size:21px;font-weight:700;color:#255065;letter-spacing:.3px}
+    .clinic-sub{font-size:11px;color:#63b6c5;margin-top:3px}
+    .badge{background:#255065;color:#fff;padding:5px 14px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}
+
+    /* info grid */
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 32px;margin-bottom:28px}
+    .i-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-bottom:1px}
+    .i-val{font-size:13px;font-weight:500}
+
+    /* divider */
+    hr{border:none;border-top:1px solid #e8e8e8;margin:0 0 20px}
+
+    /* billing table */
+    table{width:100%;border-collapse:collapse;margin-bottom:0}
+    thead th{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#999;padding:0 0 8px;border-bottom:1px solid #ddd}
+    thead th.th-amt{text-align:right}
+    .td-desc{font-size:13px;color:#333;padding:9px 0;border-bottom:1px solid #f3f3f3;width:65%}
+    .td-amt{font-size:13px;font-weight:500;text-align:right;padding:9px 0;border-bottom:1px solid #f3f3f3}
+    .tr-total .td-desc,.tr-total .td-amt{border-top:2px solid #255065;border-bottom:none;padding-top:13px;font-size:15px;font-weight:700;color:#255065}
+
+    /* status + method */
+    .chip{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700}
+    .pay-meta{display:flex;gap:24px;margin-top:20px;font-size:12px;color:#555}
+    .pay-meta span{display:flex;flex-direction:column;gap:2px}
+    .pay-meta .lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#999}
+
+    /* footer */
+    .footer{margin-top:32px;padding-top:10px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:9px;color:#bbb}
+
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hdr">
+    <div>
+      <div class="clinic-name">PawCruz Veterinary Clinic</div>
+      <div class="clinic-sub">Payment Invoice</div>
+    </div>
+    <div class="badge">Invoice</div>
+  </div>
+
+  <div class="info-grid">
+    <div><div class="i-lbl">Owner</div><div class="i-val">${ownerName}</div></div>
+    <div><div class="i-lbl">Veterinarian</div><div class="i-val">${vetName}</div></div>
+    <div><div class="i-lbl">Pet</div><div class="i-val">${appt.pet?.name || p.pet?.name || "—"}</div></div>
+    ${appt.scheduledAt
+      ? `<div><div class="i-lbl">Appointment Date</div><div class="i-val">${fmtDate(appt.scheduledAt)}</div></div>`
+      : `<div><div class="i-lbl">Date Issued</div><div class="i-val">${fmtDate(p.createdAt)}</div></div>`}
+    ${appt.reason ? `<div><div class="i-lbl">Reason</div><div class="i-val">${appt.reason}</div></div>` : ""}
+    ${p.reference ? `<div><div class="i-lbl">Reference #</div><div class="i-val">${p.reference}</div></div>` : ""}
+  </div>
+
+  <hr/>
+
+  <table>
+    <thead><tr><th>Description</th><th class="th-amt">Amount</th></tr></thead>
+    <tbody>
+      ${itemRows}
+      <tr class="tr-total"><td class="td-desc">Total</td><td class="td-amt">${fmtCurrency(total)}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pay-meta">
+    <span><span class="lbl">Payment Status</span>
+      <span class="chip" style="background:${statusBg[statusKey]||"#f3f4f6"};color:${statusColor[statusKey]||"#374151"}">${p.status||"—"}</span>
+    </span>
+    ${p.method ? `<span><span class="lbl">Method</span><strong>${p.method}</strong></span>` : ""}
+    ${p.notes ? `<span><span class="lbl">Notes</span><span style="font-style:italic">${p.notes}</span></span>` : ""}
+  </div>
+
+  <div class="footer">
+    <span>PawCruz Veterinary Clinic</span>
+    <span>Generated ${new Date().toLocaleString("en-PH")} &middot; Admin copy</span>
+  </div>
+</div>
+<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (w) { w.document.write(html); w.document.close(); }
+}
+
 function buildCSV(rows) {
   const headers = ["ID", "Owner", "Pet", "Amount", "Method", "Status", "Date"];
   const lines = [headers.join(",")];
@@ -488,7 +612,7 @@ export default function AdminPayments() {
               <>
                 <div className="invoice-header">
                   <h3>Payment Invoice</h3>
-                  <button className="save-btn" onClick={() => window.print()}>
+                  <button className="save-btn" onClick={() => printInvoice(invoiceData)}>
                     🖨 Print
                   </button>
                 </div>
