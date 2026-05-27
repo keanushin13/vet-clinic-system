@@ -97,8 +97,7 @@
   flex: 1;
   background: linear-gradient(145deg, #ffffff 0%, #c9eaf7 60%, #b0d7e7 100%);
   padding: 40px;
-  display: flex;
-  align-items: flex-start;
+  overflow-y: auto;
 }
 
 .profile-container {

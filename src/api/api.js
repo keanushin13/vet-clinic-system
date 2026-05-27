@@ -185,4 +185,31 @@ export const getStaffStats = () => API.get("/stats/staff");
 export const getVetStats = () => API.get("/stats/vet");
 export const getPetOwnerStats = () => API.get("/stats/pet-owner");
 
+// CHATBOT
+export const sendPetOwnerChatbotMessage = async (data) => {
+  try {
+    const res = await API.post("/chatbot/pet-owner", data);
+    const payload = res.data && typeof res.data === "object" ? res.data : {};
+    const reply =
+      (typeof payload.reply === "string" && payload.reply) ||
+      (typeof payload.data?.reply === "string" && payload.data.reply) ||
+      "";
+
+    return { ...payload, reply };
+  } catch (error) {
+    const status = error?.response?.status;
+    const serverMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message;
+    const base =
+      typeof serverMessage === "string" && serverMessage.trim()
+        ? serverMessage.trim()
+        : "Failed to contact the chatbot service.";
+    const err = new Error(status ? `${base} (${status})` : base);
+    err.status = status;
+    throw err;
+  }
+};
+
 export default API;

@@ -24,6 +24,8 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, value) => ({
 }));
 const CALENDAR_PAST_YEARS = 100;
 const CALENDAR_FUTURE_YEARS = 25;
+const APPT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_APPT_PAGE_SIZE = 25;
 const AVAILABLE_DATES_STORAGE_KEY = "staffAppointmentAvailableDates";
 const NO_COMPLIANCE_CANCEL_LABEL = "Cancelled Due to No Compliance";
 const NO_COMPLIANCE_CANCEL_NOTE = "Cancelled due to no compliance.";
@@ -240,6 +242,12 @@ const PetOwnerAppointment = () => {
     loadStoredAvailableDates,
   );
   const [search, setSearch] = useState("");
+  const [apptDateFrom, setApptDateFrom] = useState("");
+  const [apptDateTo, setApptDateTo] = useState("");
+  const [apptVetFilter, setApptVetFilter] = useState("");
+  const [apptStatusFilter, setApptStatusFilter] = useState("");
+  const [apptPage, setApptPage] = useState(1);
+  const [apptPageSize, setApptPageSize] = useState(DEFAULT_APPT_PAGE_SIZE);
   const [booking, setBooking] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -255,13 +263,6 @@ const PetOwnerAppointment = () => {
     visitReason: "",
     serviceType: "",
     notes: "",
-  });
-  const [expandedStatus, setExpandedStatus] = useState({
-    Pending: true,
-    Confirmed: true,
-    Completed: false,
-    [NO_COMPLIANCE_CANCEL_LABEL]: true,
-    Cancelled: false,
   });
 
   useEffect(() => {
@@ -612,60 +613,127 @@ const PetOwnerAppointment = () => {
     }
   };
 
+  const renderAppointmentActions = (appointment) => {
+    const status = normalizeAppointmentStatus(appointment);
+
+    if (
+      isNoComplianceCandidate(appointment) ||
+      isNoComplianceCancelled(appointment) ||
+      status === "cancelled"
+    ) {
+      return (
+        <button
+          type="button"
+          className="btn-rebook"
+          onClick={() => openRebookModal(appointment)}
+        >
+          Rebook
+        </button>
+      );
+    }
+
+    if (status === "pending") {
+      return (
+        <>
+          <button
+            type="button"
+            className="btn-edit"
+            onClick={() => openEditModal(appointment)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="btn-remove"
+            onClick={() => cancelAppointment(appointment)}
+          >
+            Cancel
+          </button>
+        </>
+      );
+    }
+
+    return (
+      <span className="apt-locked-note" title="Only pending appointments can be modified">
+        View only
+      </span>
+    );
+  };
+
+  const handleApptPageSizeChange = (e) => {
+    setApptPageSize(Number(e.target.value));
+    setApptPage(1);
+  };
+
   const filteredAppointments = appointments.filter((a) => {
     const vetName =
       `${a.vet?.firstName || ""} ${a.vet?.lastName || ""}`.trim() ||
       a.vet?.username ||
       "";
+    const petName = a.pet?.name || "";
+    const appointmentDate = new Date(a.scheduledAt);
     const statusDisplay = getAppointmentStatusDisplay(a);
-    const query = search.toLowerCase();
-    return (
-      (a.pet?.name || "").toLowerCase().includes(query) ||
+    const query = search.trim().toLowerCase();
+    const matchSearch =
+      !query ||
+      petName.toLowerCase().includes(query) ||
       vetName.toLowerCase().includes(query) ||
+      (a.reason || "").toLowerCase().includes(query) ||
       (a.status || "").toLowerCase().includes(query) ||
-      statusDisplay.label.toLowerCase().includes(query)
-    );
+      statusDisplay.label.toLowerCase().includes(query);
+
+    if (!matchSearch) return false;
+    if (apptStatusFilter === "Due" && !isAppointmentPastDue(a)) return false;
+    if (apptStatusFilter && apptStatusFilter !== "Due") {
+      if (apptStatusFilter === "Cancelled") {
+        if (
+          normalizeAppointmentStatus(a) !== "cancelled" &&
+          !isNoComplianceCandidate(a)
+        ) {
+          return false;
+        }
+      } else if (statusDisplay.label !== apptStatusFilter) {
+        return false;
+      }
+    }
+    if (
+      apptVetFilter &&
+      String(a.vetId || a.vet?.id || "") !== String(apptVetFilter)
+    ) {
+      return false;
+    }
+    if (apptDateFrom && appointmentDate < new Date(apptDateFrom)) {
+      return false;
+    }
+    if (apptDateTo && appointmentDate > new Date(`${apptDateTo}T23:59:59`)) {
+      return false;
+    }
+    return true;
   });
 
-  // Group appointments by status
-  const groupedAppointments = filteredAppointments.reduce((acc, apt) => {
-    const status = getAppointmentStatusDisplay(apt).label;
-    if (!acc[status]) acc[status] = [];
-    acc[status].push(apt);
-    return acc;
-  }, {});
-
-  // Define status order for consistent display
-  const statusOrder = [
-    "Pending",
-    "Confirmed",
-    "Completed",
-    NO_COMPLIANCE_CANCEL_LABEL,
-    "Cancelled",
-  ];
-  const sortedStatuses = statusOrder.filter(
-    (s) => groupedAppointments[s]?.length > 0,
+  const apptTotalPages = Math.max(
+    1,
+    Math.ceil(filteredAppointments.length / apptPageSize),
+  );
+  const currentApptPage = Math.min(apptPage, apptTotalPages);
+  const paginatedAppointments = filteredAppointments.slice(
+    (currentApptPage - 1) * apptPageSize,
+    currentApptPage * apptPageSize,
+  );
+  const apptStartItem =
+    filteredAppointments.length === 0
+      ? 0
+      : (currentApptPage - 1) * apptPageSize + 1;
+  const apptEndItem = Math.min(
+    currentApptPage * apptPageSize,
+    filteredAppointments.length,
   );
 
-  // Toggle status section collapse
-  const toggleStatus = (status) => {
-    setExpandedStatus((prev) => ({
-      ...prev,
-      [status]: !prev[status],
-    }));
-  };
-
-  // Get status styling
-  const getStatusConfig = (status) => {
-    const configs = {
-      Pending: { icon: "🟡", color: "#ff9800" },
-      Confirmed: { icon: "🟢", color: "#4caf50" },
-      Completed: { icon: "✓", color: "#2196f3" },
-      [NO_COMPLIANCE_CANCEL_LABEL]: { icon: "!", color: "#b91c1c" },
-      Cancelled: { icon: "✕", color: "#f44336" },
-    };
-    return configs[status] || configs.Pending;
-  };
+  useEffect(() => {
+    if (apptPage > apptTotalPages) {
+      setApptPage(apptTotalPages);
+    }
+  }, [apptPage, apptTotalPages]);
 
   const monthStart = new Date(
     calendarDate.getFullYear(),
@@ -992,7 +1060,11 @@ const PetOwnerAppointment = () => {
             viewMode === "calendar" ? "appointment-calendar-body" : ""
           }`}
         >
-          <div className="calendar-controls">
+          <div
+            className={`calendar-controls ${
+              viewMode === "list" ? "appointment-list-controls" : ""
+            }`}
+          >
             <div className="view-toggle">
               <button
                 className={viewMode === "calendar" ? "active" : ""}
@@ -1008,13 +1080,6 @@ const PetOwnerAppointment = () => {
               </button>
             </div>
             <div className="appointment-actions">
-              <input
-                type="text"
-                className="apt-search"
-                placeholder="Search pet, vet, or status"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
               <button
                 className="add-apt-btn"
                 onClick={() => openBookingModal()}
@@ -1193,165 +1258,247 @@ const PetOwnerAppointment = () => {
             </div>
           ) : (
             <div className="list-view-container">
-              {sortedStatuses.length === 0 ? (
+              <div className="appointment-list-description">
+                <div>
+                  <h3>Search & Filter Options</h3>
+                  <p>
+                    Search by pet, vet, reason, or status and choose how many
+                    appointments to show per page.
+                  </p>
+                </div>
+                <span>{filteredAppointments.length} results</span>
+              </div>
+              <div className="appointment-list-toolbar">
+                <div className="appointment-search-box">
+                  <input
+                    type="text"
+                    className="apt-search"
+                    placeholder="Search pet, vet, reason, or status..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setApptPage(1);
+                    }}
+                  />
+                  <label className="apt-entries-control">
+                    <span>Show</span>
+                    <select
+                      className="apt-filter-select apt-entries-select"
+                      value={apptPageSize}
+                      onChange={handleApptPageSizeChange}
+                      aria-label="Entries per page"
+                    >
+                      {APPT_PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                    <span>entries</span>
+                  </label>
+                  <select
+                    className="apt-filter-select apt-status-filter-select"
+                    value={apptStatusFilter}
+                    onChange={(e) => {
+                      setApptStatusFilter(e.target.value);
+                      setApptPage(1);
+                    }}
+                    aria-label="Filter by appointment status"
+                  >
+                    <option value="">Show All</option>
+                    <option value="Due">Due</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value={NO_COMPLIANCE_CANCEL_LABEL}>
+                      {NO_COMPLIANCE_CANCEL_LABEL}
+                    </option>
+                  </select>
+                  <select
+                    className="apt-filter-select"
+                    value={apptVetFilter}
+                    onChange={(e) => {
+                      setApptVetFilter(e.target.value);
+                      setApptPage(1);
+                    }}
+                    aria-label="Filter by vet"
+                  >
+                    <option value="">All Vets</option>
+                    {vets.map((vet) => (
+                      <option key={vet.id} value={vet.id}>
+                        {`${vet.firstName || ""} ${vet.lastName || ""}`.trim() ||
+                          vet.username}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="apt-date-range" aria-label="Appointment date range">
+                    <label className="apt-date-field">
+                      <span>From</span>
+                      <input
+                        type="date"
+                        className="apt-date-input"
+                        value={apptDateFrom}
+                        title="From date"
+                        onChange={(e) => {
+                          setApptDateFrom(e.target.value);
+                          setApptPage(1);
+                        }}
+                      />
+                    </label>
+                    <label className="apt-date-field">
+                      <span>To</span>
+                      <input
+                        type="date"
+                        className="apt-date-input"
+                        value={apptDateTo}
+                        title="To date"
+                        onChange={(e) => {
+                          setApptDateTo(e.target.value);
+                          setApptPage(1);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {paginatedAppointments.length === 0 ? (
                 <p className="list-placeholder">
                   No appointments found. Start by booking your first visit!
                 </p>
               ) : (
-                sortedStatuses.map((status) => {
-                  const config = getStatusConfig(status);
-                  const statusApts = groupedAppointments[status];
-                  const isExpanded = expandedStatus[status];
+                <>
+                  <div className="table-desktop">
+                    <table className="appointment-table">
+                      <thead>
+                        <tr>
+                          <th>Pet</th>
+                          <th>Veterinarian</th>
+                          <th>Date and Time</th>
+                          <th>Reason</th>
+                          <th>Status</th>
+                          <th>Option</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedAppointments.map((apt) => {
+                          const statusDisplay =
+                            getAppointmentStatusDisplay(apt);
+                          const vetName =
+                            `${apt.vet?.firstName || ""} ${apt.vet?.lastName || ""}`.trim() ||
+                            apt.vet?.username ||
+                            "-";
 
-                  return (
-                    <div key={status} className="status-group">
-                      {/* Status Group Header */}
-                      <button
-                        className="status-group-header"
-                        onClick={() => toggleStatus(status)}
-                        aria-expanded={isExpanded}
-                      >
-                        <span className="status-header-left">
-                          <span className="status-icon">{config.icon}</span>
-                          <span className="status-title">{status}</span>
-                          <span className="status-count">
-                            {statusApts.length}
-                          </span>
-                        </span>
-                        <span className="status-toggle-icon">
-                          {isExpanded ? "▼" : "▶"}
-                        </span>
-                      </button>
-
-                      {/* Card Grid View */}
-                      {isExpanded && (
-                        <div className="appointments-card-grid">
-                          {statusApts.map((a) => {
-                            const statusDisplay =
-                              getAppointmentStatusDisplay(a);
-                            const normalizedStatus =
-                              normalizeAppointmentStatus(a);
-                            const canRebook =
-                              statusDisplay.label ===
-                                NO_COMPLIANCE_CANCEL_LABEL ||
-                              normalizedStatus === "cancelled";
-
-                            return (
-                            <div key={a.id} className="appointment-card">
-                              <div className="apt-card-header">
-                                <div className="apt-card-pet">
-                                  <div className="apt-card-avatar">
-                                    {a.pet?.name?.charAt(0).toUpperCase() ||
-                                      "P"}
-                                  </div>
-                                  <span className="apt-card-pet-name">
-                                    {a.pet?.name || "Pet"}
-                                  </span>
-                                </div>
+                          return (
+                            <tr key={apt.id}>
+                              <td>{apt.pet?.name || "-"}</td>
+                              <td>{vetName}</td>
+                              <td>
+                                {new Date(apt.scheduledAt).toLocaleString()}
+                              </td>
+                              <td>{apt.reason || "-"}</td>
+                              <td>
                                 <span
                                   className={`apt-status ${statusDisplay.className}`}
                                 >
                                   {statusDisplay.label}
                                 </span>
+                              </td>
+                              <td>
+                                <div className="action-btns">
+                                  {renderAppointmentActions(apt)}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="table-mobile table-cards-list">
+                    {paginatedAppointments.map((apt) => {
+                      const statusDisplay = getAppointmentStatusDisplay(apt);
+                      const vetName =
+                        `${apt.vet?.firstName || ""} ${apt.vet?.lastName || ""}`.trim() ||
+                        apt.vet?.username ||
+                        "-";
+
+                      return (
+                        <div className="record-card" key={apt.id}>
+                          <div className="record-card-header">
+                            <div className="record-card-title">
+                              <div className="record-card-id">
+                                {apt.pet?.name || "-"}
                               </div>
-
-                              <div className="apt-card-body">
-                                <div className="apt-card-row">
-                                  <span className="apt-card-label">Vet:</span>
-                                  <span className="apt-card-value">
-                                    {`${a.vet?.firstName || ""} ${a.vet?.lastName || ""}`.trim() ||
-                                      a.vet?.username ||
-                                      "-"}
-                                  </span>
-                                </div>
-
-                                <div className="apt-card-row">
-                                  <span className="apt-card-label">
-                                    Date & Time:
-                                  </span>
-                                  <span className="apt-card-value">
-                                    {new Date(a.scheduledAt).toLocaleString()}
-                                  </span>
-                                </div>
-
-                                <div className="apt-card-row">
-                                  <span className="apt-card-label">
-                                    Reason:
-                                  </span>
-                                  <span className="apt-card-value">
-                                    {a.reason || "-"}
-                                  </span>
-                                </div>
-
-                                {a.notes && (
-                                  <div className="apt-card-row">
-                                    <span className="apt-card-label">
-                                      Notes:
-                                    </span>
-                                    <span className="apt-card-value">
-                                      {a.notes}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="apt-card-actions">
-                                {statusDisplay.label !==
-                                  NO_COMPLIANCE_CANCEL_LABEL &&
-                                normalizedStatus === "pending" ? (
-                                  <>
-                                    <button
-                                      className="btn-edit icon-btn"
-                                      onClick={() => openEditModal(a)}
-                                      title="Edit appointment"
-                                      aria-label="Edit appointment"
-                                    >
-                                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                        <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                                        <path d="M12 6l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                      </svg>
-                                    </button>
-                                    <button
-                                      className="btn-remove icon-btn"
-                                      onClick={() => cancelAppointment(a)}
-                                      title="Cancel appointment"
-                                      aria-label="Cancel appointment"
-                                    >
-                                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                        <path d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                      </svg>
-                                    </button>
-                                  </>
-                                ) : canRebook ? (
-                                  <button
-                                    type="button"
-                                    className="btn-rebook"
-                                    onClick={() => openRebookModal(a)}
-                                  >
-                                    Rebook
-                                  </button>
-                                ) : (
-                                  <span className="apt-locked-note" title="Only pending appointments can be modified">
-                                    View only
-                                  </span>
-                                )}
+                              <div className="record-card-patient">
+                                {vetName}
                               </div>
                             </div>
-                            );
-                          })}
+                            <span
+                              className={`apt-status ${statusDisplay.className}`}
+                            >
+                              {statusDisplay.label}
+                            </span>
+                          </div>
+                          <div className="record-card-body">
+                            <div className="record-card-row">
+                              <span className="record-card-label">
+                                Date and Time
+                              </span>
+                              <span>
+                                {new Date(apt.scheduledAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="record-card-row">
+                              <span className="record-card-label">Reason</span>
+                              <span>{apt.reason || "-"}</span>
+                            </div>
+                            {apt.notes && (
+                              <div className="record-card-row">
+                                <span className="record-card-label">Notes</span>
+                                <span>{apt.notes}</span>
+                              </div>
+                            )}
+                            <div className="record-card-row">
+                              <span className="record-card-label">Option</span>
+                              <div className="action-btns">
+                                {renderAppointmentActions(apt)}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })
+                      );
+                    })}
+                  </div>
+                </>
               )}
-            </div>
-          )}
 
-          {!loading && filteredAppointments.length === 0 && (
-            <p className="list-placeholder">
-              No appointments found. Start by booking your first visit!
-            </p>
+              <div className="appt-pagination">
+                <button
+                  className="appt-page-btn"
+                  disabled={currentApptPage === 1}
+                  onClick={() => setApptPage((p) => Math.max(1, p - 1))}
+                >
+                  Prev
+                </button>
+                <span className="appt-page-info">
+                  Showing {apptStartItem}-{apptEndItem} of{" "}
+                  {filteredAppointments.length} appointments | Page{" "}
+                  {currentApptPage} of {apptTotalPages}
+                </span>
+                <button
+                  className="appt-page-btn"
+                  disabled={currentApptPage === apptTotalPages}
+                  onClick={() =>
+                    setApptPage((p) => Math.min(apptTotalPages, p + 1))
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </section>
       </main>

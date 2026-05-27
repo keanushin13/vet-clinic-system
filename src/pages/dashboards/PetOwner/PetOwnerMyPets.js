@@ -108,10 +108,171 @@ const fmtDate = (iso) =>
       })
     : "—";
 
+const OTHER_OPTION = "Other";
+
+const BASE_SPECIES_OPTIONS = [
+  "Dog",
+  "Cat",
+  "Rabbit",
+  "Hamster",
+  "Guinea Pig",
+  "Chinchilla",
+  "Ferret",
+  "Hedgehog",
+  "Sugar Glider",
+  "Bird",
+  "Parrot",
+  "Cockatiel",
+  "Budgerigar",
+  "Canary",
+  "Finch",
+  "Chicken",
+  "Duck",
+  "Turtle",
+  "Tortoise",
+  "Lizard",
+  "Gecko",
+  "Iguana",
+  "Bearded Dragon",
+  "Snake",
+  "Fish",
+  "Frog",
+  "Salamander",
+  "Horse",
+  "Goat",
+  "Pig",
+  "Exotic Mammal",
+  "Reptile",
+  "Amphibian",
+];
+
+const BREED_OPTIONS_BY_SPECIES = {
+  Dog: [
+    "Mixed Breed",
+    "Aspin",
+    "Labrador Retriever",
+    "Golden Retriever",
+    "German Shepherd",
+    "Shih Tzu",
+    "Poodle",
+    "Chihuahua",
+    "Pomeranian",
+    "Siberian Husky",
+    "Beagle",
+    "Dachshund",
+    "Bulldog",
+    "Rottweiler",
+    "Unknown",
+  ],
+  Cat: [
+    "Mixed Breed",
+    "Puspin",
+    "Domestic Shorthair",
+    "Domestic Longhair",
+    "Persian",
+    "Siamese",
+    "Maine Coon",
+    "British Shorthair",
+    "Ragdoll",
+    "Bengal",
+    "Scottish Fold",
+    "Sphynx",
+    "Unknown",
+  ],
+  Rabbit: [
+    "Mixed Breed",
+    "Holland Lop",
+    "Netherland Dwarf",
+    "Lionhead",
+    "Mini Rex",
+    "Flemish Giant",
+    "Angora",
+    "Unknown",
+  ],
+  Hamster: [
+    "Syrian",
+    "Dwarf Campbell",
+    "Winter White",
+    "Roborovski",
+    "Chinese",
+    "Unknown",
+  ],
+  "Guinea Pig": [
+    "American",
+    "Abyssinian",
+    "Peruvian",
+    "Teddy",
+    "Silkie",
+    "Skinny Pig",
+    "Unknown",
+  ],
+  Chinchilla: ["Standard Gray", "Ebony", "Beige", "White", "Violet", "Unknown"],
+  Ferret: ["Sable", "Albino", "Cinnamon", "Champagne", "Panda", "Unknown"],
+  Hedgehog: ["African Pygmy", "Algerian", "Pinto", "Albino", "Unknown"],
+  "Sugar Glider": ["Classic Gray", "Leucistic", "Mosaic", "White Face", "Unknown"],
+  Bird: [
+    "Parrot",
+    "Cockatiel",
+    "Budgerigar",
+    "Canary",
+    "Finch",
+    "Lovebird",
+    "Conure",
+    "Unknown",
+  ],
+  Parrot: ["African Grey", "Macaw", "Amazon", "Cockatoo", "Conure", "Unknown"],
+  Cockatiel: ["Normal Grey", "Lutino", "Pearl", "Pied", "Cinnamon", "Unknown"],
+  Budgerigar: ["Standard", "English", "Lutino", "Albino", "Pied", "Unknown"],
+  Canary: ["Song Canary", "Color Canary", "Type Canary", "Unknown"],
+  Finch: ["Zebra Finch", "Society Finch", "Gouldian Finch", "Unknown"],
+  Chicken: ["Native", "Silkie", "Bantam", "Leghorn", "Rhode Island Red", "Unknown"],
+  Duck: ["Mallard", "Pekin", "Muscovy", "Runner", "Khaki Campbell", "Unknown"],
+  Turtle: ["Red-Eared Slider", "Painted Turtle", "Box Turtle", "Map Turtle", "Unknown"],
+  Tortoise: ["Sulcata", "Greek", "Russian", "Leopard", "Red-Footed", "Unknown"],
+  Lizard: ["Bearded Dragon", "Leopard Gecko", "Crested Gecko", "Iguana", "Skink", "Unknown"],
+  Gecko: ["Leopard Gecko", "Crested Gecko", "Tokay Gecko", "Day Gecko", "Unknown"],
+  Iguana: ["Green Iguana", "Red Iguana", "Blue Iguana", "Unknown"],
+  "Bearded Dragon": ["Central", "Rankin's", "German Giant", "Leatherback", "Unknown"],
+  Snake: ["Ball Python", "Corn Snake", "Kingsnake", "Milk Snake", "Boa", "Unknown"],
+  Fish: ["Betta", "Goldfish", "Guppy", "Koi", "Molly", "Tetra", "Cichlid", "Unknown"],
+  Frog: ["Pacman Frog", "Tree Frog", "Dart Frog", "African Dwarf Frog", "Unknown"],
+  Salamander: ["Axolotl", "Tiger Salamander", "Fire Salamander", "Newt", "Unknown"],
+  Horse: ["Thoroughbred", "Arabian", "Quarter Horse", "Pony", "Mixed Breed", "Unknown"],
+  Goat: ["Boer", "Nubian", "Alpine", "Saanen", "Native", "Unknown"],
+  Pig: ["Mini Pig", "Pot-Bellied", "Kunekune", "Native", "Unknown"],
+  "Exotic Mammal": ["Mixed/Unknown", "Small Mammal", "Marsupial", "Primate", "Other Exotic"],
+  Reptile: ["Lizard", "Snake", "Turtle", "Tortoise", "Monitor", "Unknown"],
+  Amphibian: ["Frog", "Toad", "Salamander", "Newt", "Axolotl", "Unknown"],
+};
+
+const buildOptionList = (...groups) => {
+  const options = new Map();
+
+  groups.flat().forEach((value) => {
+    const label = String(value || "").trim();
+    if (!label) return;
+    const key = label.toLowerCase();
+    if (key === OTHER_OPTION.toLowerCase()) return;
+    if (!options.has(key)) options.set(key, label);
+  });
+
+  return [...options.values(), OTHER_OPTION];
+};
+
+const getBreedBaseOptions = (species) => {
+  const speciesKey = Object.keys(BREED_OPTIONS_BY_SPECIES).find(
+    (key) => key.toLowerCase() === String(species || "").trim().toLowerCase(),
+  );
+
+  return speciesKey ? BREED_OPTIONS_BY_SPECIES[speciesKey] : ["Mixed Breed", "Unknown"];
+};
+
 const emptyForm = {
   name: "",
   species: "",
+  customSpecies: "",
   breed: "",
+  customBreed: "",
   gender: "",
   age: "",
   birthday: "",
@@ -193,9 +354,23 @@ const PetOwnerMyPets = () => {
 
   // ─── Filters ────────────────────────────────────────────────────────────────
 
-  const speciesOptions = [
-    ...new Set(pets.map((p) => p.species).filter(Boolean)),
-  ];
+  const speciesOptions = buildOptionList(
+    BASE_SPECIES_OPTIONS,
+    pets.map((p) => p.species),
+  );
+  const selectedSpeciesForBreed =
+    form.species === OTHER_OPTION ? form.customSpecies : form.species;
+  const breedOptions = buildOptionList(
+    getBreedBaseOptions(selectedSpeciesForBreed),
+    pets
+      .filter(
+        (pet) =>
+          selectedSpeciesForBreed &&
+          pet.species?.toLowerCase() ===
+            selectedSpeciesForBreed.toLowerCase(),
+      )
+      .map((pet) => pet.breed),
+  );
 
   const filteredPets = pets.filter((pet) => {
     const petRecords = records.filter((r) => r.petId === pet.id);
@@ -235,7 +410,9 @@ const PetOwnerMyPets = () => {
     setForm({
       name: pet.name || "",
       species: pet.species || "",
+      customSpecies: "",
       breed: pet.breed || "",
+      customBreed: "",
       gender: pet.gender || "",
       age: pet.age != null ? String(pet.age) : "",
       birthday: pet.birthday ? pet.birthday.slice(0, 10) : "",
@@ -258,8 +435,19 @@ const PetOwnerMyPets = () => {
 
   const submitPet = async (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.species.trim()) {
+    const speciesValue =
+      form.species === OTHER_OPTION
+        ? form.customSpecies.trim()
+        : form.species.trim();
+    const breedValue =
+      form.breed === OTHER_OPTION ? form.customBreed.trim() : form.breed.trim();
+
+    if (!form.name.trim() || !speciesValue) {
       setFormError("Name and Species are required.");
+      return;
+    }
+    if (form.breed === OTHER_OPTION && !breedValue) {
+      setFormError("Please specify the breed or clear the breed field.");
       return;
     }
     setSaving(true);
@@ -267,8 +455,8 @@ const PetOwnerMyPets = () => {
     try {
       const payload = {
         name: form.name.trim(),
-        species: form.species.trim(),
-        breed: form.breed.trim() || null,
+        species: speciesValue,
+        breed: breedValue || null,
         gender: form.gender || null,
         age: form.age !== "" ? Number(form.age) : null,
         birthday: form.birthday || null,
@@ -701,25 +889,42 @@ const PetOwnerMyPets = () => {
 
               {/* Image upload */}
               <div className="avatar-upload-wrap">
-                {form.image ? (
-                  <img src={form.image} alt="Preview" className="avatar-preview" />
-                ) : (
-                  <div
-                    className="pet-avatar-initials avatar-preview"
-                    style={{ fontSize: "1.6rem" }}
-                  >
-                    {form.name?.charAt(0).toUpperCase() || "🐾"}
-                  </div>
-                )}
-                <label className="upload-btn">
-                  Upload Photo
+                <div className="avatar-preview-frame">
+                  {form.image ? (
+                    <img src={form.image} alt="Preview" className="avatar-preview" />
+                  ) : (
+                    <div
+                      className="pet-avatar-initials avatar-preview"
+                      style={{ fontSize: "1.6rem" }}
+                    >
+                      {form.name?.charAt(0).toUpperCase() || "P"}
+                    </div>
+                  )}
+                </div>
+                <div className="pet-photo-actions">
+                  <label className="upload-btn" htmlFor="pet-photo-input">
+                    Choose Photo
+                  </label>
                   <input
+                    id="pet-photo-input"
+                    className="pet-file-input"
                     type="file"
                     accept="image/*"
-                    hidden
                     onChange={onSelectImage}
                   />
-                </label>
+                  <span className="upload-file-state">
+                    {form.image ? "Photo selected" : "JPG, PNG, or WEBP"}
+                  </span>
+                  {form.image && (
+                    <button
+                      type="button"
+                      className="remove-photo-btn"
+                      onClick={() => setForm((p) => ({ ...p, image: "" }))}
+                    >
+                      Remove Photo
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Name | Species */}
@@ -739,12 +944,42 @@ const PetOwnerMyPets = () => {
                   <label>Species *</label>
                   <input
                     required
+                    list="pet-species-options"
                     value={form.species}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, species: e.target.value }))
-                    }
-                    placeholder="e.g. Dog, Cat"
+                    onChange={(e) => {
+                      const nextSpecies = e.target.value;
+                      setForm((p) => ({
+                        ...p,
+                        species: nextSpecies,
+                        customSpecies:
+                          nextSpecies === OTHER_OPTION ? p.customSpecies : "",
+                        breed: "",
+                        customBreed: "",
+                      }));
+                    }}
+                    placeholder="Select or type species"
                   />
+                  <datalist id="pet-species-options">
+                    {speciesOptions.map((species) => (
+                      <option key={species} value={species} />
+                    ))}
+                  </datalist>
+                  {form.species === OTHER_OPTION && (
+                    <input
+                      required
+                      className="other-pet-input"
+                      value={form.customSpecies}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          customSpecies: e.target.value,
+                          breed: "",
+                          customBreed: "",
+                        }))
+                      }
+                      placeholder="Type pet species"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -753,12 +988,42 @@ const PetOwnerMyPets = () => {
                 <div className="form-group">
                   <label>Breed</label>
                   <input
+                    list="pet-breed-options"
                     value={form.breed}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, breed: e.target.value }))
+                    onChange={(e) => {
+                      const nextBreed = e.target.value;
+                      setForm((p) => ({
+                        ...p,
+                        breed: nextBreed,
+                        customBreed:
+                          nextBreed === OTHER_OPTION ? p.customBreed : "",
+                      }));
+                    }}
+                    disabled={!selectedSpeciesForBreed.trim()}
+                    placeholder={
+                      selectedSpeciesForBreed.trim()
+                        ? "Select or type breed"
+                        : "Choose species first"
                     }
-                    placeholder="e.g. Labrador"
                   />
+                  <datalist id="pet-breed-options">
+                    {breedOptions.map((breed) => (
+                      <option key={breed} value={breed} />
+                    ))}
+                  </datalist>
+                  {form.breed === OTHER_OPTION && (
+                    <input
+                      className="other-pet-input"
+                      value={form.customBreed}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          customBreed: e.target.value,
+                        }))
+                      }
+                      placeholder="Type breed"
+                    />
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Sex</label>

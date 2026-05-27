@@ -5,6 +5,7 @@ import BottomNavigation from "./components/BottomNavigation";
 import PetOwnerTutorial, {
   STORAGE_KEY as PO_TUTORIAL_KEY,
 } from "./components/PetOwnerTutorial";
+import PetOwnerChatBot from "./pages/dashboards/PetOwner/PetOwnerChatBot";
 
 // DEV
 import DevNav from "./pages/DevNav";
@@ -286,6 +287,10 @@ function App() {
         <Route path="/admin-notifications" element={<AdminNotif />} />
         <Route path="/admin-profile" element={<AdminProfile />} />
       </Routes>
+      <PetOwnerChatBot
+        enabled={canAccessPetOwnerRoutes()}
+        user={authState.user}
+      />
       <BottomNavigation />
       {showTutorial && (
         <PetOwnerTutorial onDone={() => setShowTutorial(false)} />

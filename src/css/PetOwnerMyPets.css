@@ -436,6 +436,88 @@
   color: #0f172a;
 }
 
+.avatar-upload-wrap {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px;
+  margin-bottom: 20px;
+  border: 1px solid #e5eef5;
+  border-radius: 16px;
+  background: #f8fcff;
+}
+
+.avatar-preview-frame {
+  flex: 0 0 auto;
+}
+
+.avatar-preview {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #c9eaf7;
+  box-shadow: 0 8px 18px rgba(67, 143, 181, 0.18);
+}
+
+.pet-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pet-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.upload-btn,
+.remove-photo-btn {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.upload-btn {
+  background: #438fb5;
+  border: 1px solid #438fb5;
+  color: #fff;
+}
+
+.upload-btn:hover {
+  background: #255065;
+  border-color: #255065;
+}
+
+.remove-photo-btn {
+  background: #fff;
+  border: 1px solid #f1b8bf;
+  color: #c62828;
+}
+
+.remove-photo-btn:hover {
+  background: #fff5f5;
+}
+
+.upload-file-state {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .user-modal-form .form-row {
   display: flex;
   gap: 16px;
@@ -475,6 +557,16 @@
 .user-modal-form select:focus,
 .user-modal-form textarea:focus {
   border-color: #438fb5;
+}
+
+.user-modal-form input:disabled {
+  background: #f3f4f6;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.other-pet-input {
+  margin-top: 4px;
 }
 
 .modal-error {
@@ -939,7 +1031,7 @@
 
 /* Pet form modal wider */
 .pet-form-modal {
-  max-width: 600px !important;
+  max-width: 680px !important;
 }
 
 /* ─── RESPONSIVE ─────────────────────────────────────────────────────────── */
@@ -953,6 +1045,12 @@
   .add-pet-btn { margin-left: 0; width: 100%; }
   .pet-detail-header { flex-direction: column; align-items: flex-start; }
   .detail-actions { flex-direction: column; }
+  .modal-box { padding: 24px 20px; }
+  .user-modal-form .form-row { flex-direction: column; gap: 0; }
+  .avatar-upload-wrap { align-items: flex-start; flex-direction: column; }
+  .pet-photo-actions { width: 100%; }
+  .upload-btn,
+  .remove-photo-btn { flex: 1 1 150px; }
 }
 
 @media (max-width: 380px) {

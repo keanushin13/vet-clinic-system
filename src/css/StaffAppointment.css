@@ -241,12 +241,14 @@
 .appointment-calendar-body {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   min-height: 0;
   overflow: hidden;
 }
 
 .appointment-calendar-body .calendar-controls {
   flex: 0 0 auto;
+  width: 100%;
   margin-bottom: 12px;
 }
 
@@ -259,6 +261,7 @@
 
 .appointment-calendar-body .calendar-container {
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;

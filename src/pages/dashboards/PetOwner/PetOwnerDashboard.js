@@ -16,6 +16,7 @@ import {
 // ASSETS
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
+import dashboardImage from "../../../assets/dog_cat.jpg";
 import profileIcon from "../../../assets/Profile.png";
 import notifIcon from "../../../assets/Bell_Icon.png";
 import petsIcon from "../../../assets/Pets_Icon.png";
@@ -24,18 +25,78 @@ import messageIcon from "../../../assets/Message_Icon.png";
 import medicalIcon from "../../../assets/Medical_Icon.png";
 import paymentIcon from "../../../assets/payment_icon.png";
 
-const SHORTCUTS = [
-  { label: "Profile",          path: "/pet-owner-profile",       icon: profileIcon },
-  { label: "Notifications",    path: "/pet-owner-notifications",  icon: notifIcon },
-  { label: "My Pets",          path: "/pet-owner-pets",           icon: petsIcon },
-  { label: "Book Appointment", path: "/pet-owner-appointments",   icon: apptIcon },
-  { label: "Messages",         path: "/pet-owner-messages",       icon: messageIcon },
-  { label: "Medical Records",  path: "/pet-owner-records",        icon: medicalIcon },
-  { label: "Payment History",  path: "/pet-owner-payments",       icon: paymentIcon },
+const HERO_SLIDES = [
+  {
+    title: "Keep your pets' care organized in one place.",
+    quote:
+      "Track appointments, records, messages, and updates without losing the thread between visits.",
+  },
+  {
+    title: "Plan each clinic visit with confidence.",
+    quote:
+      "Book a schedule, follow pending requests, and keep your pet's care history close when you need it.",
+  },
+  {
+    title: "Stay connected with PawCruz.",
+    quote:
+      "Messages, reminders, and clinic notices help you respond quickly when your pet needs attention.",
+  },
+];
+
+const SERVICE_SHORTCUTS = [
+  {
+    label: "Profile",
+    path: "/pet-owner-profile",
+    description: "Update contact details, address, and account information.",
+    icon: profileIcon,
+    tone: "blue",
+  },
+  {
+    label: "Notifications",
+    path: "/pet-owner-notifications",
+    description: "Review clinic updates, appointment notices, and reminders.",
+    icon: notifIcon,
+    tone: "green",
+  },
+  {
+    label: "My Pets",
+    path: "/pet-owner-pets",
+    description: "Manage pet profiles, health details, and ownership records.",
+    icon: petsIcon,
+    tone: "yellow",
+  },
+  {
+    label: "Book Appointment",
+    path: "/pet-owner-appointments",
+    description: "Request a clinic visit and review appointment status.",
+    icon: apptIcon,
+    tone: "red",
+  },
+  {
+    label: "Messages",
+    path: "/pet-owner-messages",
+    description: "Send questions and follow up with clinic staff.",
+    icon: messageIcon,
+    tone: "teal",
+  },
+  {
+    label: "Medical Records",
+    path: "/pet-owner-records",
+    description: "Open visit history, diagnoses, prescriptions, and notes.",
+    icon: medicalIcon,
+    tone: "orange",
+  },
+  {
+    label: "Payment History",
+    path: "/pet-owner-payments",
+    description: "Track payment records and billing status for your visits.",
+    icon: paymentIcon,
+    tone: "violet",
+  },
 ];
 
 const formatDate = (iso) =>
-  new Date(iso).toLocaleDateString("en-US", {
+  new Date(iso).toLocaleString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -43,10 +104,13 @@ const formatDate = (iso) =>
     minute: "2-digit",
   });
 
+const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
+
 const PetOwnerDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const { isOpen, toggle, close } = useSidebar();
+  const [activeSlide, setActiveSlide] = useState(0);
 
   const [stats, setStats] = useState({
     totalPets: 0,
@@ -77,7 +141,7 @@ const PetOwnerDashboard = () => {
       getNotifications(),
     ])
       .then(([statsRes, meRes, apptRes, notifRes]) => {
-        setStats(statsRes.data);
+        setStats(statsRes.data || {});
         setProfile(meRes.data || {});
         setAppointments(apptRes.data || []);
         setNotifications(notifRes.data || []);
@@ -86,45 +150,115 @@ const PetOwnerDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Banner derivations ────────────────────────────────────────────────────
+  useEffect(() => {
+    const slideTimer = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % HERO_SLIDES.length);
+    }, 5000);
+
+    return () => window.clearInterval(slideTimer);
+  }, []);
+
   const profileIncomplete = !profile.phone || !profile.address;
 
   const now = new Date();
   const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const upcoming = appointments.find(
-    (a) =>
-      a.status === "Confirmed" &&
-      new Date(a.scheduledAt) >= now &&
-      new Date(a.scheduledAt) <= in7Days,
+    (appointment) =>
+      normalizeStatus(appointment.status) === "confirmed" &&
+      new Date(appointment.scheduledAt) >= now &&
+      new Date(appointment.scheduledAt) <= in7Days,
   );
 
-  const pendingAppt = appointments.find((a) => a.status === "Pending");
+  const pendingAppt = appointments.find(
+    (appointment) => normalizeStatus(appointment.status) === "pending",
+  );
 
   const rescheduledNotif = notifications.find(
-    (n) =>
-      !n.isRead &&
-      (n.type?.toLowerCase().includes("reschedule") ||
-        n.title?.toLowerCase().includes("reschedule") ||
-        n.body?.toLowerCase().includes("reschedule")),
+    (notification) =>
+      !notification.isRead &&
+      (notification.type?.toLowerCase().includes("reschedule") ||
+        notification.title?.toLowerCase().includes("reschedule") ||
+        notification.body?.toLowerCase().includes("reschedule")),
   );
 
   const announcementNotif = notifications.find(
-    (n) =>
-      !n.isRead &&
-      (n.type === "announcement" ||
-        n.type === "broadcast" ||
-        n.title?.toLowerCase().includes("announcement")),
+    (notification) =>
+      !notification.isRead &&
+      (notification.type === "announcement" ||
+        notification.type === "broadcast" ||
+        notification.title?.toLowerCase().includes("announcement")),
   );
 
-  const dismiss = (key) => setDismissed((d) => ({ ...d, [key]: true }));
+  const dismiss = (key) => setDismissed((current) => ({ ...current, [key]: true }));
 
   const dismissAndMarkRead = (key, notifId) => {
     markNotificationRead(notifId).catch(() => {});
     dismiss(key);
   };
 
+  const activeAlerts = [];
+
+  if (profileIncomplete && !dismissed.profile) {
+    activeAlerts.push({
+      key: "profile",
+      tone: "warning",
+      text: "Your profile is incomplete. Add your phone and address.",
+      actionLabel: "Complete Profile",
+      onAction: () => navigate("/pet-owner-profile"),
+      onDismiss: () => dismiss("profile"),
+    });
+  }
+
+  if (upcoming && !dismissed.upcoming) {
+    activeAlerts.push({
+      key: "upcoming",
+      tone: "info",
+      text: `Upcoming appointment: ${upcoming.pet?.name || "Pet"} on ${formatDate(
+        upcoming.scheduledAt,
+      )}`,
+      actionLabel: "View",
+      onAction: () => navigate("/pet-owner-appointments"),
+      onDismiss: () => dismiss("upcoming"),
+    });
+  }
+
+  if (pendingAppt && !dismissed.pending) {
+    activeAlerts.push({
+      key: "pending",
+      tone: "pending",
+      text: "You have an appointment request pending approval.",
+      actionLabel: "View",
+      onAction: () => navigate("/pet-owner-appointments"),
+      onDismiss: () => dismiss("pending"),
+    });
+  }
+
+  if (rescheduledNotif && !dismissed.rescheduled) {
+    activeAlerts.push({
+      key: "rescheduled",
+      tone: "rescheduled",
+      text: rescheduledNotif.title || "An appointment was rescheduled.",
+      actionLabel: "View",
+      onAction: () => navigate("/pet-owner-appointments"),
+      onDismiss: () =>
+        dismissAndMarkRead("rescheduled", rescheduledNotif.id),
+    });
+  }
+
+  if (announcementNotif && !dismissed.announcement) {
+    activeAlerts.push({
+      key: "announcement",
+      tone: "announcement",
+      text: `${announcementNotif.title || "Clinic announcement"} - View in Messages`,
+      actionLabel: "Go to Messages",
+      onAction: () => navigate("/pet-owner-messages"),
+      onDismiss: () =>
+        dismissAndMarkRead("announcement", announcementNotif.id),
+    });
+  }
+
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container pet-owner-dashboard-shell">
       <PetOwnerSidebar isOpen={isOpen} onClose={close} />
 
       {/* MAIN CONTENT */}
@@ -155,145 +289,119 @@ const PetOwnerDashboard = () => {
           </div>
         </header>
 
-        <section className="content-body dashboard-home-content">
-          <div className="dashboard-header-action">
-            <h3 className="dashboard-section-title">Getting started</h3>
-            <p className="dashboard-section-description">
-              Welcome to your PawCruz dashboard. Manage your pet's health and
-              appointments here.
-            </p>
+        <section className="content-body pet-owner-dashboard-body">
+          <div className="pet-owner-hero-slider">
+            <img
+              className="pet-owner-hero-image"
+              src={dashboardImage}
+              alt=""
+              aria-hidden="true"
+            />
+            <div className="pet-owner-hero-overlay" />
+            <div className="pet-owner-hero-copy">
+              <span>Pet Owner Dashboard</span>
+              <h3>{HERO_SLIDES[activeSlide].title}</h3>
+              <p>{HERO_SLIDES[activeSlide].quote}</p>
+            </div>
+
+            <div className="pet-owner-slide-dots" aria-label="Dashboard slides">
+              {HERO_SLIDES.map((slide, index) => (
+                <button
+                  key={slide.title}
+                  className={`pet-owner-slide-dot${activeSlide === index ? " active" : ""}`}
+                  onClick={() => setActiveSlide(index)}
+                  aria-label={`Show slide ${index + 1}`}
+                  aria-pressed={activeSlide === index}
+                  type="button"
+                />
+              ))}
+            </div>
           </div>
 
-          {/* ── ALERT BANNERS ─────────────────────────────────────────── */}
-          <div className="alert-banners">
-            {profileIncomplete && !dismissed.profile && (
-              <div className="alert-banner warning">
-                <span>
-                  ⚠️ Your profile is incomplete. Add your phone and address.
-                </span>
-                <div className="alert-banner-actions">
-                  <button onClick={() => navigate("/pet-owner-profile")}>
-                    Complete Profile
-                  </button>
-                  <button
-                    className="dismiss-btn"
-                    onClick={() => dismiss("profile")}
-                  >
-                    ×
-                  </button>
-                </div>
+          <section id="tutorial-stats" className="pet-owner-track-box">
+            <div className="pet-owner-section-heading compact">
+              <div>
+                <h3>Care Snapshot</h3>
+                <p>Review pet activity, appointment follow-ups, and unread updates.</p>
               </div>
-            )}
+            </div>
 
-            {upcoming && !dismissed.upcoming && (
-              <div className="alert-banner info">
-                <span>
-                  📅 Upcoming appointment:{" "}
-                  <strong>{upcoming.pet?.name}</strong> on{" "}
-                  {formatDate(upcoming.scheduledAt)}
-                </span>
-                <div className="alert-banner-actions">
-                  <button onClick={() => navigate("/pet-owner-appointments")}>
-                    View
-                  </button>
-                  <button
-                    className="dismiss-btn"
-                    onClick={() => dismiss("upcoming")}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {pendingAppt && !dismissed.pending && (
-              <div className="alert-banner pending">
-                <span>🕐 You have an appointment request pending approval.</span>
-                <div className="alert-banner-actions">
-                  <button onClick={() => navigate("/pet-owner-appointments")}>
-                    View
-                  </button>
-                  <button
-                    className="dismiss-btn"
-                    onClick={() => dismiss("pending")}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {rescheduledNotif && !dismissed.rescheduled && (
-              <div className="alert-banner rescheduled">
-                <span>🔄 {rescheduledNotif.title}</span>
-                <div className="alert-banner-actions">
-                  <button onClick={() => navigate("/pet-owner-appointments")}>
-                    View
-                  </button>
-                  <button
-                    className="dismiss-btn"
-                    onClick={() =>
-                      dismissAndMarkRead("rescheduled", rescheduledNotif.id)
-                    }
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {announcementNotif && !dismissed.announcement && (
-              <div className="alert-banner announcement">
-                <span>📢 {announcementNotif.title} — View in Messages</span>
-                <div className="alert-banner-actions">
-                  <button onClick={() => navigate("/pet-owner-messages")}>
-                    Go to Messages
-                  </button>
-                  <button
-                    className="dismiss-btn"
-                    onClick={() =>
-                      dismissAndMarkRead("announcement", announcementNotif.id)
-                    }
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── QUICK SHORTCUTS ───────────────────────────────────────── */}
-          <div className="shortcut-grid">
-            {SHORTCUTS.map(({ label, path, icon }) => (
-              <button
-                key={path}
-                className="shortcut-card"
-                onClick={() => navigate(path)}
-              >
-                <img src={icon} alt={label} className="shortcut-icon" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div id="tutorial-stats" className="shared-stats-grid">
-            <div className="stat-card blue">
-              <div className="stat-info">
+            <div className="pet-owner-track-metrics">
+              <div className="pet-owner-track-metric blue">
                 <span>My Pets</span>
-                <h4>{stats.totalPets}</h4>
+                <strong>{stats.totalPets || 0}</strong>
               </div>
-            </div>
-            <div className="stat-card green">
-              <div className="stat-info">
+              <div className="pet-owner-track-metric green">
                 <span>Upcoming Appointments</span>
-                <h4>{stats.upcomingAppointments}</h4>
+                <strong>{stats.upcomingAppointments || 0}</strong>
+              </div>
+              <div className="pet-owner-track-metric yellow">
+                <span>Unread Messages</span>
+                <strong>{stats.unreadMessages || 0}</strong>
+              </div>
+              <div className="pet-owner-track-metric red">
+                <span>Active Alerts</span>
+                <strong>{activeAlerts.length}</strong>
               </div>
             </div>
-            <div className="stat-card yellow">
-              <div className="stat-info">
-                <span>Unread Messages</span>
-                <h4>{stats.unreadMessages}</h4>
+
+            <div className="pet-owner-alert-list" aria-label="Important updates">
+              {activeAlerts.length === 0 ? (
+                <p className="pet-owner-track-note">
+                  All clear for now. New clinic updates and appointment reminders
+                  will appear here.
+                </p>
+              ) : (
+                activeAlerts.map((alert) => (
+                  <div
+                    key={alert.key}
+                    className={`pet-owner-alert-banner ${alert.tone}`}
+                  >
+                    <span>{alert.text}</span>
+                    <div className="pet-owner-alert-actions">
+                      <button type="button" onClick={alert.onAction}>
+                        {alert.actionLabel}
+                      </button>
+                      <button
+                        type="button"
+                        className="pet-owner-alert-dismiss"
+                        onClick={alert.onDismiss}
+                        aria-label="Dismiss alert"
+                      >
+                        x
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <div className="pet-owner-services-section">
+            <div className="pet-owner-section-heading">
+              <div>
+                <h3>Services</h3>
+                <p>Quick access to pet care tools and clinic communication.</p>
               </div>
+            </div>
+
+            <div className="pet-owner-services-grid">
+              {SERVICE_SHORTCUTS.map((service) => (
+                <button
+                  key={service.path}
+                  className={`pet-owner-service-card tone-${service.tone}`}
+                  onClick={() => navigate(service.path)}
+                  type="button"
+                >
+                  <span className="pet-owner-service-icon">
+                    <img src={service.icon} alt="" />
+                  </span>
+                  <span className="pet-owner-service-copy">
+                    <strong>{service.label}</strong>
+                    <span>{service.description}</span>
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         </section>
