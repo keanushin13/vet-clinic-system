@@ -1,5 +1,5 @@
 export const CLINIC_HOURS_LINE =
-  "We are open Monday to Sunday, 9:00 AM to 7:00 PM. Hours may differ or we may be closed on certain public holidays, so please call the clinic to confirm.";
+  "We are open Monday to Saturday, 8:00 AM to 6:00 PM. We are closed on Sundays and public holidays.";
 
 export const UNKNOWN_INFO_REPLY =
   "I don't have that information. Please check with the front desk or clinic staff.";
@@ -11,14 +11,14 @@ const PET_HEALTH_REGEX =
   /\b(my pet is sick|my dog is sick|my cat is sick|pet is sick|not eating|won't eat|isn't eating|vomit|vomiting|diarrhea|loose stool|limping|lethargic|weak|fever|shaking|trembling|seizure|collapsed|bleeding|wound|bitten|attacked|swallowed|not drinking|losing weight|lump|bumps?|skin problem|scratching|hair loss|eye discharge|nose discharge|sneezing|coughing|breathing fast|bloated|peeing blood|bad breath|swollen face|in pain|not acting normal)\b/i;
 
 const PET_HEALTH_SAFETY_TAIL =
-  "\n\nQuick Assist is not a veterinarian or doctor, and this is not a diagnosis. Please contact or visit a PawCruz vet; go urgently if symptoms worsen or you see red flags.";
+  "";
 
 const PET_HEALTH_URGENT_REPLY =
-  "This may be an emergency. Go to the nearest open veterinary hospital or emergency clinic right away, or call PawCruz if we are open. Do not wait for chat replies." +
+  "Please have your pet seen by our attending veterinarian as soon as possible. Quick Assist cannot assess or diagnose medical conditions. If the situation seems urgent, please alert the vet on duty right away or come to the clinic immediately." +
   PET_HEALTH_SAFETY_TAIL;
 
 const PET_HEALTH_GENERAL_REPLY =
-  "If your pet seems sick, keep them calm and comfortable, offer fresh water, and monitor appetite, energy, breathing, vomiting, diarrhea, urination, and pain. Avoid human medicine unless a veterinarian prescribed it. Red flags include trouble breathing, collapse, repeated vomiting, blood, severe weakness, a hard or painful belly, seizures, pale/blue gums, or not drinking." +
+  "Please have your pet seen by our attending veterinarian as soon as possible. Quick Assist cannot assess or diagnose medical conditions. If the situation seems urgent, please alert the vet on duty right away or come to the clinic immediately." +
   PET_HEALTH_SAFETY_TAIL;
 
 const hasMildSymptomTopic = (normalized) =>
@@ -36,73 +36,28 @@ const mildSymptomGuidanceMatch = (normalized) => {
   return hasMildSymptomTopic(normalized) && seemsToWantGuidance(normalized);
 };
 
-const guidanceTail = PET_HEALTH_SAFETY_TAIL;
+const replyMildSymptomGuidance = () => PET_HEALTH_GENERAL_REPLY;
 
-const replyMildSymptomGuidance = (normalized) => {
-  if (/\b(vomit|vomiting|threw|throw|puking)\b/.test(normalized)) {
-    return (
-      "For a single episode of vomiting in an otherwise bright adult dog or cat, offer small sips of water and monitor closely. Puppies, kittens, seniors, and small pets can get dehydrated quickly. Seek urgent care for repeated vomiting, blood in vomit, inability to keep water down, pain, bloated belly, extreme tiredness, or anything that worries you." +
-      guidanceTail
-    );
-  }
-
-  if (/\b(diarrhea|loose stool)\b/.test(normalized)) {
-    return (
-      "For mild soft stool, keep fresh water available. Do not give human medicines unless your veterinarian prescribed them. Book a visit if it lasts more than a day or keeps returning. Seek urgent care for blood, black stool, severe straining, severe pain, or if the pet is very young, old, or looks unwell." +
-      guidanceTail
-    );
-  }
-
-  if (/\b(not eating|won't eat|isn't eating|loss of appetite)\b/.test(normalized)) {
-    if (/\b(my dog|dog|puppy)\b/.test(normalized)) {
-      return (
-        "If your dog is not eating, check for vomiting, diarrhea, pain, weakness, bloating, breathing changes, or unusual behavior. Do not force food or give human medicine. Offer fresh water and a small amount of their usual food, then contact a vet if your dog skips more than one meal, is a puppy or senior, or has any other symptoms." +
-        guidanceTail
-      );
-    }
-
-    if (/\b(my cat|cat|kitten)\b/.test(normalized)) {
-      return (
-        "Not eating can be serious in cats. Do not force food. Check for vomiting, pain, breathing changes, or weakness. If a cat skips food for about a day, or a kitten looks weak or flat, contact a vet the same day." +
-        guidanceTail
-      );
-    }
-
-    return (
-      "Not eating can be serious. Do not force food. Check for vomiting, diarrhea, pain, breathing changes, weakness, or unusual behavior. Contact a vet if your pet skips multiple meals, is very young or senior, or has any other symptoms." +
-      guidanceTail
-    );
-  }
-
-  if (/\b(limp|limping|lame)\b/.test(normalized)) {
-    return (
-      "For limping, keep your pet quiet and avoid stairs or running. Check paws only if it is safe. See a vet soon if the pet will not use the leg, the leg swells, or there was an injury. Go the same day for strong pain or trauma." +
-      guidanceTail
-    );
-  }
-
-  if (/\b(sneez|sneezing|cough|coughing|runny|watery eyes)\b/.test(normalized)) {
-    return (
-      "For mild snuffles, keep the pet comfortable, ensure good airflow, and watch breathing and appetite. Urgent signs include hard breathing, blue or gray gums, or not eating. Book a visit if signs linger or get worse." +
-      guidanceTail
-    );
-  }
-
-  if (/\b(scratch|itch|hair loss|ear)\b/.test(normalized)) {
-    return (
-      "Itchy skin or ears can have many causes. Avoid random human medicines. Book an exam so the clinic can check for infection, parasites, allergies, or wounds. Seek urgent care if the face or throat swells or the pet is in serious distress." +
-      guidanceTail
-    );
-  }
-
-  return PET_HEALTH_GENERAL_REPLY;
+const getLocalDayName = (offsetDays = 0) => {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toLocaleDateString(undefined, { weekday: "long" });
 };
 
-const replyOpenToday = () =>
-  "Yes, we are open today from 9:00 AM to 7:00 PM on our regular schedule. Holiday hours can vary, so call the clinic if unsure.";
+const isSundayName = (dayName = "") => /^sun(day)?$/i.test(dayName);
 
-const replyTomorrow = () =>
-  "Yes, we are open tomorrow from 9:00 AM to 7:00 PM on our regular schedule. Holiday hours can vary, so call ahead if a holiday falls on that day.";
+const replyOpenToday = () =>
+  isSundayName(getLocalDayName())
+    ? "Sorry, we are closed today because it is Sunday. We are open Monday to Saturday, 8:00 AM to 6:00 PM."
+    : "Yes, we are open today from 8:00 AM to 6:00 PM, unless today is a public holiday.";
+
+const replyTomorrow = () => {
+  const tomorrow = getLocalDayName(1);
+  if (isSundayName(tomorrow)) {
+    return "Sorry, we are closed tomorrow because it is Sunday. We are open Monday to Saturday, 8:00 AM to 6:00 PM.";
+  }
+  return `Yes, we are open tomorrow (${tomorrow}) from 8:00 AM to 6:00 PM, unless it is a public holiday.`;
+};
 
 const parseHourFromQuestion = (normalized) => {
   const match = normalized.match(/\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/);
@@ -126,6 +81,8 @@ const hasDayName = (normalized) =>
 const hasTomorrowWord = (normalized) =>
   /\b(tomorrow|tmr|tmrw|tomm?orow|tom)\b/.test(normalized);
 
+const asksSunday = (normalized) => /\b(sunday|sun)\b/.test(normalized);
+
 const matchOpenDayTimeQuestion = (normalized) => {
   if (
     !/\b(open|hours?|operating hours?|clinic hours?|available)\b/.test(
@@ -137,15 +94,19 @@ const matchOpenDayTimeQuestion = (normalized) => {
   }
 
   const requestedHour = parseHourFromQuestion(normalized);
+  if (asksSunday(normalized)) {
+    return "Sorry, we are closed on Sundays. We are open Monday to Saturday, 8:00 AM to 6:00 PM.";
+  }
+
   if (requestedHour === null) {
-    return "Yes, we are open that day from 9:00 AM to 7:00 PM unless a holiday affects hours. Please call to confirm if unsure.";
+    return "Yes, we are open that day from 8:00 AM to 6:00 PM unless it is a public holiday.";
   }
 
-  if (requestedHour >= 9 && requestedHour < 19) {
-    return "Yes, that time is within our regular clinic hours: Monday to Sunday, 9:00 AM to 7:00 PM. Holiday hours may differ, so please call to confirm.";
+  if (requestedHour >= 8 && requestedHour < 18) {
+    return "Yes, that time is within our regular clinic hours: Monday to Saturday, 8:00 AM to 6:00 PM. We are closed on Sundays and public holidays.";
   }
 
-  return "No, that time is outside our regular clinic hours. We are open Monday to Sunday, 9:00 AM to 7:00 PM. Holiday hours may differ, so please call to confirm.";
+  return "No, that time is outside our regular clinic hours. We are open Monday to Saturday, 8:00 AM to 6:00 PM. We are closed on Sundays and public holidays.";
 };
 
 const matchDayComeQuestion = (normalized) => {
@@ -153,12 +114,15 @@ const matchDayComeQuestion = (normalized) => {
 
   if (/\btoday\b/.test(normalized)) return replyOpenToday();
   if (hasTomorrowWord(normalized)) return replyTomorrow();
+  if (asksSunday(normalized)) {
+    return "Sorry, we are closed on Sundays. We are open Monday to Saturday, 8:00 AM to 6:00 PM.";
+  }
   if (
     /\b(monday|mon|tuesday|tue|tues|wednesday|wed|thursday|thu|thur|thurs|friday|fri|saturday|sat|sunday|sun)\b/.test(
       normalized,
     )
   ) {
-    return "Yes, we are open that day from 9:00 AM to 7:00 PM unless a holiday affects hours. Please call to confirm if unsure.";
+    return "Yes, we are open that day from 8:00 AM to 6:00 PM unless it is a public holiday.";
   }
 
   return null;
@@ -212,7 +176,7 @@ export const QUICK_ASSIST_PATTERNS = [
         normalized,
       ),
     reply:
-      "I can help with clinic hours, services, booking questions, vaccination schedules, grooming information, payment reminders, your appointment details, and general pet-care guidance. For pet symptoms, I can share safe first steps, but a PawCruz vet should examine your pet.",
+      "I can help with clinic hours, services, booking questions, vaccination schedules, grooming information, payment reminders, your appointment details, and staff workflow tasks.",
   },
   {
     id: "hours",
@@ -292,7 +256,7 @@ export const QUICK_ASSIST_PATTERNS = [
         normalized,
       ),
     reply:
-      "Payments are handled at the clinic front desk. You can review your payment history from the Payment History page.",
+      "All payments are handled in person at the clinic front desk only. We do not have online or in-app payment.",
   },
   {
     id: "vaccine_availability",
@@ -320,7 +284,7 @@ export const QUICK_ASSIST_PATTERNS = [
     match: (normalized) =>
       /\b(grooming|groom|haircut|nail trim|bath)\b/.test(normalized),
     reply:
-      "Yes, we offer grooming services including bath, blow dry, ear cleaning, nail trimming, and breed-specific haircuts. Please book ahead when possible.",
+      "Yes, we offer grooming services including bath, blow dry, ear cleaning, nail trimming, and breed-specific haircuts. Please book at least 2 days in advance.",
   },
   {
     id: "emergency_service",
@@ -331,7 +295,7 @@ export const QUICK_ASSIST_PATTERNS = [
       !PET_HEALTH_REGEX.test(normalized) &&
       !URGENT_PET_HEALTH_REGEX.test(normalized),
     reply:
-      "We may see urgent cases during clinic hours, typically Monday to Sunday, 9:00 AM to 7:00 PM. Call ahead when possible. After hours or for life-threatening emergencies, go to the nearest 24-hour veterinary emergency clinic.",
+      "We accept emergency consultations during clinic hours, Monday to Saturday, 8:00 AM to 6:00 PM. Please call ahead. For after-hours emergencies, go to the nearest 24-hour veterinary emergency clinic.",
   },
   {
     id: "services",
@@ -358,7 +322,7 @@ export const QUICK_ASSIST_PATTERNS = [
         normalized,
       ),
     reply:
-      "Our veterinarian sees patients during clinic hours: Monday to Sunday, 9:00 AM to 7:00 PM, except when holiday hours or special notices apply.",
+      "Our veterinarian is available during clinic hours, Monday to Saturday, 8:00 AM to 6:00 PM.",
   },
   {
     id: "specific_vet",
@@ -405,7 +369,7 @@ export const QUICK_ASSIST_PATTERNS = [
     match: (normalized) =>
       /\b(open on holidays|public holiday|holiday hours)\b/.test(normalized),
     reply:
-      "Regular hours are Monday to Sunday, 9:00 AM to 7:00 PM. Some public holidays may have shorter hours or closure, so please call before visiting.",
+      "We are closed on public holidays. We are open Monday to Saturday, 8:00 AM to 6:00 PM, when there is no holiday.",
   },
 ];
 
