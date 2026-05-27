@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import VetSidebar from "../../../components/VetSidebar";
+import VetConfirmModal from "../../../components/VetConfirmModal";
 import { useSidebar } from "../../../components/useSidebar";
 import {
   createMyVetScheduleException,
@@ -44,6 +45,7 @@ export default function VetSchedule() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [confirmModal, setConfirmModal] = useState(null);
   const [exceptionForm, setExceptionForm] = useState({
     startsAt: "",
     endsAt: "",
@@ -148,13 +150,20 @@ export default function VetSchedule() {
   };
 
   const removeException = async (id) => {
-    if (!window.confirm("Delete this exception?")) return;
+    setConfirmModal({ type: "delete-exception", id, loading: false });
+  };
+
+  const confirmRemoveException = async () => {
+    if (!confirmModal?.id) return;
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
     setError("");
     try {
-      await deleteVetScheduleException(id);
+      await deleteVetScheduleException(confirmModal.id);
       await loadSchedule();
+      setConfirmModal(null);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to delete exception");
+      setConfirmModal(null);
     }
   };
 
@@ -430,6 +439,18 @@ export default function VetSchedule() {
           </div>
         </section>
       </main>
+
+      {confirmModal?.type === "delete-exception" && (
+        <VetConfirmModal
+          title="Delete Exception"
+          message="Delete this schedule exception? This will make the time available again if your weekly schedule allows it."
+          confirmLabel="Delete"
+          tone="danger"
+          loading={confirmModal.loading}
+          onCancel={() => setConfirmModal(null)}
+          onConfirm={confirmRemoveException}
+        />
+      )}
     </div>
   );
 }

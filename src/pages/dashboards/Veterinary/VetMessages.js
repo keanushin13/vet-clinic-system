@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
+import VetConfirmModal from "../../../components/VetConfirmModal";
 import "../../../css/VetMessages.css";
 import VetSidebar from "../../../components/VetSidebar";
 import { useSidebar } from "../../../components/useSidebar";
@@ -65,6 +66,7 @@ const VetMessages = () => {
   const [userSearch, setUserSearch] = useState("");
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingBody, setEditingBody] = useState("");
+  const [confirmModal, setConfirmModal] = useState(null);
 
   const loadThreads = () =>
     getMessageThreads()
@@ -158,11 +160,21 @@ const VetMessages = () => {
   };
 
   const removeMessage = async (id) => {
-    if (!window.confirm("Delete this message?") || !activeChat) return;
-    await deleteMessage(id);
-    getMessageThread(activeChat.partner.id)
-      .then((r) => setMessages(r.data || []))
-      .catch(() => {});
+    if (!activeChat) return;
+    setConfirmModal({ type: "delete-message", id, loading: false });
+  };
+
+  const confirmRemoveMessage = async () => {
+    if (!confirmModal?.id || !activeChat) return;
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
+    try {
+      await deleteMessage(confirmModal.id);
+      getMessageThread(activeChat.partner.id)
+        .then((r) => setMessages(r.data || []))
+        .catch(() => {});
+    } finally {
+      setConfirmModal(null);
+    }
   };
 
   const partnerDisplayName = (partner) =>
@@ -417,6 +429,18 @@ const VetMessages = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {confirmModal?.type === "delete-message" && (
+        <VetConfirmModal
+          title="Delete Message"
+          message="Delete this message from the conversation?"
+          confirmLabel="Delete"
+          tone="danger"
+          loading={confirmModal.loading}
+          onCancel={() => setConfirmModal(null)}
+          onConfirm={confirmRemoveMessage}
+        />
       )}
     </div>
   );
