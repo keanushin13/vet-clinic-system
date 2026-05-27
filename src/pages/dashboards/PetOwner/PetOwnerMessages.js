@@ -8,6 +8,7 @@ import PetOwnerChatBot from "./PetOwnerChatBot";
 import {
   deleteMessage,
   getAvailableVets,
+  getMessageContacts,
   getMessageThread,
   getMessageThreads,
   getNotifications,
@@ -133,6 +134,7 @@ const PetOwnerMessages = () => {
     setShowCompose(true);
 
     Promise.allSettled([
+      getMessageContacts(),
       getUsers({ page: 1, limit: 1000 }),
       getUsers({ role: "staff", limit: 1000 }),
       getUsers({ role: "veterinarian", limit: 1000 }),
@@ -153,9 +155,10 @@ const PetOwnerMessages = () => {
 
         const users = [
           ...readUsers(results[0], ""),
-          ...readUsers(results[1], "staff"),
-          ...readUsers(results[2], "veterinarian"),
+          ...readUsers(results[1], ""),
+          ...readUsers(results[2], "staff"),
           ...readUsers(results[3], "veterinarian"),
+          ...readUsers(results[4], "veterinarian"),
           ...threads
             .map((thread) => thread.partner)
             .map((partner) => normalizeMessageUser(partner))
@@ -173,7 +176,7 @@ const PetOwnerMessages = () => {
         const hasStaff = uniqueUsers.some((candidate) => getMessageRole(candidate) === "staff");
         const hasVet = uniqueUsers.some((candidate) => getMessageRole(candidate) === "veterinarian");
         const vetSourceFailed =
-          results[2].status === "rejected" && results[3].status === "rejected";
+          results[3].status === "rejected" && results[4].status === "rejected";
 
         setAllUsers(uniqueUsers);
         setComposeErrors({
@@ -569,6 +572,10 @@ const PetOwnerMessages = () => {
                     <div>
                       <div className="compose-name">
                         {getFullName(u)}
+                      </div>
+                      <div className="compose-role">
+                        {getMessageRole(u) === "veterinarian" ? "Veterinarian" : "Staff"}
+                        {u.email ? ` - ${u.email}` : ""}
                       </div>
                     </div>
                   </div>
