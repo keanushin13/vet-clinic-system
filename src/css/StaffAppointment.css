@@ -40,6 +40,75 @@
   cursor: pointer;
 }
 
+.select-date-btn {
+  min-height: 41px;
+  border: 1px solid #63b6c5;
+  border-radius: 8px;
+  background: #eef9fb;
+  color: #255065;
+  padding: 10px 18px;
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.select-date-btn.active {
+  background: #255065;
+  border-color: #255065;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(37, 80, 101, 0.18);
+}
+
+.date-availability-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -4px 0 14px;
+  padding: 12px;
+  border: 1px solid #d9e8ef;
+  border-radius: 8px;
+  background: #f8fbfd;
+}
+
+.date-availability-options,
+.date-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.date-option-btn {
+  min-height: 38px;
+  border: 1px solid #c8e4ee;
+  border-radius: 8px;
+  background: #fff;
+  color: #255065;
+  padding: 8px 12px;
+  font-family: "Poppins", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.date-option-btn.active {
+  border-color: #63b6c5;
+  background: #e9f7fb;
+}
+
+.date-option-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.date-selection-count {
+  color: #5d6b78;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .appointment-actions {
   display: flex;
   align-items: center;
@@ -361,9 +430,13 @@
   flex: 0 0 auto;
 }
 
-.appointment-calendar-body .day-events {
-  min-height: 0;
-  overflow: hidden;
+.calendar-day.appointment-queue-day {
+  cursor: pointer;
+}
+
+.calendar-day.appointment-queue-day:hover {
+  background: #f4fbfd;
+  box-shadow: inset 0 0 0 2px rgba(99, 182, 197, 0.24);
 }
 
 .calendar-day.empty {
@@ -381,17 +454,148 @@
   font-weight: 700;
 }
 
-.calendar-day.past-due::after {
-  content: "Due";
-  align-self: flex-start;
+.calendar-day.date-selectable {
+  cursor: pointer;
+  background: #f7fcfd;
+  box-shadow: inset 0 0 0 1px rgba(99, 182, 197, 0.26);
+}
+
+.calendar-day.date-selectable:hover {
+  background: #eaf8fb;
+  box-shadow: inset 0 0 0 2px rgba(99, 182, 197, 0.38);
+}
+
+.calendar-day.available-selected {
+  background: #eef8f0;
+  box-shadow: inset 0 0 0 2px rgba(47, 125, 69, 0.24);
+}
+
+.calendar-day.draft-selected {
+  background: #e9f7fb;
+  box-shadow: inset 0 0 0 2px rgba(99, 182, 197, 0.48);
+}
+
+.date-status-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
   margin-top: 4px;
-  padding: 2px 7px;
+}
+
+.date-state-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
   border-radius: 999px;
-  background: #e2e6ea;
-  color: #6b7280;
   font-size: 10px;
   font-weight: 800;
-  line-height: 1.4;
+  line-height: 1;
+}
+
+.date-state-badge.available {
+  align-self: flex-start;
+  background: #dff2e4;
+  color: #2f7d45;
+}
+
+.date-state-badge.due {
+  background: #e2e6ea;
+  color: #6b7280;
+}
+
+.date-state-badge.selected {
+  background: #d8ecff;
+  color: #1769aa;
+}
+
+.appointment-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 3px 8px rgba(245, 158, 11, 0.28);
+}
+
+.availability-confirm-overlay {
+  z-index: 1100;
+}
+
+.availability-confirm-modal {
+  max-width: 460px;
+}
+
+.availability-confirm-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #e9f7fb;
+  color: #255065;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.availability-confirm-modal h3 {
+  margin: 0 0 8px;
+  color: #255065;
+  font-size: 20px;
+}
+
+.availability-confirm-copy {
+  margin: 0 0 16px;
+  color: #5d6b78;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.availability-confirm-date {
+  padding: 14px;
+  border: 1px solid #d9dee5;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.availability-confirm-date span {
+  display: block;
+  margin-bottom: 8px;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.availability-confirm-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #243746;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.availability-confirm-actions {
+  margin-top: 18px;
+}
+
+.availability-confirm-btn {
+  background: #255065;
+}
+
+.availability-confirm-btn:hover {
+  background: #1f4f68;
 }
 
 .day-num {
@@ -547,6 +751,11 @@
   color: #c62828;
 }
 
+.apt-status.no-compliance {
+  background: #fff1e6;
+  color: #c2410c;
+}
+
 .action-btns {
   display: flex;
   gap: 8px;
@@ -628,6 +837,131 @@
   color: #7a8794;
   font-size: 13px;
   font-weight: 600;
+}
+
+.appointment-queue-overlay {
+  z-index: 1080;
+}
+
+.appointment-queue-modal {
+  max-width: 760px;
+}
+
+.appointment-queue-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #e9f7fb;
+  color: #255065;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.appointment-queue-modal h3 {
+  margin: 0 0 8px;
+  color: #255065;
+  font-size: 20px;
+}
+
+.appointment-queue-copy {
+  margin: 0 0 16px;
+  color: #5d6b78;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.appointment-queue-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(58vh, 520px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.appointment-queue-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #dfe8ef;
+  border-left-width: 5px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.appointment-queue-row.pending {
+  border-left-color: #ef6c00;
+}
+
+.appointment-queue-row.confirmed {
+  border-left-color: #1976d2;
+}
+
+.appointment-queue-row.completed {
+  border-left-color: #2e7d32;
+}
+
+.appointment-queue-row.cancelled {
+  border-left-color: #c62828;
+}
+
+.appointment-queue-row.no-compliance {
+  border-left-color: #f97316;
+}
+
+.appointment-queue-number {
+  min-width: 44px;
+  color: #255065;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.appointment-queue-main {
+  min-width: 0;
+}
+
+.appointment-queue-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.appointment-queue-top strong {
+  color: #243746;
+  font-size: 14px;
+}
+
+.appointment-queue-title {
+  color: #243746;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.appointment-queue-meta,
+.appointment-queue-reason {
+  overflow: hidden;
+  color: #5d6b78;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-queue-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.appointment-queue-modal-actions {
+  margin-top: 18px;
 }
 
 .btn-edit.icon-btn,
@@ -908,6 +1242,13 @@
   font-size: 12px;
   font-weight: 800;
   margin-bottom: 12px;
+}
+
+.pending-appointment-badge.no-compliance,
+.confirmed-appointment-badge.no-compliance,
+.cancelled-appointment-badge.no-compliance {
+  background: #fff1e6;
+  color: #c2410c;
 }
 
 .pending-appointment-modal h3 {
@@ -1233,6 +1574,156 @@
   font-size: 13px;
 }
 
+.booking-selected-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #c8e4ee;
+  border-radius: 10px;
+  background: #f1fbfe;
+  color: #255065;
+}
+
+.booking-selected-date span {
+  color: #5d6b78;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.booking-selected-date strong {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.booking-date-picker {
+  border: 1px solid #dbe6ee;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.booking-date-picker-header {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.booking-date-nav {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #c8e4ee;
+  border-radius: 10px;
+  background: #eef7fb;
+  color: #255065;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.booking-date-nav:hover {
+  background: #dff2f7;
+}
+
+.booking-calendar-picker {
+  justify-content: center;
+}
+
+.booking-calendar-picker label {
+  min-width: 0;
+}
+
+.booking-calendar-picker select {
+  min-width: 110px;
+}
+
+.booking-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.booking-date-weekday {
+  color: #63b6c5;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.booking-date-day {
+  min-height: 58px;
+  border: 1px solid #dbe6ee;
+  border-radius: 8px;
+  background: #fff;
+  color: #243746;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 7px;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+}
+
+.booking-date-day.empty {
+  border-color: transparent;
+  background: transparent;
+  pointer-events: none;
+}
+
+.booking-date-day.past-due {
+  background: #f1f3f5;
+  color: #7d8794;
+  cursor: not-allowed;
+}
+
+.booking-date-day.available {
+  background: #eef8f0;
+  border-color: #b8dfc0;
+}
+
+.booking-date-day.available:hover:not(:disabled),
+.booking-date-day.available:focus-visible {
+  border-color: #2f7d45;
+  box-shadow: 0 0 0 2px rgba(47, 125, 69, 0.18);
+  outline: none;
+}
+
+.booking-date-day.selected {
+  background: #eaf5ff;
+  border-color: #4f9bd8;
+  box-shadow: 0 0 0 2px rgba(79, 155, 216, 0.18);
+}
+
+.booking-date-day.unavailable {
+  background: #f8fafc;
+  color: #a4adba;
+  cursor: not-allowed;
+}
+
+.booking-date-day:disabled {
+  opacity: 1;
+}
+
+.booking-date-number {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.no-available-dates-hint {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
 .appointment-success-hint {
   margin: 8px 0 12px;
   color: #23733c;
@@ -1475,6 +1966,19 @@
     margin-top: var(--topbar-height) !important;
   }
 
+  .date-availability-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .date-selection-count {
+    white-space: normal;
+  }
+
+  .date-confirm-actions {
+    justify-content: flex-end;
+  }
+
   .calendar-month-header {
     align-items: stretch;
     flex-direction: column;
@@ -1535,6 +2039,15 @@
   .completed-appointment-details,
   .confirmed-appointment-details {
     grid-template-columns: 1fr;
+  }
+
+  .appointment-queue-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .appointment-queue-actions {
+    justify-content: flex-start;
   }
 
   /* Stats grid: 2 columns on tablet, 1 on phone */
@@ -1612,6 +2125,16 @@
   }
 
   .appointment-step-actions button {
+    flex: 1 1 auto;
+  }
+
+  .date-availability-options,
+  .date-confirm-actions {
+    width: 100%;
+  }
+
+  .date-option-btn,
+  .date-confirm-actions button {
     flex: 1 1 auto;
   }
 }

@@ -18,6 +18,120 @@ import {
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, value) => ({
+  value,
+  label: new Date(2000, value, 1).toLocaleString([], { month: "long" }),
+}));
+const CALENDAR_PAST_YEARS = 100;
+const CALENDAR_FUTURE_YEARS = 25;
+const AVAILABLE_DATES_STORAGE_KEY = "staffAppointmentAvailableDates";
+const NO_COMPLIANCE_CANCEL_LABEL = "Cancelled Due to No Compliance";
+const NO_COMPLIANCE_CANCEL_NOTE = "Cancelled due to no compliance.";
+
+const getLocalDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const isPastDateValue = (value) =>
+  Boolean(value && value < getLocalDateKey(new Date()));
+
+const getAppointmentLocalDateKey = (appointment) => {
+  const scheduledDate = new Date(appointment?.scheduledAt);
+  if (Number.isNaN(scheduledDate.getTime())) return "";
+  return getLocalDateKey(scheduledDate);
+};
+
+const getLocalTimeKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
+  ).padStart(2, "0")}`;
+};
+
+const normalizeDateKeyList = (dateKeys) =>
+  Array.from(
+    new Set(
+      (Array.isArray(dateKeys) ? dateKeys : []).filter(
+        (dateKey) =>
+          /^\d{4}-\d{2}-\d{2}$/.test(dateKey) && !isPastDateValue(dateKey),
+      ),
+    ),
+  ).sort();
+
+const loadStoredAvailableDates = () => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    return normalizeDateKeyList(
+      JSON.parse(
+        window.localStorage.getItem(AVAILABLE_DATES_STORAGE_KEY) || "[]",
+      ),
+    );
+  } catch {
+    return [];
+  }
+};
+
+const toSlotDateTime = (value, date) => {
+  if (!value) return "";
+  const rawValue = String(value);
+
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(rawValue)) {
+    const normalizedTime = rawValue.length === 5 ? `${rawValue}:00` : rawValue;
+    return new Date(`${date}T${normalizedTime}`).toISOString();
+  }
+
+  return rawValue;
+};
+
+const normalizeSlotList = (payload, date) => {
+  const source = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.slots)
+      ? payload.slots
+      : Array.isArray(payload?.availableSlots)
+        ? payload.availableSlots
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+
+  return source
+    .map((slot) => {
+      if (typeof slot === "string") {
+        const startsAt = toSlotDateTime(slot, date);
+        return startsAt ? { startsAt, endsAt: startsAt } : null;
+      }
+
+      const startsAt = toSlotDateTime(
+        slot?.startsAt ||
+          slot?.startAt ||
+          slot?.start ||
+          slot?.startTime ||
+          slot?.time ||
+          slot?.value ||
+          slot?.scheduledAt,
+        date,
+      );
+      if (!startsAt) return null;
+
+      return {
+        ...slot,
+        startsAt,
+        endsAt:
+          toSlotDateTime(
+            slot?.endsAt || slot?.endAt || slot?.end || slot?.endTime,
+            date,
+          ) || startsAt,
+      };
+    })
+    .filter(Boolean);
+};
+
 const VISIT_REASONS = {
   Consultation: [
     "General Consultation",
@@ -56,6 +170,8 @@ const VISIT_REASONS = {
     "Giardia Test",
   ],
 };
+const BOOKING_STEPS = ["Pet", "Visit Reason", "Date & Time", "Notes"];
+const FINAL_BOOKING_STEP_INDEX = BOOKING_STEPS.length - 1;
 
 function parseReason(reasonStr) {
   if (!reasonStr) return { visitReason: "", serviceType: "" };
@@ -69,6 +185,43 @@ function parseReason(reasonStr) {
   return { visitReason: reasonStr.slice(0, idx), serviceType: reasonStr.slice(idx + sep.length) };
 }
 
+const normalizeAppointmentStatus = (appointment, fallback = "Pending") =>
+  String(appointment?.status || fallback).trim().toLowerCase();
+
+const isAppointmentPastDue = (appointment) => {
+  const appointmentDateKey = getAppointmentLocalDateKey(appointment);
+  return Boolean(appointmentDateKey && isPastDateValue(appointmentDateKey));
+};
+
+const isNoComplianceCancelled = (appointment) =>
+  normalizeAppointmentStatus(appointment) === "cancelled" &&
+  String(appointment?.notes || "").includes(NO_COMPLIANCE_CANCEL_NOTE);
+
+const isNoComplianceCandidate = (appointment) =>
+  normalizeAppointmentStatus(appointment, "Pending") === "pending" &&
+  isAppointmentPastDue(appointment);
+
+const getAppointmentStatusDisplay = (appointment) => {
+  if (
+    isNoComplianceCandidate(appointment) ||
+    isNoComplianceCancelled(appointment)
+  ) {
+    return {
+      label: NO_COMPLIANCE_CANCEL_LABEL,
+      className: "cancelled no-compliance",
+    };
+  }
+
+  const label = appointment?.status || "Pending";
+  return {
+    label,
+    className: normalizeAppointmentStatus(appointment, "Pending").replace(
+      /\s+/g,
+      "-",
+    ),
+  };
+};
+
 const PetOwnerAppointment = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -78,14 +231,22 @@ const PetOwnerAppointment = () => {
   const [pets, setPets] = useState([]);
   const [vets, setVets] = useState([]);
   const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("calendar");
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [bookingCalendarDate, setBookingCalendarDate] = useState(new Date());
+  const [availableDateKeys, setAvailableDateKeys] = useState(
+    loadStoredAvailableDates,
+  );
   const [search, setSearch] = useState("");
   const [booking, setBooking] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [bookingStep, setBookingStep] = useState(0);
   const [error, setError] = useState("");
+  const [pendingBookingDateKey, setPendingBookingDateKey] = useState("");
+  const [queueDateKey, setQueueDateKey] = useState("");
   const [form, setForm] = useState({
     petId: "",
     vetId: "",
@@ -99,6 +260,7 @@ const PetOwnerAppointment = () => {
     Pending: true,
     Confirmed: true,
     Completed: false,
+    [NO_COMPLIANCE_CANCEL_LABEL]: true,
     Cancelled: false,
   });
 
@@ -109,6 +271,25 @@ const PetOwnerAppointment = () => {
     }
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const refreshAvailableDates = () =>
+      setAvailableDateKeys(loadStoredAvailableDates());
+
+    const onStorage = (event) => {
+      if (event.key === AVAILABLE_DATES_STORAGE_KEY) {
+        refreshAvailableDates();
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", refreshAvailableDates);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", refreshAvailableDates);
+    };
   }, []);
 
   const loadData = async () => {
@@ -136,16 +317,40 @@ const PetOwnerAppointment = () => {
     }
   };
 
-  const openBookingModal = () => {
+  const ensureCurrentSlotOption = (slotList, currentSlotIso) => {
+    if (!currentSlotIso) return slotList;
+    const exists = slotList.some((slot) => slot.startsAt === currentSlotIso);
+    if (exists) return slotList;
+
+    return [
+      {
+        startsAt: currentSlotIso,
+        endsAt: currentSlotIso,
+        isCurrent: true,
+      },
+      ...slotList,
+    ].sort(
+      (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+    );
+  };
+
+  const openBookingModal = ({ date = "" } = {}) => {
+    const defaultVetId = form.vetId || vets[0]?.id || "";
+    const nextCalendarDate = date ? new Date(`${date}T00:00:00`) : new Date();
     setEditing(null);
     setShowModal(true);
+    setBookingStep(0);
+    setPendingBookingDateKey("");
+    setQueueDateKey("");
+    setBookingCalendarDate(nextCalendarDate);
     setError("");
     setSlots([]);
+    setSlotsLoading(false);
     setForm((prev) => ({
       ...prev,
       petId: prev.petId || pets[0]?.id || "",
-      vetId: prev.vetId || vets[0]?.id || "",
-      date: "",
+      vetId: defaultVetId,
+      date,
       slot: "",
       visitReason: "",
       serviceType: "",
@@ -153,11 +358,25 @@ const PetOwnerAppointment = () => {
     }));
   };
 
+  const closeBookingModal = () => {
+    setShowModal(false);
+    setEditing(null);
+    setBookingStep(0);
+    setPendingBookingDateKey("");
+    setQueueDateKey("");
+    setError("");
+    setSlotsLoading(false);
+  };
+
   const openEditModal = async (appointment) => {
     const iso = new Date(appointment.scheduledAt).toISOString();
     const date = iso.slice(0, 10);
     setEditing(appointment);
     setShowModal(true);
+    setBookingStep(0);
+    setPendingBookingDateKey("");
+    setQueueDateKey("");
+    setBookingCalendarDate(new Date(`${date}T00:00:00`));
     setError("");
     const { visitReason, serviceType } = parseReason(appointment.reason || "");
     setForm({
@@ -169,42 +388,180 @@ const PetOwnerAppointment = () => {
       serviceType,
       notes: appointment.notes || "",
     });
-
-    await fetchSlots(appointment.vetId, date);
   };
 
-  const fetchSlots = async (vetId, date) => {
+  const openRebookModal = (appointment) => {
+    const { visitReason, serviceType } = parseReason(appointment.reason || "");
+    const defaultVetId = appointment.vetId || form.vetId || vets[0]?.id || "";
+
+    setEditing(null);
+    setShowModal(true);
+    setBookingStep(visitReason && serviceType ? 2 : 1);
+    setPendingBookingDateKey("");
+    setQueueDateKey("");
+    setBookingCalendarDate(new Date());
+    setError("");
+    setSlots([]);
+    setSlotsLoading(false);
+    setForm((prev) => ({
+      ...prev,
+      petId: appointment.petId || appointment.pet?.id || prev.petId || pets[0]?.id || "",
+      vetId: defaultVetId,
+      date: "",
+      slot: "",
+      visitReason,
+      serviceType,
+      notes: appointment.notes || "",
+    }));
+  };
+
+  const fetchSlots = async (vetId, date, currentSlotIso = "") => {
     if (!vetId || !date) {
       setSlots([]);
+      setSlotsLoading(false);
       return;
     }
+    setSlots([]);
+    setSlotsLoading(true);
+    setError("");
     try {
       const res = await getVetAvailableSlots(vetId, date);
-      setSlots(res.data.slots || []);
+      setSlots(
+        ensureCurrentSlotOption(
+          normalizeSlotList(res.data, date),
+          currentSlotIso,
+        ),
+      );
     } catch (err) {
       setError(
         err.response?.data?.message || "Failed to fetch available slots",
       );
       setSlots([]);
+    } finally {
+      setSlotsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!showModal) return;
+
+    let currentSlotIso = "";
+    if (editing && form.vetId === editing.vetId) {
+      const editingSlotIso = new Date(editing.scheduledAt).toISOString();
+      if (form.date === editingSlotIso.slice(0, 10)) {
+        currentSlotIso = editingSlotIso;
+      }
+    }
+
+    fetchSlots(form.vetId, form.date, currentSlotIso);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.vetId, form.date, showModal]);
 
   const onFieldChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-
-    if (name === "vetId" || name === "date") {
-      const vetId = name === "vetId" ? value : form.vetId;
-      const date = name === "date" ? value : form.date;
-      setForm((prev) => ({ ...prev, slot: "" }));
-      fetchSlots(vetId, date);
+    if (name === "date" && isPastDateValue(value)) {
+      setError("Due dates cannot be selected. Please choose an available date.");
+      setForm((prev) => ({ ...prev, date: "", slot: "" }));
+      setSlots([]);
+      return;
     }
+    if (
+      name === "date" &&
+      value &&
+      !editing &&
+      !canBookDate(value)
+    ) {
+      setError("Please choose a date marked available by the clinic.");
+      setForm((prev) => ({ ...prev, date: "", slot: "" }));
+      setSlots([]);
+      return;
+    }
+    if (name === "slot" && value && !editing && isConfirmedTimeTaken(value)) {
+      setError("This time already has a confirmed appointment. Please choose another time.");
+      setForm((prev) => ({ ...prev, slot: "" }));
+      return;
+    }
+
+    setError("");
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "vetId" || name === "date" ? { slot: "" } : {}),
+    }));
   };
 
-  const submitBooking = async (e) => {
+  const validateBookingStep = (step = bookingStep) => {
+    if (step === 0 && !form.petId) {
+      setError("Please select a pet.");
+      return false;
+    }
+    if (step === 1 && (!form.visitReason || !form.serviceType)) {
+      setError("Please select a visit reason and service type.");
+      return false;
+    }
+    if (step === 2) {
+      if (!form.vetId) {
+        setError("Please select a veterinarian.");
+        return false;
+      }
+      if (!editing && !hasBookableAppointmentDates) {
+        setError("No available appointment dates yet. Please check again later.");
+        return false;
+      }
+      if (!form.date) {
+        setError("Please select an available appointment date.");
+        return false;
+      }
+      if (!form.slot) {
+        setError("Please select an available time slot.");
+        return false;
+      }
+      if (!editing && !canBookDate(form.date)) {
+        setError("Please choose a date marked available by the clinic.");
+        return false;
+      }
+      if (!editing && isConfirmedTimeTaken(form.slot, form.date)) {
+        setError("This time already has a confirmed appointment. Please choose another time.");
+        return false;
+      }
+    }
+
+    setError("");
+    return true;
+  };
+
+  const goNextStep = () => {
+    if (!validateBookingStep()) return;
+    setBookingStep((current) =>
+      Math.min(FINAL_BOOKING_STEP_INDEX, current + 1),
+    );
+  };
+
+  const goBackStep = () => {
+    setError("");
+    setBookingStep((current) => Math.max(0, current - 1));
+  };
+
+  const onBookingFormSubmit = (e) => {
     e.preventDefault();
+    if (bookingStep < FINAL_BOOKING_STEP_INDEX) {
+      goNextStep();
+      return;
+    }
+    submitBooking();
+  };
+
+  const submitBooking = async () => {
     if (!form.petId || !form.vetId || !form.slot) {
       setError("Please select pet, veterinarian, and time slot");
+      return;
+    }
+    if (!editing && (!form.date || !canBookDate(form.date))) {
+      setError("Please choose a date marked available by the clinic.");
+      return;
+    }
+    if (!editing && isConfirmedTimeTaken(form.slot, form.date)) {
+      setError("This time already has a confirmed appointment. Please choose another time.");
       return;
     }
     if (!form.visitReason || !form.serviceType) {
@@ -235,6 +592,8 @@ const PetOwnerAppointment = () => {
       }
       setShowModal(false);
       setEditing(null);
+      setBookingStep(0);
+      setPendingBookingDateKey("");
       await loadData();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create appointment");
@@ -258,24 +617,32 @@ const PetOwnerAppointment = () => {
       `${a.vet?.firstName || ""} ${a.vet?.lastName || ""}`.trim() ||
       a.vet?.username ||
       "";
+    const statusDisplay = getAppointmentStatusDisplay(a);
     const query = search.toLowerCase();
     return (
       (a.pet?.name || "").toLowerCase().includes(query) ||
       vetName.toLowerCase().includes(query) ||
-      (a.status || "").toLowerCase().includes(query)
+      (a.status || "").toLowerCase().includes(query) ||
+      statusDisplay.label.toLowerCase().includes(query)
     );
   });
 
   // Group appointments by status
   const groupedAppointments = filteredAppointments.reduce((acc, apt) => {
-    const status = apt.status || "Pending";
+    const status = getAppointmentStatusDisplay(apt).label;
     if (!acc[status]) acc[status] = [];
     acc[status].push(apt);
     return acc;
   }, {});
 
   // Define status order for consistent display
-  const statusOrder = ["Pending", "Confirmed", "Completed", "Cancelled"];
+  const statusOrder = [
+    "Pending",
+    "Confirmed",
+    "Completed",
+    NO_COMPLIANCE_CANCEL_LABEL,
+    "Cancelled",
+  ];
   const sortedStatuses = statusOrder.filter(
     (s) => groupedAppointments[s]?.length > 0,
   );
@@ -294,6 +661,7 @@ const PetOwnerAppointment = () => {
       Pending: { icon: "🟡", color: "#ff9800" },
       Confirmed: { icon: "🟢", color: "#4caf50" },
       Completed: { icon: "✓", color: "#2196f3" },
+      [NO_COMPLIANCE_CANCEL_LABEL]: { icon: "!", color: "#b91c1c" },
       Cancelled: { icon: "✕", color: "#f44336" },
     };
     return configs[status] || configs.Pending;
@@ -311,17 +679,281 @@ const PetOwnerAppointment = () => {
   ).getDate();
   const firstWeekday = monthStart.getDay();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
-  const monthLabel = calendarDate.toLocaleString([], {
-    month: "long",
-    year: "numeric",
-  });
+  const selectedMonth = calendarDate.getMonth();
+  const selectedYear = calendarDate.getFullYear();
+  const currentYear = new Date().getFullYear();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const appointmentYears = appointments
+    .map((appointment) => new Date(appointment.scheduledAt).getFullYear())
+    .filter((year) => Number.isInteger(year));
+  const availableDateYears = availableDateKeys
+    .map((dateKey) => Number(dateKey.slice(0, 4)))
+    .filter((year) => Number.isInteger(year));
+  const firstYear = Math.min(
+    currentYear - CALENDAR_PAST_YEARS,
+    selectedYear,
+    ...appointmentYears,
+    ...availableDateYears,
+  );
+  const lastYear = Math.max(
+    currentYear + CALENDAR_FUTURE_YEARS,
+    selectedYear,
+    ...appointmentYears,
+    ...availableDateYears,
+  );
+  const yearOptions = Array.from(
+    { length: lastYear - firstYear + 1 },
+    (_, index) => firstYear + index,
+  );
+  const confirmedBookableDateKeys = Array.from(
+    new Set(
+      appointments
+        .filter(
+          (appointment) =>
+            normalizeAppointmentStatus(appointment) === "confirmed",
+        )
+        .map(getAppointmentLocalDateKey)
+        .filter((dateKey) => dateKey && !isPastDateValue(dateKey)),
+    ),
+  ).sort();
+  const bookableDateKeys = normalizeDateKeyList([
+    ...availableDateKeys,
+    ...confirmedBookableDateKeys,
+  ]);
+  const hasBookableAppointmentDates = bookableDateKeys.length > 0;
+  const canBookDate = (dateKey) => bookableDateKeys.includes(dateKey);
+  const getConfirmedTimeKeysForDate = (dateKey) =>
+    new Set(
+      appointments
+        .filter(
+          (appointment) =>
+            normalizeAppointmentStatus(appointment) === "confirmed" &&
+            getAppointmentLocalDateKey(appointment) === dateKey &&
+            String(appointment.id) !== String(editing?.id || ""),
+        )
+        .map((appointment) => getLocalTimeKey(appointment.scheduledAt))
+        .filter(Boolean),
+    );
+  const isConfirmedTimeTaken = (startsAt, dateKey = form.date) =>
+    Boolean(
+      startsAt &&
+        dateKey &&
+        getConfirmedTimeKeysForDate(dateKey).has(getLocalTimeKey(startsAt)),
+    );
 
   const shiftMonth = (delta) => {
     setCalendarDate(
       (prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1),
     );
   };
+
+  const onCalendarMonthChange = (e) => {
+    const month = Number(e.target.value);
+    setCalendarDate((prev) => new Date(prev.getFullYear(), month, 1));
+  };
+
+  const onCalendarYearChange = (e) => {
+    const year = Number(e.target.value);
+    setCalendarDate((prev) => new Date(year, prev.getMonth(), 1));
+  };
+
+  const bookingSelectedMonth = bookingCalendarDate.getMonth();
+  const bookingSelectedYear = bookingCalendarDate.getFullYear();
+  const bookingMonthStart = new Date(
+    bookingSelectedYear,
+    bookingSelectedMonth,
+    1,
+  );
+  const bookingDaysInMonth = new Date(
+    bookingSelectedYear,
+    bookingSelectedMonth + 1,
+    0,
+  ).getDate();
+  const bookingFirstWeekday = bookingMonthStart.getDay();
+  const bookingDays = Array.from(
+    { length: bookingDaysInMonth },
+    (_, index) => index + 1,
+  );
+  const selectedBookingDateLabel = form.date
+    ? new Date(`${form.date}T00:00:00`).toLocaleDateString()
+    : "";
+  const editingDateKey = editing
+    ? new Date(editing.scheduledAt).toISOString().slice(0, 10)
+    : "";
+
+  const shiftBookingMonth = (delta) => {
+    setBookingCalendarDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1),
+    );
+  };
+
+  const onBookingMonthChange = (e) => {
+    const month = Number(e.target.value);
+    setBookingCalendarDate((prev) => new Date(prev.getFullYear(), month, 1));
+  };
+
+  const onBookingYearChange = (e) => {
+    const year = Number(e.target.value);
+    setBookingCalendarDate((prev) => new Date(year, prev.getMonth(), 1));
+  };
+
+  const selectBookingDate = (dateKey) => {
+    if (isPastDateValue(dateKey)) return;
+    if (
+      !canBookDate(dateKey) &&
+      (!editing || editingDateKey !== dateKey)
+    ) {
+      return;
+    }
+
+    setError("");
+    setBookingCalendarDate(new Date(`${dateKey}T00:00:00`));
+    setForm((prev) => ({
+      ...prev,
+      date: dateKey,
+      slot: "",
+    }));
+  };
+
+  const requestCalendarDateBooking = (dateKey) => {
+    if (!canBookDate(dateKey) || isPastDateValue(dateKey)) {
+      return;
+    }
+    setPendingBookingDateKey(dateKey);
+    setQueueDateKey("");
+    setError("");
+  };
+
+  const confirmCalendarDateBooking = () => {
+    if (!pendingBookingDateKey) return;
+    openBookingModal({ date: pendingBookingDateKey });
+  };
+
+  const openAppointmentQueue = (dateKey) => {
+    setQueueDateKey(dateKey);
+    setPendingBookingDateKey("");
+    setError("");
+  };
+
+  const bookAnotherAppointmentOnDate = (dateKey) => {
+    if (!canBookDate(dateKey)) return;
+    setQueueDateKey("");
+    openBookingModal({ date: dateKey });
+  };
+
+  const onCalendarDayKeyDown = (e, dateKey, dayAppointments = []) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+
+    e.preventDefault();
+    if (dayAppointments.length > 0) {
+      openAppointmentQueue(dateKey);
+      return;
+    }
+    requestCalendarDateBooking(dateKey);
+  };
+
+  const renderQueueAppointmentActions = (appointment) => {
+    const status = normalizeAppointmentStatus(appointment);
+
+    if (isNoComplianceCandidate(appointment) || isNoComplianceCancelled(appointment)) {
+      return (
+        <button
+          type="button"
+          className="btn-rebook"
+          onClick={() => {
+            setQueueDateKey("");
+            openRebookModal(appointment);
+          }}
+        >
+          Rebook
+        </button>
+      );
+    }
+
+    if (status === "pending") {
+      return (
+        <>
+          <button
+            type="button"
+            className="btn-edit"
+            onClick={() => {
+              setQueueDateKey("");
+              openEditModal(appointment);
+            }}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="btn-remove"
+            onClick={() => {
+              setQueueDateKey("");
+              cancelAppointment(appointment);
+            }}
+          >
+            Cancel
+          </button>
+        </>
+      );
+    }
+
+    if (status === "cancelled") {
+      return (
+        <button
+          type="button"
+          className="btn-rebook"
+          onClick={() => {
+            setQueueDateKey("");
+            openRebookModal(appointment);
+          }}
+        >
+          Rebook
+        </button>
+      );
+    }
+
+    return <span className="apt-locked-note">View only</span>;
+  };
+
+  const pendingBookingDateLabel = pendingBookingDateKey
+    ? new Date(`${pendingBookingDateKey}T00:00:00`).toLocaleDateString()
+    : "";
+  const selectedPet =
+    pets.find((pet) => String(pet.id) === String(form.petId)) || null;
+  const selectedVet =
+    vets.find((vet) => String(vet.id) === String(form.vetId)) || null;
+  const confirmedTimeKeysForSelectedDate = getConfirmedTimeKeysForDate(
+    form.date,
+  );
+  const availableSlots = slots.filter(
+    (slot) =>
+      slot.isCurrent ||
+      !confirmedTimeKeysForSelectedDate.has(getLocalTimeKey(slot.startsAt)),
+  );
+  const selectedSlot = availableSlots.find((slot) => slot.startsAt === form.slot);
+  const reasonSummary =
+    form.visitReason && form.serviceType
+      ? `${form.visitReason} - ${form.serviceType}`
+      : "";
+  const queueAppointments = queueDateKey
+    ? filteredAppointments
+        .filter(
+          (appointment) =>
+            getLocalDateKey(new Date(appointment.scheduledAt)) === queueDateKey,
+        )
+        .sort(
+          (a, b) =>
+            new Date(a.scheduledAt).getTime() -
+            new Date(b.scheduledAt).getTime(),
+        )
+    : [];
+  const queueDateLabel = queueDateKey
+    ? new Date(`${queueDateKey}T00:00:00`).toLocaleDateString()
+    : "";
+  const canBookAnotherOnQueueDate = Boolean(
+    queueDateKey && confirmedBookableDateKeys.includes(queueDateKey),
+  );
 
   return (
     <div className="dashboard-container">
@@ -355,7 +987,11 @@ const PetOwnerAppointment = () => {
           </div>
         </header>
 
-        <section className="content-body">
+        <section
+          className={`content-body ${
+            viewMode === "calendar" ? "appointment-calendar-body" : ""
+          }`}
+        >
           <div className="calendar-controls">
             <div className="view-toggle">
               <button
@@ -379,8 +1015,11 @@ const PetOwnerAppointment = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <button className="add-apt-btn" onClick={openBookingModal}>
-                + Book New Appointment
+              <button
+                className="add-apt-btn"
+                onClick={() => openBookingModal()}
+              >
+                + Book Appointment
               </button>
             </div>
           </div>
@@ -393,10 +1032,49 @@ const PetOwnerAppointment = () => {
           {!loading && viewMode === "calendar" ? (
             <div className="calendar-container">
               <div className="calendar-month-header">
-                <h3>{monthLabel}</h3>
                 <div className="month-nav">
-                  <button onClick={() => shiftMonth(-1)}>&lt; Prev</button>
-                  <button onClick={() => shiftMonth(1)}>Next &gt;</button>
+                  <button
+                    type="button"
+                    className="calendar-nav-btn calendar-nav-prev"
+                    onClick={() => shiftMonth(-1)}
+                  >
+                    &lt; Prev
+                  </button>
+                  <div className="calendar-picker">
+                    <label>
+                      MONTH
+                      <select
+                        value={selectedMonth}
+                        onChange={onCalendarMonthChange}
+                      >
+                        {MONTH_OPTIONS.map((month) => (
+                          <option key={month.value} value={month.value}>
+                            {month.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      YEAR
+                      <select
+                        value={selectedYear}
+                        onChange={onCalendarYearChange}
+                      >
+                        {yearOptions.map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    className="calendar-nav-btn calendar-nav-next"
+                    onClick={() => shiftMonth(1)}
+                  >
+                    Next &gt;
+                  </button>
                 </div>
               </div>
               <div className="calendar-grid">
@@ -419,36 +1097,98 @@ const PetOwnerAppointment = () => {
                 {Array.from({ length: firstWeekday }).map((_, idx) => (
                   <div key={`empty-${idx}`} className="calendar-day empty" />
                 ))}
-                {days.map((d) => (
-                  <div key={d} className="calendar-day">
-                    <span className="day-num">{d}</span>
-                    <div className="day-events">
-                      {filteredAppointments
-                        .filter((a) => {
-                          const scheduled = new Date(a.scheduledAt);
-                          return (
-                            scheduled.getFullYear() ===
-                              calendarDate.getFullYear() &&
-                            scheduled.getMonth() === calendarDate.getMonth() &&
-                            scheduled.getDate() === d
-                          );
-                        })
-                        .map((apt) => (
-                          <div
-                            key={apt.id}
-                            className={`event-item ${(apt.status || "").toLowerCase()}`}
-                            title={`${apt.pet?.name || "Pet"} - ${apt.status}`}
-                          >
-                            {new Date(apt.scheduledAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}{" "}
-                            {apt.pet?.name}
-                          </div>
-                        ))}
+                {days.map((d) => {
+                  const dayDate = new Date(selectedYear, selectedMonth, d);
+                  const dayKey = getLocalDateKey(dayDate);
+                  const isPastDay = dayDate < todayStart;
+                  const isAvailableDay =
+                    !isPastDay && availableDateKeys.includes(dayKey);
+                  const dayAppointments = filteredAppointments
+                    .filter((a) => {
+                      const scheduled = new Date(a.scheduledAt);
+                      return (
+                        scheduled.getFullYear() === selectedYear &&
+                        scheduled.getMonth() === selectedMonth &&
+                        scheduled.getDate() === d
+                      );
+                    })
+                    .sort(
+                      (a, b) =>
+                        new Date(a.scheduledAt).getTime() -
+                        new Date(b.scheduledAt).getTime(),
+                    );
+                  const isQueueClickable = dayAppointments.length > 0;
+                  const isCalendarClickable =
+                    isQueueClickable || isAvailableDay;
+
+                  return (
+                    <div
+                      key={d}
+                      className={`calendar-day ${isPastDay ? "past-due" : ""} ${
+                        isAvailableDay ? "available-selected" : ""
+                      } ${isAvailableDay ? "bookable-date" : ""} ${
+                        isQueueClickable ? "appointment-queue-day" : ""
+                      }`}
+                      title={
+                        isPastDay
+                          ? "Past due date"
+                          : isQueueClickable
+                            ? "View appointment queue"
+                            : isAvailableDay
+                              ? "Available for booking"
+                              : undefined
+                      }
+                      role={isCalendarClickable ? "button" : undefined}
+                      tabIndex={isCalendarClickable ? 0 : undefined}
+                      onClick={() => {
+                        if (isQueueClickable) {
+                          openAppointmentQueue(dayKey);
+                          return;
+                        }
+                        if (isAvailableDay) {
+                          requestCalendarDateBooking(dayKey);
+                        }
+                      }}
+                      onKeyDown={(e) =>
+                        onCalendarDayKeyDown(e, dayKey, dayAppointments)
+                      }
+                    >
+                      <span className="day-num">{d}</span>
+                      {(isPastDay ||
+                        isAvailableDay ||
+                        dayAppointments.length > 0) && (
+                        <div className="date-status-row">
+                          {isPastDay ? (
+                            <span className="date-state-badge due">Due</span>
+                          ) : (
+                            isAvailableDay && (
+                              <span className="date-state-badge available">
+                                Available
+                              </span>
+                            )
+                          )}
+                          {dayAppointments.length > 0 && (
+                            <span
+                              className="appointment-count-badge"
+                              aria-label={`${dayAppointments.length} ${
+                                dayAppointments.length === 1
+                                  ? "appointment"
+                                  : "appointments"
+                              } in queue`}
+                              title={`View ${dayAppointments.length} ${
+                                dayAppointments.length === 1
+                                  ? "appointment"
+                                  : "appointments"
+                              }`}
+                            >
+                              {dayAppointments.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -486,7 +1226,17 @@ const PetOwnerAppointment = () => {
                       {/* Card Grid View */}
                       {isExpanded && (
                         <div className="appointments-card-grid">
-                          {statusApts.map((a) => (
+                          {statusApts.map((a) => {
+                            const statusDisplay =
+                              getAppointmentStatusDisplay(a);
+                            const normalizedStatus =
+                              normalizeAppointmentStatus(a);
+                            const canRebook =
+                              statusDisplay.label ===
+                                NO_COMPLIANCE_CANCEL_LABEL ||
+                              normalizedStatus === "cancelled";
+
+                            return (
                             <div key={a.id} className="appointment-card">
                               <div className="apt-card-header">
                                 <div className="apt-card-pet">
@@ -499,9 +1249,9 @@ const PetOwnerAppointment = () => {
                                   </span>
                                 </div>
                                 <span
-                                  className={`apt-status ${(a.status || "").toLowerCase()}`}
+                                  className={`apt-status ${statusDisplay.className}`}
                                 >
-                                  {a.status}
+                                  {statusDisplay.label}
                                 </span>
                               </div>
 
@@ -546,7 +1296,9 @@ const PetOwnerAppointment = () => {
                               </div>
 
                               <div className="apt-card-actions">
-                                {a.status === "Pending" ? (
+                                {statusDisplay.label !==
+                                  NO_COMPLIANCE_CANCEL_LABEL &&
+                                normalizedStatus === "pending" ? (
                                   <>
                                     <button
                                       className="btn-edit icon-btn"
@@ -570,6 +1322,14 @@ const PetOwnerAppointment = () => {
                                       </svg>
                                     </button>
                                   </>
+                                ) : canRebook ? (
+                                  <button
+                                    type="button"
+                                    className="btn-rebook"
+                                    onClick={() => openRebookModal(a)}
+                                  >
+                                    Rebook
+                                  </button>
                                 ) : (
                                   <span className="apt-locked-note" title="Only pending appointments can be modified">
                                     View only
@@ -577,7 +1337,8 @@ const PetOwnerAppointment = () => {
                                 )}
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -595,12 +1356,182 @@ const PetOwnerAppointment = () => {
         </section>
       </main>
 
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3>{editing ? "Update Appointment" : "Book Appointment"}</h3>
+      {queueDateKey && (
+        <div
+          className="modal-overlay appointment-queue-overlay"
+          onClick={() => setQueueDateKey("")}
+        >
+          <div
+            className="modal-box appointment-queue-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="appointment-queue-badge">Appointment Queue</span>
+            <h3>{queueDateLabel}</h3>
+            <p className="appointment-queue-copy">
+              {queueAppointments.length === 1
+                ? "1 appointment is scheduled for this date."
+                : `${queueAppointments.length} appointments are scheduled for this date.`}
+            </p>
 
-            <form onSubmit={submitBooking} className="user-modal-form">
+            <div className="appointment-queue-list">
+              {queueAppointments.length === 0 ? (
+                <p className="appointment-field-hint">
+                  No appointments found for this date.
+                </p>
+              ) : (
+                queueAppointments.map((appointment, index) => {
+                  const statusDisplay =
+                    getAppointmentStatusDisplay(appointment);
+                  const appointmentVet =
+                    appointment.vet ||
+                    vets.find(
+                      (vet) => String(vet.id) === String(appointment.vetId),
+                    );
+                  const vetName = appointmentVet
+                    ? `${appointmentVet.firstName || ""} ${appointmentVet.lastName || ""}`.trim() ||
+                      appointmentVet.username
+                    : "No vet assigned";
+
+                  return (
+                    <div
+                      key={appointment.id}
+                      className={`appointment-queue-row ${statusDisplay.className}`}
+                    >
+                      <div className="appointment-queue-number">
+                        #{index + 1}
+                      </div>
+                      <div className="appointment-queue-main">
+                        <div className="appointment-queue-top">
+                          <strong>
+                            {new Date(
+                              appointment.scheduledAt,
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </strong>
+                          <span
+                            className={`apt-status ${statusDisplay.className}`}
+                          >
+                            {statusDisplay.label}
+                          </span>
+                        </div>
+                        <div className="appointment-queue-title">
+                          {appointment.pet?.name || "Pet"}
+                        </div>
+                        <div className="appointment-queue-meta">{vetName}</div>
+                        {appointment.reason && (
+                          <div className="appointment-queue-reason">
+                            {appointment.reason}
+                          </div>
+                        )}
+                      </div>
+                      <div className="appointment-queue-actions">
+                        {renderQueueAppointmentActions(appointment)}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="modal-actions appointment-queue-modal-actions">
+              {canBookAnotherOnQueueDate && (
+                <button
+                  type="button"
+                  className="save-btn book-another-appointment-btn"
+                  onClick={() => bookAnotherAppointmentOnDate(queueDateKey)}
+                >
+                  Book Another Appointment
+                </button>
+              )}
+              <button
+                type="button"
+                className="step-back-btn"
+                onClick={() => setQueueDateKey("")}
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingBookingDateKey && (
+        <div
+          className="modal-overlay date-booking-confirm-overlay"
+          onClick={() => setPendingBookingDateKey("")}
+        >
+          <div
+            className="modal-box date-booking-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="date-booking-confirm-badge">Available Date</span>
+            <h3>Book Appointment?</h3>
+            <p className="date-booking-confirm-copy">
+              Confirm to book an appointment for this date.
+            </p>
+            <div className="date-booking-confirm-date">
+              <span>Selected Date</span>
+              <strong>{pendingBookingDateLabel}</strong>
+            </div>
+            <div className="modal-actions date-booking-confirm-actions">
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={() => setPendingBookingDateKey("")}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="save-btn"
+                onClick={confirmCalendarDateBooking}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModal && (
+        <div className="modal-overlay" onClick={closeBookingModal}>
+          <div
+            className="modal-box pet-owner-booking-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form
+              onSubmit={onBookingFormSubmit}
+              className="user-modal-form appointment-booking-form"
+            >
+              <h3>{editing ? "Update Appointment" : "Book Appointment"}</h3>
+
+              <div className="appointment-stepper" aria-label="Booking steps">
+                {BOOKING_STEPS.map((step, index) => (
+                  <button
+                    type="button"
+                    key={step}
+                    className={`appointment-step ${index === bookingStep ? "active" : ""} ${
+                      index < bookingStep ? "done" : ""
+                    }`}
+                    onClick={() => {
+                      if (index <= bookingStep) {
+                        setBookingStep(index);
+                        setError("");
+                      }
+                    }}
+                    disabled={index > bookingStep}
+                  >
+                    <span className="appointment-step-number">{index + 1}</span>
+                    <span>{step}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="appointment-step-panel">
+                {bookingStep === 0 && (
+                  <>
               {/* Pet selection */}
               <div className="form-group">
                 <label>
@@ -646,8 +1577,28 @@ const PetOwnerAppointment = () => {
                     </button>
                   </p>
                 )}
+                {selectedPet && (
+                  <div className="appointment-summary compact">
+                    <div>
+                      <span>Pet</span>
+                      <strong>{selectedPet.name || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Species</span>
+                      <strong>{selectedPet.species || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Breed</span>
+                      <strong>{selectedPet.breed || "-"}</strong>
+                    </div>
+                  </div>
+                )}
               </div>
+                  </>
+                )}
 
+                {bookingStep === 2 && (
+                  <>
               {/* Veterinarian */}
               <div className="form-group">
                 <label>
@@ -673,14 +1624,140 @@ const PetOwnerAppointment = () => {
                 <label>
                   Date <span className="required-star">*</span>
                 </label>
-                <input
-                  type="date"
-                  name="date"
-                  value={form.date}
-                  onChange={onFieldChange}
-                  required
-                  min={new Date().toISOString().slice(0, 10)}
-                />
+                {form.date && (
+                  <div className="booking-selected-date">
+                    <span>Selected Date</span>
+                    <strong>{selectedBookingDateLabel}</strong>
+                  </div>
+                )}
+
+                <div className="booking-date-picker">
+                  <div className="booking-date-picker-header">
+                    <button
+                      type="button"
+                      className="booking-date-nav"
+                      onClick={() => shiftBookingMonth(-1)}
+                      aria-label="Previous booking month"
+                    >
+                      &lt;
+                    </button>
+                    <div className="calendar-picker booking-calendar-picker">
+                      <label>
+                        MONTH
+                        <select
+                          value={bookingSelectedMonth}
+                          onChange={onBookingMonthChange}
+                        >
+                          {MONTH_OPTIONS.map((month) => (
+                            <option key={month.value} value={month.value}>
+                              {month.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        YEAR
+                        <select
+                          value={bookingSelectedYear}
+                          onChange={onBookingYearChange}
+                        >
+                          {yearOptions.map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      className="booking-date-nav"
+                      onClick={() => shiftBookingMonth(1)}
+                      aria-label="Next booking month"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+
+                  {!hasBookableAppointmentDates && !editing ? (
+                    <p className="appointment-field-hint no-available-dates-hint">
+                      No available appointment dates yet. Please check again
+                      later.
+                    </p>
+                  ) : (
+                    <div className="booking-date-grid">
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                        (day) => (
+                          <div key={day} className="booking-date-weekday">
+                            {day}
+                          </div>
+                        ),
+                      )}
+                      {Array.from({ length: bookingFirstWeekday }).map(
+                        (_, index) => (
+                          <div
+                            key={`booking-empty-${index}`}
+                            className="booking-date-day empty"
+                          />
+                        ),
+                      )}
+                      {bookingDays.map((day) => {
+                        const dayDate = new Date(
+                          bookingSelectedYear,
+                          bookingSelectedMonth,
+                          day,
+                        );
+                        const dayKey = getLocalDateKey(dayDate);
+                        const isPastDay = dayDate < todayStart;
+                        const isBookableDay =
+                          !isPastDay && canBookDate(dayKey);
+                        const isSelectedDay = form.date === dayKey;
+                        const isEditingCurrentDay = editingDateKey === dayKey;
+                        const canSelectDay =
+                          !isPastDay &&
+                          (isBookableDay || isEditingCurrentDay);
+                        const badgeLabel = isPastDay
+                          ? "Due"
+                          : isSelectedDay
+                            ? "Selected"
+                            : isBookableDay || isEditingCurrentDay
+                              ? "Available"
+                              : "";
+
+                        return (
+                          <button
+                            type="button"
+                            key={dayKey}
+                            className={`booking-date-day ${
+                              isPastDay ? "past-due" : ""
+                            } ${isBookableDay ? "available" : ""} ${
+                              isSelectedDay ? "selected" : ""
+                            } ${
+                              !canSelectDay && !isPastDay ? "unavailable" : ""
+                            }`}
+                            disabled={!canSelectDay}
+                            onClick={() => selectBookingDate(dayKey)}
+                          >
+                            <span className="booking-date-number">{day}</span>
+                            {badgeLabel && (
+                              <span
+                                className={`date-state-badge ${
+                                  isPastDay
+                                    ? "due"
+                                    : isSelectedDay
+                                      ? "selected"
+                                      : "available"
+                                }`}
+                              >
+                                {badgeLabel}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Available Time Slot */}
@@ -693,25 +1770,66 @@ const PetOwnerAppointment = () => {
                   value={form.slot}
                   onChange={onFieldChange}
                   required
-                  disabled={!form.vetId || !form.date}
+                  disabled={
+                    !form.vetId ||
+                    !form.date ||
+                    slotsLoading ||
+                    (!hasBookableAppointmentDates && !editing)
+                  }
                 >
                   <option value="">
-                    {!form.vetId || !form.date ? "Select vet and date first" : "Select a slot"}
+                    {slotsLoading
+                      ? "Loading slots..."
+                      : !hasBookableAppointmentDates && !editing
+                        ? "No available dates"
+                        : !form.vetId || !form.date
+                          ? "Select vet and date first"
+                          : "Select time slot"}
                   </option>
-                  {slots.map((s) => (
+                  {availableSlots.map((s) => (
                     <option key={s.startsAt} value={s.startsAt}>
                       {new Date(s.startsAt).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
+                      {s.isCurrent ? " (current)" : ""}
                     </option>
                   ))}
                 </select>
-                {form.vetId && form.date && slots.length === 0 && (
-                  <p className="add-pet-hint">No available slots for this date.</p>
+                {form.vetId && form.date && slotsLoading && (
+                  <p className="appointment-field-hint">
+                    Loading slots...
+                  </p>
+                )}
+                {!hasBookableAppointmentDates && !editing && (
+                  <p className="appointment-field-hint">
+                    No available appointment dates yet. Please check again
+                    later.
+                  </p>
+                )}
+                {form.vetId &&
+                  form.date &&
+                  !slotsLoading &&
+                  slots.length > availableSlots.length && (
+                  <p className="appointment-field-hint">
+                    Confirmed appointment times are unavailable.
+                  </p>
+                )}
+                {form.vetId &&
+                  form.date &&
+                  !slotsLoading &&
+                  availableSlots.length === 0 &&
+                  (hasBookableAppointmentDates || editing) && (
+                  <p className="appointment-field-hint">
+                    No available slots for this date.
+                  </p>
                 )}
               </div>
+                  </>
+                )}
 
+                {bookingStep === 1 && (
+                  <>
               {/* Visit Reason */}
               <div className="form-group">
                 <label>
@@ -754,7 +1872,23 @@ const PetOwnerAppointment = () => {
                   </select>
                 </div>
               )}
+                  {reasonSummary && (
+                    <div className="appointment-summary">
+                      <div>
+                        <span>Visit Reason</span>
+                        <strong>{form.visitReason}</strong>
+                      </div>
+                      <div>
+                        <span>Service</span>
+                        <strong>{form.serviceType}</strong>
+                      </div>
+                    </div>
+                  )}
+                  </>
+                )}
 
+                {bookingStep === 3 && (
+                  <>
               {/* Notes */}
               <div className="form-group">
                 <label>Notes (optional)</label>
@@ -767,28 +1901,91 @@ const PetOwnerAppointment = () => {
                 />
               </div>
 
+                  <div className="appointment-summary">
+                    <div>
+                      <span>Pet</span>
+                      <strong>{selectedPet?.name || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Veterinarian</span>
+                      <strong>
+                        {selectedVet
+                          ? `${selectedVet.firstName || ""} ${selectedVet.lastName || ""}`.trim() ||
+                            selectedVet.username
+                          : "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Date</span>
+                      <strong>
+                        {form.date
+                          ? new Date(`${form.date}T00:00:00`).toLocaleDateString()
+                          : "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Time</span>
+                      <strong>
+                        {selectedSlot
+                          ? new Date(selectedSlot.startsAt).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )
+                          : form.slot
+                            ? new Date(form.slot).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Reason</span>
+                      <strong>{reasonSummary || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Notes</span>
+                      <strong>{form.notes || "-"}</strong>
+                    </div>
+                  </div>
+                  </>
+                )}
+              </div>
+
               {error && <p className="modal-error">{error}</p>}
 
-              <div className="modal-actions">
+              <div className="modal-actions appointment-step-actions">
+                {bookingStep > 0 && (
+                  <button
+                    type="button"
+                    className="step-back-btn"
+                    onClick={goBackStep}
+                    disabled={booking}
+                  >
+                    Back
+                  </button>
+                )}
                 <button
                   type="button"
                   className="cancel-btn"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditing(null);
-                  }}
+                  onClick={closeBookingModal}
                   disabled={booking}
                 >
                   Cancel
                 </button>
                 <button type="submit" className="save-btn" disabled={booking}>
-                  {booking
-                    ? editing
-                      ? "Updating..."
-                      : "Booking..."
-                    : editing
-                      ? "Update Appointment"
-                      : "Book Appointment"}
+                  {bookingStep < FINAL_BOOKING_STEP_INDEX
+                    ? "Next"
+                    : booking
+                      ? editing
+                        ? "Updating..."
+                        : "Booking..."
+                      : editing
+                        ? "Update Appointment"
+                        : "Book Appointment"}
                 </button>
               </div>
             </form>
