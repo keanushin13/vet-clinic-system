@@ -307,13 +307,6 @@ export default function PetOwnerChatBot({
     const appointmentQuery = isAppointmentAccountQuestion(trimmed);
     let appointmentLookupFailed = false;
     const accountQuery = isPetOwnerAccountQuery(trimmed) || appointmentQuery;
-    const patternHit = accountQuery ? null : matchQuickAssistPattern(trimmed);
-
-    if (patternHit) {
-      replaceTypingWithAssistant(patternHit.reply);
-      setIsSending(false);
-      return;
-    }
 
     if (appointmentQuery) {
       try {
@@ -362,6 +355,7 @@ export default function PetOwnerChatBot({
     } catch (err) {
       const status = err?.status;
       const unavailable = isAssistantUnavailable(status, err?.message);
+      const patternHit = accountQuery ? null : matchQuickAssistPattern(trimmed);
 
       if (status === 401) {
         setError("Your session expired. Please sign in again.");
@@ -378,6 +372,8 @@ export default function PetOwnerChatBot({
         replaceTypingWithAssistant(
           appointmentLookupFailed
             ? appointmentFallbackReply
+            : patternHit?.reply
+            ? patternHit.reply
             : accountQuery
             ? getQuickAssistAccountFallback()
             : getQuickAssistOfflineFallback(),

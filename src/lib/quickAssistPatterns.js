@@ -54,8 +54,22 @@ const replyMildSymptomGuidance = (normalized) => {
   }
 
   if (/\b(not eating|won't eat|isn't eating|loss of appetite)\b/.test(normalized)) {
+    if (/\b(my dog|dog|puppy)\b/.test(normalized)) {
+      return (
+        "If your dog is not eating, check for vomiting, diarrhea, pain, weakness, bloating, breathing changes, or unusual behavior. Do not force food or give human medicine. Offer fresh water and a small amount of their usual food, then contact a vet if your dog skips more than one meal, is a puppy or senior, or has any other symptoms." +
+        guidanceTail
+      );
+    }
+
+    if (/\b(my cat|cat|kitten)\b/.test(normalized)) {
+      return (
+        "Not eating can be serious in cats. Do not force food. Check for vomiting, pain, breathing changes, or weakness. If a cat skips food for about a day, or a kitten looks weak or flat, contact a vet the same day." +
+        guidanceTail
+      );
+    }
+
     return (
-      "Not eating can be serious, especially in cats. Do not force food. Check for vomiting, pain, breathing changes, or weakness. If a cat skips food for about a day, or a young pet looks flat, contact a vet the same day." +
+      "Not eating can be serious. Do not force food. Check for vomiting, diarrhea, pain, breathing changes, weakness, or unusual behavior. Contact a vet if your pet skips multiple meals, is very young or senior, or has any other symptoms." +
       guidanceTail
     );
   }
@@ -89,6 +103,47 @@ const replyOpenToday = () =>
 
 const replyTomorrow = () =>
   "Yes, we are open tomorrow from 9:00 AM to 7:00 PM on our regular schedule. Holiday hours can vary, so call ahead if a holiday falls on that day.";
+
+const parseHourFromQuestion = (normalized) => {
+  const match = normalized.match(/\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = match[2] ? Number(match[2]) : 0;
+  const meridiem = match[3];
+
+  if (meridiem === "pm" && hour !== 12) hour += 12;
+  if (meridiem === "am" && hour === 12) hour = 0;
+
+  return hour + minute / 60;
+};
+
+const hasDayName = (normalized) =>
+  /\b(monday|mon|tuesday|tue|tues|wednesday|wed|thursday|thu|thur|thurs|friday|fri|saturday|sat|sunday|sun)\b/.test(
+    normalized,
+  );
+
+const matchOpenDayTimeQuestion = (normalized) => {
+  if (
+    !/\b(open|hours?|operating hours?|clinic hours?|available)\b/.test(
+      normalized,
+    ) ||
+    !hasDayName(normalized)
+  ) {
+    return null;
+  }
+
+  const requestedHour = parseHourFromQuestion(normalized);
+  if (requestedHour === null) {
+    return "Yes, we are open that day from 9:00 AM to 7:00 PM unless a holiday affects hours. Please call to confirm if unsure.";
+  }
+
+  if (requestedHour >= 9 && requestedHour < 19) {
+    return "Yes, that time is within our regular clinic hours: Monday to Sunday, 9:00 AM to 7:00 PM. Holiday hours may differ, so please call to confirm.";
+  }
+
+  return "No, that time is outside our regular clinic hours. We are open Monday to Sunday, 9:00 AM to 7:00 PM. Holiday hours may differ, so please call to confirm.";
+};
 
 const matchDayComeQuestion = (normalized) => {
   if (!/\b(can i come|may i come)\b/.test(normalized)) return null;
@@ -161,8 +216,16 @@ export const QUICK_ASSIST_PATTERNS = [
     match: (normalized) =>
       /^(hours|open|what time|when do you open)\s*[!.]?$/i.test(
         normalized.trim(),
-      ) || /\b(what are your hours|clinic hours|when are you open)\b/.test(normalized),
+      ) ||
+      /\b(what are your hours|clinic hours|operating hours|business hours|opening hours|when are you open|what time are you open|what time do you close|what time do you open)\b/.test(
+        normalized,
+      ),
     reply: CLINIC_HOURS_LINE,
+  },
+  {
+    id: "open_day_time",
+    match: (normalized) => matchOpenDayTimeQuestion(normalized) !== null,
+    reply: (normalized) => matchOpenDayTimeQuestion(normalized) || "",
   },
   {
     id: "open_today",
@@ -388,7 +451,7 @@ export const matchQuickAssistPattern = (rawMessage) => {
 };
 
 export const getQuickAssistOfflineFallback = () =>
-  `${UNKNOWN_INFO_REPLY} For clinic hours: ${CLINIC_HOURS_LINE}`;
+  "I can't reach the AI assistant right now. Please try again in a moment, or contact the clinic staff if this is urgent.";
 
 export const getQuickAssistAccountFallback = () =>
   "I can't reach the account assistant right now. You can still review your pet details, appointments, medical records, payments, and messages from the pet owner dashboard pages.";
