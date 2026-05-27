@@ -11,7 +11,8 @@ import { getActivityLogs } from "../../../api/api";
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
-const LOG_LIMIT = 20;
+const DEFAULT_LOG_LIMIT = 25;
+const LOG_LIMIT_OPTIONS = [10, 25, 50, 100];
 
 const CATEGORIES = [
   { value: "", label: "All Categories" },
@@ -61,6 +62,7 @@ const StaffActivityLog = () => {
 
   const [logData, setLogData] = useState({ logs: [], total: 0, pages: 1 });
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_LOG_LIMIT);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [category, setCategory] = useState("");
@@ -75,7 +77,7 @@ const StaffActivityLog = () => {
     try {
       const res = await getActivityLogs({
         page,
-        limit: LOG_LIMIT,
+        limit: pageSize,
         q: search.trim() || undefined,
         status: statusFilter || undefined,
         category: category || undefined,
@@ -93,7 +95,7 @@ const StaffActivityLog = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, category, dateFrom, dateTo]);
+  }, [page, pageSize, search, statusFilter, category, dateFrom, dateTo]);
 
   useEffect(() => {
     if (!user || user.role !== "staff") {
@@ -102,7 +104,7 @@ const StaffActivityLog = () => {
     }
     loadLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, search, statusFilter, category, dateFrom, dateTo]);
+  }, [page, pageSize, search, statusFilter, category, dateFrom, dateTo]);
 
   const resetFilters = () => {
     setSearch("");
@@ -113,17 +115,25 @@ const StaffActivityLog = () => {
     setPage(1);
   };
 
+  const logs = Array.isArray(logData.logs) ? logData.logs : [];
+  const totalPages = Math.max(1, Number(logData.pages) || 1);
+  const totalEntries = Number(logData.total) || logs.length;
+  const firstEntry = totalEntries === 0 ? 0 : (page - 1) * pageSize + 1;
+  const lastEntry = totalEntries === 0 ? 0 : Math.min(page * pageSize, totalEntries);
+  const hasFilters = Boolean(search || statusFilter || category || dateFrom || dateTo);
+
   const handleExport = () => {
     const csv = buildLogsCSV(logs);
     downloadCSV(csv, `activity-logs-page-${page}.csv`);
   };
 
-  const logs = Array.isArray(logData.logs) ? logData.logs : [];
-
   const staffName = (log) =>
     log.staff?.firstName
       ? `${log.staff.firstName} ${log.staff.lastName || ""}`.trim()
       : log.staff?.username || "—";
+
+  const statusClass = (status) =>
+    (status || "").toLowerCase().replace(/\s+/g, "-");
 
   return (
     <div className="dashboard-container">
@@ -146,54 +156,78 @@ const StaffActivityLog = () => {
         <section className="content-body">
           <div className="activity-container">
             <div className="log-header-flex">
-              <h3>Recent Operations</h3>
-              <button className="log-export-btn" onClick={handleExport} disabled={logs.length === 0}>
-                Export CSV
-              </button>
+              <div className="log-title-block">
+                <h3>Recent Operations</h3>
+                <p>{totalEntries} entr{totalEntries === 1 ? "y" : "ies"} total</p>
+              </div>
+              <div className="log-action-group">
+                <button className="log-export-btn" onClick={handleExport} disabled={logs.length === 0}>
+                  Export CSV
+                </button>
+                <button className="log-reset-btn" onClick={resetFilters} disabled={!hasFilters}>
+                  Reset
+                </button>
+              </div>
             </div>
 
             {/* Filter bar */}
             <div className="log-filter-bar">
-              <input
-                type="text"
-                placeholder="Search activity..."
-                className="log-search"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              />
-              <select
-                className="log-filter-select"
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              >
-                <option value="">All Statuses</option>
-                <option value="Completed">Completed</option>
-                <option value="Pending">Pending</option>
-              </select>
-              <select
-                className="log-filter-select"
-                value={category}
-                onChange={(e) => { setCategory(e.target.value); setPage(1); }}
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-              <input
-                type="date"
-                className="log-date-input"
-                value={dateFrom}
-                title="From date"
-                onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-              />
-              <input
-                type="date"
-                className="log-date-input"
-                value={dateTo}
-                title="To date"
-                onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-              />
-              <button className="log-reset-btn" onClick={resetFilters}>Reset</button>
+              <label className="log-field log-search-field">
+                <span>Search</span>
+                <input
+                  type="text"
+                  placeholder="Search activity..."
+                  className="log-search"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                />
+              </label>
+              <label className="log-field">
+                <span>Category</span>
+                <select
+                  className="log-filter-select"
+                  value={category}
+                  onChange={(e) => { setCategory(e.target.value); setPage(1); }}
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="log-field">
+                <span>Status</span>
+                <select
+                  className="log-filter-select"
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Success">Success</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Failed">Failed</option>
+                </select>
+              </label>
+              <label className="log-field">
+                <span>From</span>
+                <input
+                  type="date"
+                  className="log-date-input"
+                  value={dateFrom}
+                  title="From date"
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                />
+              </label>
+              <label className="log-field">
+                <span>To</span>
+                <input
+                  type="date"
+                  className="log-date-input"
+                  value={dateTo}
+                  title="To date"
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                />
+              </label>
             </div>
 
             {/* Desktop table */}
@@ -219,8 +253,8 @@ const StaffActivityLog = () => {
                       <td>{log.target || "—"}</td>
                       <td className="time-text">{new Date(log.createdAt).toLocaleString()}</td>
                       <td>
-                        <span className={`status-pill ${log.status?.toLowerCase()}`}>
-                          {log.status}
+                        <span className={`status-pill ${statusClass(log.status)}`}>
+                          {log.status || "-"}
                         </span>
                       </td>
                     </tr>
@@ -260,7 +294,7 @@ const StaffActivityLog = () => {
                       </div>
                       <div className="activity-card-row">
                         <span className="activity-card-label">Status</span>
-                        <span className={`status-pill ${log.status?.toLowerCase()}`}>{log.status}</span>
+                        <span className={`status-pill ${statusClass(log.status)}`}>{log.status || "-"}</span>
                       </div>
                     </div>
                   </div>
@@ -269,28 +303,47 @@ const StaffActivityLog = () => {
               {error && <p className="modal-error">{error}</p>}
             </div>
 
-            {/* Pagination */}
-            {logData.pages > 1 && (
-              <div className="log-pagination">
+            <div className="log-pagination">
+              <label className="log-page-size">
+                <span>Show</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  {LOG_LIMIT_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+                <span>entries</span>
+              </label>
+
+              <span className="log-page-info">
+                Showing {firstEntry}-{lastEntry} of {totalEntries} entries
+              </span>
+
+              <div className="log-page-controls">
                 <button
                   className="log-page-btn"
                   disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   Prev
                 </button>
-                <span className="log-page-info">
-                  Page {page} of {logData.pages} ({logData.total} entries)
+                <span className="log-page-current">
+                  Page {page} of {totalPages}
                 </span>
                 <button
                   className="log-page-btn"
-                  disabled={page === logData.pages}
-                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page === totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
                   Next
                 </button>
               </div>
-            )}
+            </div>
           </div>
         </section>
       </main>

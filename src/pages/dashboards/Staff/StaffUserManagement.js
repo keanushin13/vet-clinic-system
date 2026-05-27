@@ -10,6 +10,7 @@ import {
   createStaffClient,
   updateStaffClient,
   toggleStaffClientActive,
+  requestPasswordReset,
   createPet,
 } from "../../../api/api";
 
@@ -17,7 +18,8 @@ import {
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
-const LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_PAGE_SIZE = 25;
 
 function accountStatus(u) {
   if (u.deletedAt) return { label: "Deleted", cls: "status-deleted" };
@@ -37,7 +39,6 @@ const emptyForm = {
   email: "",
   phone: "",
   address: "",
-  password: "",
 };
 
 const emptyPetForm = {
@@ -50,6 +51,26 @@ const emptyPetForm = {
   weight: "",
 };
 
+const normalizePhone = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("63") && digits.length === 12) {
+    return `0${digits.slice(2)}`;
+  }
+  return digits.slice(0, 11);
+};
+
+const isValidPhone = (value) => /^09\d{9}$/.test(normalizePhone(value));
+
+const generateTemporaryPassword = () => {
+  const randomPart =
+    window.crypto?.getRandomValues
+      ? Array.from(window.crypto.getRandomValues(new Uint32Array(2)))
+          .map((num) => num.toString(36))
+          .join("")
+      : Math.random().toString(36).slice(2, 12);
+  return `PawCruz@${randomPart}A1`;
+};
+
 const StaffUserManagement = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -58,7 +79,9 @@ const StaffUserManagement = () => {
   // ── List state ──────────────────────────────────────────────
   const [userPage, setUserPage] = useState({ users: [], total: 0, pages: 1 });
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // ── User modal state ────────────────────────────────────────
   const [modalMode, setModalMode] = useState(null); // view | add | edit
@@ -79,7 +102,7 @@ const StaffUserManagement = () => {
     try {
       const r = await getStaffClients({
         page,
-        limit: LIMIT,
+        limit: pageSize,
         q: search.trim() || undefined,
       });
       const data = r.data;
@@ -91,7 +114,7 @@ const StaffUserManagement = () => {
     } catch {
       setUserPage({ users: [], total: 0, pages: 1 });
     }
-  }, [page, search]);
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     if (!user || user.role !== "staff") {
@@ -100,11 +123,21 @@ const StaffUserManagement = () => {
     }
     loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, search]);
+  }, [page, pageSize, search]);
 
   // Reset to page 1 when search changes
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(Number(e.target.value));
+    setPage(1);
+  };
+
+  const handleStatusFilterChange = (e) => {
+    setStatusFilter(e.target.value);
     setPage(1);
   };
 
@@ -124,11 +157,30 @@ const StaffUserManagement = () => {
       lastName: u.lastName || "",
       username: u.username || "",
       email: u.email || "",
-      phone: u.phone || "",
+      phone: normalizePhone(u.phone),
       address: u.address || "",
-      password: "",
     });
     setModalMode("edit");
+  };
+
+  const sendResetPassword = async (u = selectedUser) => {
+    if (!u?.email) {
+      setError("This client has no email address for password reset.");
+      return;
+    }
+
+    setError("");
+    setSelectedUser(u);
+
+    setSaving(true);
+    try {
+      await requestPasswordReset(u.email);
+      setModalMode("reset");
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to send reset password email");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openView = (u) => {
@@ -147,20 +199,66 @@ const StaffUserManagement = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const isUserFormValid =
+    form.firstName.trim() &&
+    form.lastName.trim() &&
+    form.username.trim() &&
+    form.email.trim() &&
+    isValidPhone(form.phone);
+
+  const requiredInputClass = (value) =>
+    String(value || "").trim() ? "" : "input-invalid";
+
   // ── Submit user form ────────────────────────────────────────
   const submitForm = async (e) => {
     e.preventDefault();
     setError("");
+    if (!isUserFormValid) {
+      setError(
+        isValidPhone(form.phone)
+          ? "Please complete all required fields before saving."
+          : "Phone number must be 11 digits and start with 09."
+      );
+      return;
+    }
+
     setSaving(true);
     try {
+      const payloadForm = {
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        username: form.username.trim(),
+        email: form.email.trim(),
+        phone: normalizePhone(form.phone),
+        address: form.address.trim(),
+      };
+
       if (modalMode === "add") {
-        const result = await createStaffClient({ ...form, role: "pet_owner" });
+        const result = await createStaffClient({
+          ...payloadForm,
+          password: generateTemporaryPassword(),
+          role: "pet_owner",
+        });
+        let activationLinkSent = false;
+        let activationLinkError = "";
+        try {
+          await requestPasswordReset(payloadForm.email);
+          activationLinkSent = true;
+        } catch (err) {
+          activationLinkError =
+            err.response?.data?.message || "Activation link could not be sent.";
+        }
         closeModal();
         await loadUsers();
-        setCreatedUser(result.data);
+        setCreatedUser({
+          ...(result.data || payloadForm),
+          activationEmail: payloadForm.email,
+          activationLinkSent,
+          activationLinkError,
+        });
       } else if (modalMode === "edit" && selectedUser) {
-        const payload = { ...form, role: "pet_owner" };
-        if (!payload.password) delete payload.password;
+        const payload = { ...payloadForm, role: "pet_owner" };
+        delete payload.email;
         await updateStaffClient(selectedUser.id, payload);
         closeModal();
         await loadUsers();
@@ -292,7 +390,12 @@ const StaffUserManagement = () => {
     </svg>
   );
 
-  const displayUsers = Array.isArray(userPage.users) ? userPage.users : [];
+  const pageUsers = Array.isArray(userPage.users) ? userPage.users : [];
+  const displayUsers = pageUsers.filter((u) => {
+    if (statusFilter === "all") return true;
+    const st = accountStatus(u);
+    return st.cls === statusFilter;
+  });
 
   return (
     <div className="dashboard-container">
@@ -329,11 +432,19 @@ const StaffUserManagement = () => {
           {/* Post-creation prompt */}
           {createdUser && !showPetModal && (
             <div className="new-client-prompt">
-              <p>
-                Client{" "}
-                <strong>{createdUser.firstName || createdUser.username}</strong>{" "}
-                created successfully. Would you like to add a pet profile now?
-              </p>
+              <div>
+                <p>
+                  Client <strong>{createdUser.firstName || createdUser.username}</strong> created successfully.
+                  {createdUser.activationLinkSent
+                    ? " An activation link was sent to "
+                    : " The account was created, but the activation link was not sent to "}
+                  <strong>{createdUser.activationEmail || createdUser.email}</strong>.
+                  {" "}Would you like to add a pet profile now?
+                </p>
+                {createdUser.activationLinkError && (
+                  <small>{createdUser.activationLinkError}</small>
+                )}
+              </div>
               <div className="new-client-prompt-actions">
                 <button
                   className="cancel-btn"
@@ -357,6 +468,33 @@ const StaffUserManagement = () => {
                 value={search}
                 onChange={handleSearchChange}
               />
+              <select
+                className="user-status-filter"
+                value={statusFilter}
+                onChange={handleStatusFilterChange}
+                aria-label="Filter by status"
+              >
+                <option value="all">All Status</option>
+                <option value="status-active">Active</option>
+                <option value="status-pending-verification">Pending Verification</option>
+                <option value="status-suspended">Suspended</option>
+              </select>
+              <label className="entries-control">
+                <span>Show</span>
+                <select
+                  className="entries-select"
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                  aria-label="Entries per page"
+                >
+                  {PAGE_SIZE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <span>entries</span>
+              </label>
             </div>
             <button className="add-user-btn" onClick={openAdd}>
               + Add New Client
@@ -663,6 +801,20 @@ const StaffUserManagement = () => {
                   </button>
                 </div>
               </>
+            ) : modalMode === "reset" && selectedUser ? (
+              <>
+                <h3>Password Reset Sent</h3>
+                <p className="reset-password-copy">
+                  Reset password has been sent to the user Gmail/email:
+                  <strong> {selectedUser.email}</strong>.
+                </p>
+                {error && <p className="modal-error">{error}</p>}
+                <div className="modal-actions">
+                  <button type="button" className="save-btn" onClick={closeModal}>
+                    Done
+                  </button>
+                </div>
+              </>
             ) : (
               <form onSubmit={submitForm} className="user-modal-form">
                 <h3>
@@ -670,19 +822,27 @@ const StaffUserManagement = () => {
                 </h3>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>First Name</label>
+                    <label>
+                      First Name <span className="required-mark">*</span>
+                    </label>
                     <input
                       name="firstName"
                       value={form.firstName}
                       onChange={onChange}
+                      className={requiredInputClass(form.firstName)}
+                      required
                     />
                   </div>
                   <div className="form-group">
-                    <label>Last Name</label>
+                    <label>
+                      Last Name <span className="required-mark">*</span>
+                    </label>
                     <input
                       name="lastName"
                       value={form.lastName}
                       onChange={onChange}
+                      className={requiredInputClass(form.lastName)}
+                      required
                     />
                   </div>
                 </div>
@@ -694,6 +854,7 @@ const StaffUserManagement = () => {
                     name="username"
                     value={form.username}
                     onChange={onChange}
+                    className={requiredInputClass(form.username)}
                     required
                   />
                 </div>
@@ -706,31 +867,38 @@ const StaffUserManagement = () => {
                     name="email"
                     value={form.email}
                     onChange={onChange}
+                    readOnly={modalMode === "edit"}
+                    className={modalMode === "edit" ? "readonly-input" : requiredInputClass(form.email)}
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Phone Number (11 digits)</label>
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{ marginRight: "8px", fontWeight: "500" }}>
-                      +63
-                    </span>
+                  <label>
+                    Phone Number (11 digits) <span className="required-mark">*</span>
+                  </label>
+                  <div className="phone-input-wrap">
                     <input
                       type="tel"
                       name="phone"
-                      value={form.phone?.replace(/^63/, "") || ""}
-                      placeholder="9XXXXXXXXX"
+                      value={normalizePhone(form.phone)}
+                      placeholder="09XXXXXXXXX"
                       maxLength="11"
-                      style={{ flex: 1 }}
+                      inputMode="numeric"
+                      className={!isValidPhone(form.phone) ? "input-invalid" : ""}
+                      required
                       onChange={(e) => {
-                        const numOnly = e.target.value
-                          .replace(/[^0-9]/g, "")
-                          .slice(0, 10);
-                        const fullPhone = numOnly ? `63${numOnly}` : "";
-                        setForm((prev) => ({ ...prev, phone: fullPhone }));
+                        setForm((prev) => ({
+                          ...prev,
+                          phone: normalizePhone(e.target.value),
+                        }));
                       }}
                     />
                   </div>
+                  {!isValidPhone(form.phone) && (
+                    <small className="field-error">
+                      Phone number must start with 09 and be 11 digits.
+                    </small>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Address</label>
@@ -742,35 +910,38 @@ const StaffUserManagement = () => {
                     placeholder="Street, Barangay, City"
                   />
                 </div>
-                <div className="form-group">
-                  <label>
-                    Password
-                    {modalMode === "edit" ? " (leave blank to keep)" : " *"}
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={form.password}
-                    onChange={onChange}
-                    required={modalMode === "add"}
-                    autoComplete="new-password"
-                  />
-                  <small className="field-hint">
-                    Min 8 chars, include a letter, number, and special character
-                    (@$!%*#?&amp;)
-                  </small>
-                </div>
+                {modalMode === "add" ? (
+                  <div className="form-group activation-link-group">
+                    <label>Account Activation</label>
+                    <div className="activation-link-box">
+                      <span>Email Link</span>
+                      <p>
+                        The client will receive an email link to activate the account and set their password.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label>Password</label>
+                    <button
+                      type="button"
+                      className="reset-password-btn"
+                      onClick={() => sendResetPassword(selectedUser)}
+                      disabled={saving}
+                    >
+                      {saving ? "Sending..." : "Reset Password"}
+                    </button>
+                  </div>
+                )}
                 {error && <p className="modal-error">{error}</p>}
                 <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="cancel-btn"
-                    onClick={closeModal}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="save-btn" disabled={saving}>
-                    {saving ? "Saving..." : "Save"}
+                  <button type="button" className="cancel-btn" onClick={closeModal}>Cancel</button>
+                  <button type="submit" className="save-btn" disabled={saving || !isUserFormValid}>
+                    {saving
+                      ? "Saving..."
+                      : modalMode === "add"
+                        ? "Create & Send Activation Link"
+                        : "Save"}
                   </button>
                 </div>
               </form>

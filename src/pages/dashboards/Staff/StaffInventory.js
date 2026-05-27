@@ -80,6 +80,7 @@ const StaffInventory = () => {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [aiModal, setAiModal] = useState(null);
+  const [stockModal, setStockModal] = useState(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -173,6 +174,7 @@ const StaffInventory = () => {
     setShowModal(false);
     setEditing(null);
     setError("");
+    setSaving(false);
   };
 
   const onChange = (e) => {
@@ -205,11 +207,50 @@ const StaffInventory = () => {
     }
   };
 
-  const handleUpdateStock = async (item) => {
-    const val = prompt(`Enter new stock for ${item.name}:`, item.stock);
-    if (val === null || isNaN(val)) return;
-    await updateStock(item.id, parseInt(val));
-    loadInventory();
+  const handleUpdateStock = (item) => {
+    setError("");
+    setStockModal({
+      item,
+      value: String(item.stock ?? 0),
+      error: "",
+      saving: false,
+    });
+  };
+
+  const closeStockModal = () => {
+    setStockModal(null);
+  };
+
+  const submitStockUpdate = async (e) => {
+    e.preventDefault();
+    if (!stockModal?.item) return;
+
+    const nextStock = Number(stockModal.value);
+    if (stockModal.value.trim() === "" || !Number.isInteger(nextStock) || nextStock < 0) {
+      setStockModal((prev) => prev && ({
+        ...prev,
+        error: "Stock must be a whole number of 0 or more.",
+      }));
+      return;
+    }
+
+    setStockModal((prev) => prev && ({
+      ...prev,
+      error: "",
+      saving: true,
+    }));
+
+    try {
+      await updateStock(stockModal.item.id, nextStock);
+      await loadInventory();
+      closeStockModal();
+    } catch (err) {
+      setStockModal((prev) => prev && ({
+        ...prev,
+        saving: false,
+        error: err.response?.data?.message || "Failed to update stock",
+      }));
+    }
   };
 
   const toggleArchive = async (item) => {
@@ -283,17 +324,18 @@ const StaffInventory = () => {
               </div>
             </div>
             <div className="inventory-header-actions">
-              <button className="inv-ai-btn" onClick={() => openAiAnalysis()}>
+              <button type="button" className="inv-ai-btn" onClick={() => openAiAnalysis()}>
                 AI Analysis
               </button>
               <button
+                type="button"
                 className="inv-export-btn"
                 onClick={() => downloadCSV(buildInventoryCSV(filtered, pesoFormatter), "inventory-report.csv")}
                 disabled={filtered.length === 0}
               >
                 Export CSV
               </button>
-              <button className="add-item-btn" onClick={openCreate}>
+              <button type="button" className="add-item-btn" onClick={openCreate}>
                 + Add New Item
               </button>
             </div>
@@ -336,7 +378,7 @@ const StaffInventory = () => {
               Expiring ≤30 days
             </label>
             {(invSearch || invCategory || invStatus || invExpiring) && (
-              <button className="inv-reset-btn" onClick={() => { setInvSearch(""); setInvCategory(""); setInvStatus(""); setInvExpiring(false); setInvPage(1); }}>
+              <button type="button" className="inv-reset-btn" onClick={() => { setInvSearch(""); setInvCategory(""); setInvStatus(""); setInvExpiring(false); setInvPage(1); }}>
                 Reset
               </button>
             )}
@@ -397,6 +439,7 @@ const StaffInventory = () => {
                       <td>
                         <div className="inventory-action-btns">
                           <button
+                            type="button"
                             className="stock-btn btn-neutral icon-btn"
                             onClick={() => handleUpdateStock(item)}
                             title="Update stock"
@@ -416,6 +459,7 @@ const StaffInventory = () => {
                             </svg>
                           </button>
                           <button
+                            type="button"
                             className="stock-btn btn-edit icon-btn"
                             onClick={() => openEdit(item)}
                             title="Edit item"
@@ -441,6 +485,7 @@ const StaffInventory = () => {
                             </svg>
                           </button>
                           <button
+                            type="button"
                             className="stock-btn btn-remove icon-btn"
                             onClick={() => toggleArchive(item)}
                             title={
@@ -549,6 +594,7 @@ const StaffInventory = () => {
                       <span className="inventory-card-label">Actions</span>
                       <div className="inventory-action-btns">
                         <button
+                          type="button"
                           className="stock-btn btn-neutral icon-btn"
                           onClick={() => handleUpdateStock(item)}
                           title="Update stock"
@@ -568,6 +614,7 @@ const StaffInventory = () => {
                           </svg>
                         </button>
                         <button
+                          type="button"
                           className="stock-btn btn-edit icon-btn"
                           onClick={() => openEdit(item)}
                           title="Edit item"
@@ -593,6 +640,7 @@ const StaffInventory = () => {
                           </svg>
                         </button>
                         <button
+                          type="button"
                           className="stock-btn btn-remove icon-btn"
                           onClick={() => toggleArchive(item)}
                           title={
@@ -658,11 +706,96 @@ const StaffInventory = () => {
         </section>
       </main>
 
+      {stockModal && (
+        <div
+          className="inventory-modal-overlay"
+          onClick={closeStockModal}
+          role="presentation"
+        >
+          <div
+            className="inventory-modal-box stock-update-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stock-update-modal-title"
+          >
+            <form
+              className="inventory-modal-form stock-update-form"
+              onSubmit={submitStockUpdate}
+            >
+              <h3 id="stock-update-modal-title">Update Stock</h3>
+              <p className="stock-modal-subtitle">{stockModal.item.name}</p>
+
+              <div className="stock-summary-row">
+                <span>Current stock</span>
+                <strong>
+                  {stockModal.item.stock} {stockModal.item.unit}
+                </strong>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="stock-update-input">New stock</label>
+                <input
+                  id="stock-update-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={stockModal.value}
+                  autoFocus
+                  onChange={(e) => {
+                    const { value } = e.target;
+                    setStockModal((prev) => prev && ({
+                      ...prev,
+                      value,
+                      error: "",
+                    }));
+                  }}
+                />
+              </div>
+
+              {stockModal.error && (
+                <p className="inventory-modal-error">{stockModal.error}</p>
+              )}
+
+              <div className="inventory-modal-actions">
+                <button
+                  type="button"
+                  className="inventory-cancel-btn"
+                  onClick={closeStockModal}
+                  disabled={stockModal.saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inventory-save-btn"
+                  disabled={stockModal.saving}
+                >
+                  {stockModal.saving ? "Updating..." : "Update Stock"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={submitForm} className="user-modal-form">
-              <h3>{editing ? "Edit Inventory Item" : "Add Inventory Item"}</h3>
+        <div
+          className="inventory-modal-overlay"
+          onClick={closeModal}
+          role="presentation"
+        >
+          <div
+            className="inventory-modal-box inventory-form-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inventory-item-modal-title"
+          >
+            <form onSubmit={submitForm} className="inventory-modal-form">
+              <h3 id="inventory-item-modal-title">
+                {editing ? "Edit Inventory Item" : "Add Inventory Item"}
+              </h3>
               <div className="form-group">
                 <label>Name</label>
                 <input
@@ -735,16 +868,16 @@ const StaffInventory = () => {
                   <input name="notes" value={form.notes} onChange={onChange} />
                 </div>
               </div>
-              {error && <p className="modal-error">{error}</p>}
-              <div className="modal-actions">
+              {error && <p className="inventory-modal-error">{error}</p>}
+              <div className="inventory-modal-actions">
                 <button
                   type="button"
-                  className="cancel-btn"
+                  className="inventory-cancel-btn"
                   onClick={closeModal}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="save-btn" disabled={saving}>
+                <button type="submit" className="inventory-save-btn" disabled={saving}>
                   {saving ? "Saving..." : "Save"}
                 </button>
               </div>
@@ -754,9 +887,9 @@ const StaffInventory = () => {
       )}
 
       {aiModal && (
-        <div className="modal-overlay" onClick={() => setAiModal(null)}>
+        <div className="inventory-modal-overlay" onClick={() => setAiModal(null)}>
           <div
-            className="modal-box ai-insight-modal"
+            className="inventory-modal-box ai-insight-modal"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="ai-insight-header">
@@ -802,16 +935,17 @@ const StaffInventory = () => {
               </div>
             )}
 
-            <div className="modal-actions">
+            <div className="inventory-modal-actions">
               {!aiModal.loading && aiModal.insight && (
                 <button
-                  className="cancel-btn"
+                  type="button"
+                  className="inventory-cancel-btn"
                   onClick={() => openAiAnalysis(true)}
                 >
                   Refresh
                 </button>
               )}
-              <button className="save-btn" onClick={() => setAiModal(null)}>
+              <button type="button" className="inventory-save-btn" onClick={() => setAiModal(null)}>
                 Close
               </button>
             </div>

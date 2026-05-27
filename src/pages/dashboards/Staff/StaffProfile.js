@@ -15,6 +15,14 @@ import {
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
+const normalizePhoneForForm = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("63") && digits.length === 12) {
+    return `0${digits.slice(2)}`;
+  }
+  return digits.slice(0, 11);
+};
+
 const StaffProfile = () => {
   const navigate = useNavigate();
   const localUser = JSON.parse(localStorage.getItem("user"));
@@ -47,6 +55,39 @@ const StaffProfile = () => {
     confirmPassword: "",
   });
 
+  const syncStoredProfile = (profileData) => {
+    let existingUser = {};
+    try {
+      existingUser = JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      existingUser = {};
+    }
+
+    const updatedUser = {
+      ...existingUser,
+      firstName: profileData.firstName ?? existingUser.firstName,
+      lastName: profileData.lastName ?? existingUser.lastName,
+      username: profileData.username ?? existingUser.username,
+      email: profileData.email ?? existingUser.email,
+      phone: profileData.phone ?? existingUser.phone,
+      address: profileData.address ?? existingUser.address,
+      profileImage:
+        profileData.profileImage === undefined
+          ? existingUser.profileImage || ""
+          : profileData.profileImage || "",
+    };
+
+    try {
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    } catch {
+      /* ignore storage quota errors; topbars can still use the event detail */
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("userProfileUpdated", { detail: updatedUser }),
+    );
+  };
+
   useEffect(() => {
     if (!localUser || localUser.role !== "staff") {
       navigate("/login");
@@ -62,7 +103,9 @@ const StaffProfile = () => {
     setError("");
     try {
       const r = await getMe();
-      setProfile(r.data || {});
+      const loadedProfile = r.data || {};
+      setProfile(loadedProfile);
+      syncStoredProfile(loadedProfile);
     } catch {
       setError("Failed to load profile");
     } finally {
@@ -78,8 +121,11 @@ const StaffProfile = () => {
       lastName: profile?.lastName || "",
       username: profile?.username || "",
       email: profile?.email || "",
-      phone: profile?.phone || "",
-      address: profile?.address || "",
+      phone: normalizePhoneForForm(profile?.phone),
+      address:
+        String(profile?.address || "").toLowerCase() === "null"
+          ? "N/A"
+          : profile?.address || "N/A",
       profileImage: profile?.profileImage || "",
     });
     setAvatarPreview(profile?.profileImage || "");
@@ -130,8 +176,19 @@ const StaffProfile = () => {
     setAvatarPreview(URL.createObjectURL(file));
   };
 
+  const removeAvatar = () => {
+    setAvatarPreview("");
+    setAvatarFile(null);
+    setEditForm((prev) => ({ ...prev, profileImage: "" }));
+  };
+
   const submitProfile = async (e) => {
     e.preventDefault();
+    if (!requiredProfileFieldsComplete) {
+      setError("Please complete all required profile fields before saving.");
+      return;
+    }
+
     setSavingProfile(true);
     setError("");
     setMessage("");
@@ -145,29 +202,21 @@ const StaffProfile = () => {
 
       const payload = {
         ...editForm,
-        firstName: editForm.firstName || null,
-        lastName: editForm.lastName || null,
-        phone: editForm.phone || null,
-        address: editForm.address || null,
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        phone: normalizePhoneForForm(editForm.phone),
+        address: editForm.address.trim() || "N/A",
         profileImage: profileImageUrl,
       };
       const r = await updateMe(payload);
-      setProfile(r.data || payload);
-
-      const existingUser = JSON.parse(localStorage.getItem("user") || "{}");
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          ...existingUser,
-          firstName: r.data?.firstName,
-          lastName: r.data?.lastName,
-          username: r.data?.username,
-          email: r.data?.email,
-          phone: r.data?.phone,
-          address: r.data?.address,
-          profileImage: r.data?.profileImage,
-        }),
-      );
+      const updatedProfile = {
+        ...payload,
+        ...(r.data || {}),
+      };
+      updatedProfile.profileImage =
+        updatedProfile.profileImage ?? payload.profileImage ?? "";
+      setProfile(updatedProfile);
+      syncStoredProfile(updatedProfile);
 
       setMessage("Profile updated successfully");
       closeEditModal();
@@ -205,6 +254,15 @@ const StaffProfile = () => {
   };
 
   const avatarSource = profile?.profileImage || userIcon;
+  const isBlank = (value) => !String(value || "").trim();
+  const requiredProfileFieldsComplete =
+    !isBlank(editForm.firstName) &&
+    !isBlank(editForm.lastName) &&
+    !isBlank(editForm.username) &&
+    !isBlank(editForm.email) &&
+    normalizePhoneForForm(editForm.phone).length === 11 &&
+    !isBlank(editForm.address);
+  const invalidClass = (value) => (isBlank(value) ? "input-invalid" : "");
 
   return (
     <div className="dashboard-container">
@@ -256,11 +314,8 @@ const StaffProfile = () => {
                       ? `${profile.firstName} ${profile.lastName}`
                       : profile?.username || "Staff Member"}
                   </h3>
-                  <p>Clinic Administrator / Staff</p>
+                  <p className="profile-role-line">Staff</p>
                 </div>
-                <button className="edit-profile-btn" onClick={openEditModal}>
-                  Edit Profile
-                </button>
               </div>
             </div>
 
@@ -282,16 +337,20 @@ const StaffProfile = () => {
                 </div>
                 <div className="info-row">
                   <label>Phone Number</label>
-                  <span>{profile?.phone || "N/A"}</span>
+                  <span>{normalizePhoneForForm(profile?.phone) || "N/A"}</span>
                 </div>
                 <div className="info-row">
                   <label>Address</label>
-                  <span>{profile?.address || "N/A"}</span>
+                  <span>
+                    {String(profile?.address || "").toLowerCase() === "null"
+                      ? "N/A"
+                      : profile?.address || "N/A"}
+                  </span>
                 </div>
               </div>
 
               <div className="details-card">
-                <h4>Account Security</h4>
+                <h4>Account Actions</h4>
                 <div className="info-row">
                   <label>Role</label>
                   <span className="role-tag">Staff Access</span>
@@ -300,6 +359,9 @@ const StaffProfile = () => {
                   <label>Password</label>
                   <span>••••••••••••</span>
                 </div>
+                <button className="edit-profile-btn" onClick={openEditModal}>
+                  Edit Profile
+                </button>
                 <button
                   className="change-pass-btn"
                   onClick={() => {
@@ -309,6 +371,16 @@ const StaffProfile = () => {
                   }}
                 >
                   Change Password
+                </button>
+                <button
+                  className="logout-btn logout-btn-inline"
+                  onClick={() => {
+                    localStorage.removeItem("user");
+                    localStorage.removeItem("token");
+                    navigate("/login");
+                  }}
+                >
+                  Logout Account
                 </button>
               </div>
             </div>
@@ -329,62 +401,96 @@ const StaffProfile = () => {
 
       {showEditModal && (
         <div className="modal-overlay" onClick={closeEditModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-box profile-edit-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <form className="user-modal-form" onSubmit={submitProfile}>
               <h3>Edit Profile</h3>
               <div className="avatar-upload-wrap">
-                <img
-                  src={avatarPreview || userIcon}
-                  alt="Preview"
-                  className="avatar-preview"
-                />
-                <label className="upload-btn">
-                  Upload Image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={onSelectAvatar}
-                    hidden
+                <div className="avatar-preview-frame">
+                  <img
+                    src={avatarPreview || userIcon}
+                    alt="Preview"
+                    className="avatar-preview"
                   />
-                </label>
+                </div>
+                <div className="avatar-upload-actions">
+                  <strong>Profile Photo</strong>
+                  <div className="avatar-upload-buttons">
+                    <label className="upload-btn">
+                      Choose File
+                      <input
+                        className="avatar-file-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={onSelectAvatar}
+                        hidden
+                      />
+                    </label>
+                    {(avatarPreview || editForm.profileImage) && (
+                      <button
+                        type="button"
+                        className="remove-profile-btn"
+                        onClick={removeAvatar}
+                      >
+                        Remove Profile
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>First Name</label>
+                  <label>
+                    First Name <span className="required-mark">*</span>
+                  </label>
                   <input
                     name="firstName"
                     value={editForm.firstName}
                     onChange={onEditChange}
+                    className={invalidClass(editForm.firstName)}
+                    required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Last Name</label>
+                  <label>
+                    Last Name <span className="required-mark">*</span>
+                  </label>
                   <input
                     name="lastName"
                     value={editForm.lastName}
                     onChange={onEditChange}
+                    className={invalidClass(editForm.lastName)}
+                    required
                   />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Username</label>
+                  <label>
+                    Username <span className="required-mark">*</span>
+                  </label>
                   <input
                     name="username"
                     value={editForm.username}
                     onChange={onEditChange}
+                    className={invalidClass(editForm.username)}
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Email</label>
+                  <label>
+                    Email <span className="required-mark">*</span>
+                  </label>
                   <input
                     type="email"
                     name="email"
                     value={editForm.email}
-                    onChange={onEditChange}
+                    readOnly
+                    className="readonly-input"
                     required
                   />
                 </div>
@@ -392,25 +498,47 @@ const StaffProfile = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Phone</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontWeight: "500", whiteSpace: "nowrap" }}>+63</span>
+                  <label>
+                    Phone <span className="required-mark">*</span>
+                  </label>
+                  <div className="phone-input-wrap">
                     <input
+                      type="tel"
                       name="phone"
-                      value={editForm.phone || ""}
-                      placeholder="09XXXXXXXXX"
+                      value={normalizePhoneForForm(editForm.phone)}
+                      placeholder="Enter 11-digit number"
                       maxLength="11"
-                      onChange={onEditChange}
-                      style={{ flex: 1 }}
+                      pattern="[0-9]*"
+                      inputMode="numeric"
+                      className={
+                        normalizePhoneForForm(editForm.phone).length !== 11
+                          ? "input-invalid"
+                          : ""
+                      }
+                      required
+                      onChange={(e) => {
+                        onEditChange({
+                          ...e,
+                          target: {
+                            ...e.target,
+                            name: "phone",
+                            value: normalizePhoneForForm(e.target.value),
+                          },
+                        });
+                      }}
                     />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Address</label>
+                  <label>
+                    Address <span className="required-mark">*</span>
+                  </label>
                   <input
                     name="address"
                     value={editForm.address}
                     onChange={onEditChange}
+                    className={invalidClass(editForm.address)}
+                    required
                   />
                 </div>
               </div>
@@ -426,7 +554,7 @@ const StaffProfile = () => {
                 <button
                   type="submit"
                   className="save-btn"
-                  disabled={savingProfile}
+                  disabled={savingProfile || !requiredProfileFieldsComplete}
                 >
                   {savingProfile ? "Saving..." : "Save"}
                 </button>
