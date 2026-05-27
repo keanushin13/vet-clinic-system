@@ -1,55 +1,194 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Check,
+  Clock,
+  AlertCircle,
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
-import "../../../css/StaffAppointment.css";
+import "../../../css/VetCalendar.css";
 import "../../../css/responsive-tables.css";
 import VetSidebar from "../../../components/VetSidebar";
 import { useSidebar } from "../../../components/useSidebar";
 import {
-  createAppointment,
-  deleteAppointment,
   getAppointments,
-  getPets,
   updateAppointment,
 } from "../../../api/api";
 
-// ASSETS
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
+// ─────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, value) => ({
+  value,
+  label: new Date(2000, value, 1).toLocaleString([], { month: "long" }),
+}));
+
+const APPT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_APPT_PAGE_SIZE = 25;
+
+// ─────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────
+const getLocalDateKey = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const isPastDateValue = (value) =>
+  Boolean(value && value < getLocalDateKey(new Date()));
+
+const normalizeStatus = (apt, fallback = "") =>
+  String(apt?.status || fallback)
+    .trim()
+    .toLowerCase();
+
+const getDisplayStatus = (apt) =>
+  normalizeStatus(apt) === "completed" ? "completed" : "confirmed";
+
+const isAppointmentPastDue = (apt) => {
+  if (!apt?.scheduledAt) return false;
+  const d = new Date(apt.scheduledAt);
+  if (Number.isNaN(d.getTime())) return false;
+  return isPastDateValue(getLocalDateKey(d));
+};
+
+const isPastDueQueueItem = (apt) =>
+  getDisplayStatus(apt) !== "completed" && isAppointmentPastDue(apt);
+
+const getQueueStatusDisplay = (apt) => {
+  if (isPastDueQueueItem(apt)) {
+    return {
+      label: "Cancelled Due to No Compliance",
+      className: "no-compliance",
+    };
+  }
+
+  if (getDisplayStatus(apt) === "completed") {
+    return { label: "Completed", className: "completed" };
+  }
+
+  return { label: "Confirmed", className: "confirmed" };
+};
+
+const getOwnerName = (apt) =>
+  `${apt?.owner?.firstName || ""} ${apt?.owner?.lastName || ""}`.trim() ||
+  apt?.owner?.username ||
+  "—";
+
+// ─────────────────────────────────────────────────────
+// VALIDATION CONFIRM MODAL
+// ─────────────────────────────────────────────────────
+const MODAL_META = {
+  confirm: {
+    icon: <ShieldCheck size={28} strokeWidth={2} />,
+    iconClass: "vc-val-icon-confirm",
+  },
+  complete: {
+    icon: <CheckCircle2 size={28} strokeWidth={2} />,
+    iconClass: "vc-val-icon-complete",
+  },
+  delete: {
+    icon: <AlertTriangle size={28} strokeWidth={2} />,
+    iconClass: "vc-val-icon-delete",
+  },
+  reject: {
+    icon: <AlertTriangle size={28} strokeWidth={2} />,
+    iconClass: "vc-val-icon-delete",
+  },
+};
+
+const ValidationModal = ({
+  title,
+  message,
+  confirmLabel,
+  confirmClass,
+  modalType,
+  onConfirm,
+  onCancel,
+}) => {
+  const meta = MODAL_META[modalType] || MODAL_META.delete;
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div
+        className="modal-box vc-validation-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vc-val-title"
+      >
+        <div className={`vc-val-icon-wrap ${meta.iconClass}`}>
+          {meta.icon}
+        </div>
+        <h3 className="vc-val-title" id="vc-val-title">
+          {title}
+        </h3>
+        <p className="vc-val-msg">{message}</p>
+        <div className="vc-val-actions">
+          <button className="vc-val-cancel-btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            className={`vc-val-action-btn ${confirmClass}`}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────────────
 const VetCalendar = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
   const { isOpen, toggle, close } = useSidebar();
 
   const [appointments, setAppointments] = useState([]);
-  const [pets, setPets] = useState([]);
   const [viewMode, setViewMode] = useState("calendar");
-  const [calView, setCalView] = useState("month"); // "month" | "week" | "day"
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [search, setSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [speciesFilter, setSpeciesFilter] = useState("");
-  const [serviceFilter, setServiceFilter] = useState("");
+  const [apptDateFrom, setApptDateFrom] = useState("");
+  const [apptDateTo, setApptDateTo] = useState("");
+  const [apptStatusFilter, setApptStatusFilter] = useState("");
+  const [apptPage, setApptPage] = useState(1);
+  const [apptPageSize, setApptPageSize] = useState(DEFAULT_APPT_PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Queue modal (staff-style calendar day click)
+  const [queueDateKey, setQueueDateKey] = useState("");
+
+  // Detail view modal
   const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    petId: "",
-    scheduledAt: "",
-    reason: "",
-    notes: "",
-    status: "Pending",
-  });
-  const [expandedStatus, setExpandedStatus] = useState({
-    Pending: true,
-    Confirmed: true,
-    Ongoing: true,
-    Completed: false,
-    Cancelled: false,
+  const [viewing, setViewing] = useState(null);
+
+  // Legacy status modals are no longer opened; kept for compatibility with older markup.
+  const [pendingAppointment, setPendingAppointment] = useState(null);
+  const [confirmedAppointment, setConfirmedAppointment] = useState(null);
+  const [completedAppointment, setCompletedAppointment] = useState(null);
+  const [cancelledAppointment, setCancelledAppointment] = useState(null);
+
+  // Validation confirmation modal
+  const [validationModal, setValidationModal] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmLabel: "",
+    confirmClass: "",
+    modalType: "delete",
+    onConfirm: null,
   });
 
   useEffect(() => {
@@ -65,100 +204,50 @@ const VetCalendar = () => {
     setLoading(true);
     setError("");
     try {
-      const [aptRes, petRes] = await Promise.all([
-        getAppointments(),
-        getPets(),
-      ]);
+      const aptRes = await getAppointments();
       setAppointments(aptRes.data || []);
-      setPets(petRes.data || []);
     } catch {
-      setError("Failed to load calendar data");
+      setError("Failed to load data");
     } finally {
       setLoading(false);
     }
   };
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({
-      petId: pets[0]?.id || "",
-      scheduledAt: "",
-      reason: "",
-      notes: "",
-      status: "Pending",
+  // ── Validation modal helpers ──
+  const openValidation = (config) =>
+    setValidationModal({ open: true, ...config });
+  const closeValidation = () =>
+    setValidationModal({
+      open: false,
+      title: "",
+      message: "",
+      confirmLabel: "",
+      confirmClass: "",
+      modalType: "delete",
+      onConfirm: null,
     });
+
+  // ── Detail modal helpers ──
+  const openView = (apt) => {
+    setViewing(apt);
     setShowModal(true);
     setError("");
   };
-
-  const openEdit = (apt) => {
-    setEditing(apt);
-    setForm({
-      petId: apt.petId,
-      scheduledAt: new Date(apt.scheduledAt).toISOString().slice(0, 16),
-      reason: apt.reason || "",
-      notes: apt.notes || "",
-      status: apt.status || "Pending",
-    });
-    setShowModal(true);
-    setError("");
-  };
-
   const closeModal = () => {
     setShowModal(false);
-    setEditing(null);
-    setSaving(false);
+    setViewing(null);
   };
 
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+  // ── Open detail modal from queue or list ──
+  // ── Open queue modal (staff-style calendar day click) ──
+  const openAppointmentQueue = (dateKey) => {
+    setQueueDateKey(dateKey);
   };
 
-  const submitAppointment = async (e) => {
-    e.preventDefault();
-    if (!form.petId || !form.scheduledAt) {
-      setError("Pet and schedule are required");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      if (editing) {
-        await updateAppointment(editing.id, {
-          scheduledAt: form.scheduledAt,
-          reason: form.reason,
-          notes: form.notes,
-          status: form.status,
-        });
-      } else {
-        await createAppointment({
-          petId: form.petId,
-          scheduledAt: form.scheduledAt,
-          reason: form.reason,
-          notes: form.notes,
-        });
-      }
-      closeModal();
-      await loadData();
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to save appointment");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const closeQueue = () => setQueueDateKey("");
 
-  const removeAppointment = async (apt) => {
-    if (!window.confirm("Delete this appointment?")) return;
-    try {
-      await deleteAppointment(apt.id);
-      await loadData();
-    } catch {
-      setError("Failed to delete appointment");
-    }
-  };
-
-  const quickStatus = async (apt, newStatus) => {
+  // ── Status transitions with validation ──
+  const performStatusUpdate = async (apt, newStatus) => {
     try {
       await updateAppointment(apt.id, { status: newStatus });
       await loadData();
@@ -167,182 +256,245 @@ const VetCalendar = () => {
     }
   };
 
-  // ── Derived data ──
+  const handleCompleteAction = (apt, e) => {
+    e && e.stopPropagation();
+    const status = getDisplayStatus(apt);
+    if (status === "completed" || isAppointmentPastDue(apt)) return;
 
-  const speciesOptions = useMemo(
-    () => [...new Set(pets.map((p) => p.species).filter(Boolean))],
-    [pets],
+    openValidation({
+      title: "Mark as Completed",
+      message: `Mark the appointment for ${
+        apt.pet?.name || "this pet"
+      } as completed? This cannot be undone.`,
+      confirmLabel: "Yes, Mark Complete",
+      confirmClass: "vc-val-complete",
+      modalType: "complete",
+      onConfirm: () => {
+        closeValidation();
+        performStatusUpdate(apt, "Completed");
+      },
+    });
+  };
+
+  // ── Calendar derived data ──
+  const selectedMonth = calendarDate.getMonth();
+  const selectedYear = calendarDate.getFullYear();
+  const currentYear = new Date().getFullYear();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  const firstWeekday = new Date(selectedYear, selectedMonth, 1).getDay();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  const aptYears = appointments
+    .map((a) => new Date(a.scheduledAt).getFullYear())
+    .filter(Number.isInteger);
+  const firstYear = Math.min(currentYear - 100, selectedYear, ...aptYears);
+  const lastYear = Math.max(currentYear + 25, selectedYear, ...aptYears);
+  const yearOptions = Array.from(
+    { length: lastYear - firstYear + 1 },
+    (_, i) => firstYear + i
   );
 
+  const shiftMonth = (d) =>
+    setCalendarDate(
+      (p) => new Date(p.getFullYear(), p.getMonth() + d, 1)
+    );
+  const onCalendarMonthChange = (e) =>
+    setCalendarDate(
+      (p) => new Date(p.getFullYear(), Number(e.target.value), 1)
+    );
+  const onCalendarYearChange = (e) =>
+    setCalendarDate((p) => new Date(Number(e.target.value), p.getMonth(), 1));
+
+  // ── Filtered appointments ──
   const filteredAppointments = useMemo(() => {
     return appointments.filter((a) => {
       const aptDate = new Date(a.scheduledAt);
+      const ownerName =
+        `${a.owner?.firstName || ""} ${a.owner?.lastName || ""}`.trim() ||
+        a.owner?.username ||
+        "";
+      const query = search.trim().toLowerCase();
 
-      // Month restriction applies only to calendar views
-      if (viewMode !== "list") {
-        const matchesMonth =
-          aptDate.getFullYear() === calendarDate.getFullYear() &&
-          aptDate.getMonth() === calendarDate.getMonth();
-        if (!matchesMonth) return false;
-      }
-
-      // Text search
-      const query = search.toLowerCase();
       if (
         query &&
         !(
           (a.pet?.name || "").toLowerCase().includes(query) ||
-          (a.reason || "").toLowerCase().includes(query) ||
-          (a.status || "").toLowerCase().includes(query)
+          ownerName.toLowerCase().includes(query) ||
+          (a.owner?.email || "").toLowerCase().includes(query) ||
+          (getDisplayStatus(a) === "completed" ? "completed" : "confirmed").includes(query)
         )
       )
         return false;
 
-      // Date range (list view only)
       if (viewMode === "list") {
-        if (dateFrom && aptDate < new Date(dateFrom)) return false;
-        if (dateTo && aptDate > new Date(dateTo + "T23:59:59")) return false;
+        if (
+          apptStatusFilter === "Due" &&
+          !isPastDateValue(getLocalDateKey(aptDate))
+        )
+          return false;
+        if (
+          apptStatusFilter &&
+          apptStatusFilter !== "Due" &&
+          getDisplayStatus(a) !== apptStatusFilter.toLowerCase()
+        )
+          return false;
+        if (apptDateFrom && aptDate < new Date(apptDateFrom)) return false;
+        if (apptDateTo && aptDate > new Date(apptDateTo + "T23:59:59"))
+          return false;
       }
 
-      // Species filter (list view only)
-      if (viewMode === "list" && speciesFilter && (a.pet?.species || "") !== speciesFilter)
-        return false;
-
-      // Service/reason filter (list view only)
-      if (
-        viewMode === "list" &&
-        serviceFilter &&
-        !(a.reason || "").toLowerCase().includes(serviceFilter.toLowerCase())
-      )
-        return false;
+      if (viewMode === "calendar") {
+        return (
+          aptDate.getFullYear() === selectedYear &&
+          aptDate.getMonth() === selectedMonth
+        );
+      }
 
       return true;
     });
   }, [
     appointments,
     viewMode,
-    calendarDate,
     search,
-    dateFrom,
-    dateTo,
-    speciesFilter,
-    serviceFilter,
+    apptStatusFilter,
+    apptDateFrom,
+    apptDateTo,
+    selectedYear,
+    selectedMonth,
   ]);
 
-  // Group for list view
-  const groupedAppointments = useMemo(
-    () =>
-      filteredAppointments.reduce((acc, apt) => {
-        const status = apt.status || "Pending";
-        if (!acc[status]) acc[status] = [];
-        acc[status].push(apt);
-        return acc;
-      }, {}),
-    [filteredAppointments],
-  );
+  // ── Queue appointments for selected date ──
+  const queueAppointments = useMemo(() => {
+    if (!queueDateKey) return [];
+    return appointments
+      .filter(
+        (a) =>
+          getLocalDateKey(new Date(a.scheduledAt)) === queueDateKey
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+      );
+  }, [appointments, queueDateKey]);
 
-  const statusOrder = ["Pending", "Confirmed", "Ongoing", "Completed", "Cancelled"];
-  const sortedStatuses = statusOrder.filter(
-    (s) => groupedAppointments[s]?.length > 0,
-  );
+  const queueDateLabel = queueDateKey
+    ? new Date(`${queueDateKey}T00:00:00`).toLocaleDateString([], {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
 
-  const toggleStatus = (status) => {
-    setExpandedStatus((prev) => ({ ...prev, [status]: !prev[status] }));
-  };
-
-  const getStatusConfig = (status) => {
-    const configs = {
-      Pending: { icon: "🟡", color: "#ff9800" },
-      Confirmed: { icon: "🟢", color: "#4caf50" },
-      Ongoing: { icon: "🔵", color: "#2196f3" },
-      Completed: { icon: "✓", color: "#607d8b" },
-      Cancelled: { icon: "✕", color: "#f44336" },
-    };
-    return configs[status] || configs.Pending;
-  };
-
-  // ── Month calendar data ──
-  const monthStart = new Date(
-    calendarDate.getFullYear(),
-    calendarDate.getMonth(),
+  // ── Pagination ──
+  const apptTotalPages = Math.max(
     1,
+    Math.ceil(filteredAppointments.length / apptPageSize)
   );
-  const daysInMonth = new Date(
-    calendarDate.getFullYear(),
-    calendarDate.getMonth() + 1,
-    0,
-  ).getDate();
-  const firstWeekday = monthStart.getDay();
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const monthLabel = calendarDate.toLocaleString([], {
-    month: "long",
-    year: "numeric",
-  });
-
-  // ── Week view data ──
-  const weekStart = useMemo(() => {
-    const d = new Date(calendarDate);
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, [calendarDate]);
-
-  const weekDays = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(weekStart);
-        d.setDate(d.getDate() + i);
-        return d;
-      }),
-    [weekStart],
+  const currentApptPage = Math.min(apptPage, apptTotalPages);
+  const paginatedAppointments = filteredAppointments.slice(
+    (currentApptPage - 1) * apptPageSize,
+    currentApptPage * apptPageSize
+  );
+  const apptStartItem =
+    filteredAppointments.length === 0
+      ? 0
+      : (currentApptPage - 1) * apptPageSize + 1;
+  const apptEndItem = Math.min(
+    currentApptPage * apptPageSize,
+    filteredAppointments.length
   );
 
-  // ── Day view data ──
-  const dayApts = useMemo(
-    () =>
-      appointments
-        .filter(
-          (a) =>
-            new Date(a.scheduledAt).toDateString() ===
-            calendarDate.toDateString(),
-        )
-        .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)),
-    [appointments, calendarDate],
-  );
+  useEffect(() => {
+    if (apptPage > apptTotalPages) setApptPage(apptTotalPages);
+  }, [apptPage, apptTotalPages]);
 
-  // ── Edit/Delete SVG icons (shared) ──
-  const editIcon = (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M4 20h4l10-10-4-4L4 16v4z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 6l4 4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-  const deleteIcon = (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  // ── Modal date helpers ──
+  const getScheduledDate = (s) =>
+    s
+      ? new Date(s).toLocaleDateString([], {
+          weekday: "short",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "—";
+  const getScheduledTime = (s) =>
+    s
+      ? new Date(s).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
 
+  // ── Past Due badge ──
+  const getPastDueBadge = (apt) => {
+    const status = normalizeStatus(apt);
+    if (status === "completed" || status === "cancelled")
+      return <span className="vc-pastdue-badge vc-pastdue-na">—</span>;
+    if (isAppointmentPastDue(apt))
+      return (
+        <span className="vc-pastdue-badge vc-pastdue-yes">
+          <AlertCircle size={11} strokeWidth={2.5} /> Past Due
+        </span>
+      );
+    return (
+      <span className="vc-pastdue-badge vc-pastdue-no">
+        <Clock size={11} strokeWidth={2.5} /> On Time
+      </span>
+    );
+  };
+
+  // Single check action marks appointments completed.
+  // ── 3-slot action buttons (table + queue) ──
+  const renderActionButtons = (apt, { fromQueue = false } = {}) => {
+    const displayStatus = getDisplayStatus(apt);
+    const isPastDue = isAppointmentPastDue(apt);
+    const canComplete = displayStatus === "confirmed" && !isPastDue;
+    const disabledTitle =
+      displayStatus === "completed"
+        ? "Already completed"
+        : "Past due appointments cannot be marked completed";
+
+    return (
+      <div
+        className="vc-action-btns"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {canComplete ? (
+          <button
+            type="button"
+            className="vc-icon-btn vc-btn-complete"
+            title="Mark as completed"
+            onClick={(e) => {
+              if (fromQueue) closeQueue();
+              handleCompleteAction(apt, e);
+            }}
+          >
+            <Check size={14} strokeWidth={2.5} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="vc-icon-btn vc-icon-btn-disabled"
+            title={disabledTitle}
+            disabled
+            aria-disabled="true"
+          >
+            <Check size={14} strokeWidth={2.5} />
+          </button>
+        )}
+
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container vet-calendar-shell">
       <VetSidebar isOpen={isOpen} onClose={close} />
 
       <main className="main-area">
@@ -356,7 +508,7 @@ const VetCalendar = () => {
             <span />
             <span />
           </button>
-          <h2>Vet Schedule</h2>
+          <h2>Appointments</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"
@@ -372,137 +524,100 @@ const VetCalendar = () => {
           </div>
         </header>
 
-        <section className="content-body">
-          {/* View toggle + search + add */}
-          <div className="calendar-controls">
+        <section
+          className={`content-body vet-calendar-body ${
+            viewMode === "calendar" ? "appointment-calendar-body" : ""
+          }`}
+        >
+          {/* ── View toggle + calendar search ── */}
+          <div
+            className={`calendar-controls ${
+              viewMode === "list" ? "appointment-list-controls" : ""
+            }`}
+          >
             <div className="view-toggle">
               <button
-                className={
-                  viewMode === "calendar" && calView === "month" ? "active" : ""
-                }
-                onClick={() => {
-                  setViewMode("calendar");
-                  setCalView("month");
-                }}
+                className={viewMode === "calendar" ? "active" : ""}
+                onClick={() => setViewMode("calendar")}
               >
-                Month
-              </button>
-              <button
-                className={
-                  viewMode === "calendar" && calView === "week" ? "active" : ""
-                }
-                onClick={() => {
-                  setViewMode("calendar");
-                  setCalView("week");
-                }}
-              >
-                Week
-              </button>
-              <button
-                className={
-                  viewMode === "calendar" && calView === "day" ? "active" : ""
-                }
-                onClick={() => {
-                  setViewMode("calendar");
-                  setCalView("day");
-                }}
-              >
-                Day
+                Calendar View
               </button>
               <button
                 className={viewMode === "list" ? "active" : ""}
                 onClick={() => setViewMode("list")}
               >
-                List
+                List View
               </button>
             </div>
-            <div className="appointment-actions">
-              <input
-                type="text"
-                className="apt-search"
-                placeholder="Search pet, reason, or status"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <button className="add-apt-btn" onClick={openCreate}>
-                + Add Appointment
-              </button>
-            </div>
+
+            {viewMode === "calendar" && (
+              <div className="appointment-actions">
+                <input
+                  type="text"
+                  className="apt-search"
+                  placeholder="Search pet, owner, or status"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
-          {/* List-view filter bar */}
-          {viewMode === "list" && (
-            <div className="apt-filter-bar">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-              <select
-                value={speciesFilter}
-                onChange={(e) => setSpeciesFilter(e.target.value)}
-              >
-                <option value="">All Species</option>
-                {speciesOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                placeholder="Filter by service/reason"
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-              />
-              <button
-                className="apt-reset-btn"
-                onClick={() => {
-                  setDateFrom("");
-                  setDateTo("");
-                  setSpeciesFilter("");
-                  setServiceFilter("");
-                  setSearch("");
-                }}
-              >
-                Reset
-              </button>
-            </div>
+          {loading && (
+            <p className="list-placeholder">Loading appointments...</p>
           )}
+          {!loading && error && <p className="modal-error">{error}</p>}
 
-          {/* ── MONTH VIEW ── */}
-          {viewMode === "calendar" && calView === "month" && (
+          {/* ══ CALENDAR VIEW ══ */}
+          {!loading && viewMode === "calendar" && (
             <div className="calendar-container">
               <div className="calendar-month-header">
-                <h3>{monthLabel}</h3>
                 <div className="month-nav">
                   <button
-                    onClick={() =>
-                      setCalendarDate(
-                        (prev) =>
-                          new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
-                      )
-                    }
+                    type="button"
+                    className="calendar-nav-btn calendar-nav-prev"
+                    onClick={() => shiftMonth(-1)}
                   >
                     &lt; Prev
                   </button>
+                  <div className="calendar-picker">
+                    <label>
+                      <span>Month</span>
+                      <select
+                        value={selectedMonth}
+                        onChange={onCalendarMonthChange}
+                      >
+                        {MONTH_OPTIONS.map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Year</span>
+                      <select
+                        value={selectedYear}
+                        onChange={onCalendarYearChange}
+                      >
+                        {yearOptions.map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                   <button
-                    onClick={() =>
-                      setCalendarDate(
-                        (prev) =>
-                          new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
-                      )
-                    }
+                    type="button"
+                    className="calendar-nav-btn calendar-nav-next"
+                    onClick={() => shiftMonth(1)}
                   >
                     Next &gt;
                   </button>
                 </div>
               </div>
+
               <div className="calendar-grid">
                 {[
                   { full: "Sun", short: "S" },
@@ -520,123 +635,94 @@ const VetCalendar = () => {
                     </span>
                   </div>
                 ))}
-                {Array.from({ length: firstWeekday }).map((_, idx) => (
-                  <div key={`empty-${idx}`} className="calendar-day empty" />
-                ))}
-                {days.map((day) => {
-                  const dayAptsCal = filteredAppointments.filter(
-                    (a) => new Date(a.scheduledAt).getDate() === day,
-                  );
-                  return (
-                    <div key={day} className="calendar-day">
-                      <span className="day-num">{day}</span>
-                      <div className="day-events">
-                        {dayAptsCal.map((a) => (
-                          <div
-                            key={a.id}
-                            className={`event-item ${(a.status || "").toLowerCase()}`}
-                            title={`${a.pet?.name || "Pet"} - ${a.status}`}
-                            onClick={() => openEdit(a)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            {new Date(a.scheduledAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}{" "}
-                            {a.pet?.name}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
-          {/* ── WEEK VIEW ── */}
-          {viewMode === "calendar" && calView === "week" && (
-            <div className="calendar-container">
-              <div className="calendar-month-header">
-                <h3>
-                  Week of{" "}
-                  {weekStart.toLocaleDateString([], {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </h3>
-                <div className="month-nav">
-                  <button
-                    onClick={() =>
-                      setCalendarDate((prev) => {
-                        const d = new Date(prev);
-                        d.setDate(d.getDate() - 7);
-                        return d;
-                      })
-                    }
-                  >
-                    &lt; Prev
-                  </button>
-                  <button onClick={() => setCalendarDate(new Date())}>
-                    Today
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCalendarDate((prev) => {
-                        const d = new Date(prev);
-                        d.setDate(d.getDate() + 7);
-                        return d;
-                      })
-                    }
-                  >
-                    Next &gt;
-                  </button>
-                </div>
-              </div>
-              <div className="week-grid">
-                {weekDays.map((day) => {
-                  const weekDayApts = appointments
-                    .filter(
-                      (a) =>
-                        new Date(a.scheduledAt).toDateString() ===
-                        day.toDateString(),
-                    )
-                    .sort(
-                      (a, b) =>
-                        new Date(a.scheduledAt) - new Date(b.scheduledAt),
-                    );
-                  const isToday =
-                    day.toDateString() === new Date().toDateString();
+                {Array.from({ length: firstWeekday }).map((_, i) => (
+                  <div key={`e-${i}`} className="calendar-day empty" />
+                ))}
+
+                {days.map((d) => {
+                  const dayDate = new Date(selectedYear, selectedMonth, d);
+                  const isPastDay = dayDate < todayStart;
+                  const dayKey = getLocalDateKey(dayDate);
+                  const dayApts = filteredAppointments.filter(
+                    (a) =>
+                      new Date(a.scheduledAt).getFullYear() === selectedYear &&
+                      new Date(a.scheduledAt).getMonth() === selectedMonth &&
+                      new Date(a.scheduledAt).getDate() === d
+                  );
+                  const isQueueClickable = dayApts.length > 0;
+
                   return (
                     <div
-                      key={day.toISOString()}
-                      className={`week-day-col ${isToday ? "today" : ""}`}
+                      key={d}
+                      className={`calendar-day ${isPastDay ? "past-due" : ""} ${
+                        isQueueClickable ? "appointment-queue-day" : ""
+                      }`}
+                      role={isQueueClickable ? "button" : undefined}
+                      tabIndex={isQueueClickable ? 0 : undefined}
+                      title={
+                        isQueueClickable
+                          ? `View ${dayApts.length} appointment${dayApts.length !== 1 ? "s" : ""}`
+                          : undefined
+                      }
+                      onClick={() => {
+                        if (isQueueClickable) openAppointmentQueue(dayKey);
+                      }}
+                      onKeyDown={(e) => {
+                        if (
+                          isQueueClickable &&
+                          (e.key === "Enter" || e.key === " ")
+                        ) {
+                          e.preventDefault();
+                          openAppointmentQueue(dayKey);
+                        }
+                      }}
                     >
-                      <div className="week-day-header">
-                        <span className="week-day-name">
-                          {day.toLocaleDateString([], { weekday: "short" })}
-                        </span>
-                        <span className="week-day-num">{day.getDate()}</span>
+                      <div className="vc-day-heading">
+                        <span className="day-num">{d}</span>
                       </div>
-                      <div className="week-day-apts">
-                        {weekDayApts.map((a) => (
-                          <div
-                            key={a.id}
-                            className={`event-item ${(a.status || "").toLowerCase()}`}
-                            title={`${a.pet?.name} - ${a.reason || ""}`}
-                            onClick={() => openEdit(a)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            {new Date(a.scheduledAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}{" "}
-                            {a.pet?.name}
+                      {(isPastDay || dayApts.length > 0) && (
+                        <div className="vc-day-status-row">
+                          {isPastDay && (
+                            <span className="vc-day-due-label">Due</span>
+                          )}
+                          {dayApts.length > 0 && (
+                            <span className="appointment-count-badge">
+                              {dayApts.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="day-events">
+                        {/* Status summary badges instead of individual event pills */}
+                        {dayApts.length > 0 && (
+                          <div className="vc-day-summary">
+                            {/* Show up to 2 status pills */}
+                            {dayApts.slice(0, 2).map((apt) => (
+                              <div
+                                key={apt.id}
+                                className={`event-item ${getDisplayStatus(apt)}`}
+                                title={`${apt.pet?.name || "Pet"} - ${
+                                  getDisplayStatus(apt) === "completed" ? "Completed" : "Confirmed"
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openAppointmentQueue(dayKey);
+                                }}
+                              >
+                                {new Date(apt.scheduledAt).toLocaleTimeString(
+                                  [],
+                                  { hour: "2-digit", minute: "2-digit" }
+                                )}{" "}
+                                {apt.pet?.name}
+                              </div>
+                            ))}
+                            {dayApts.length > 2 && (
+                              <div className="vc-more-badge">
+                                +{dayApts.length - 2} more
+                              </div>
+                            )}
                           </div>
-                        ))}
-                        {weekDayApts.length === 0 && (
-                          <span className="week-empty">—</span>
                         )}
                       </div>
                     </div>
@@ -646,364 +732,676 @@ const VetCalendar = () => {
             </div>
           )}
 
-          {/* ── DAY VIEW ── */}
-          {viewMode === "calendar" && calView === "day" && (
-            <div className="calendar-container">
-              <div className="calendar-month-header">
-                <h3>
-                  {calendarDate.toLocaleDateString([], {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </h3>
-                <div className="month-nav">
-                  <button
-                    onClick={() =>
-                      setCalendarDate((prev) => {
-                        const d = new Date(prev);
-                        d.setDate(d.getDate() - 1);
-                        return d;
-                      })
-                    }
+          {/* ══ LIST VIEW ══ */}
+          {!loading && viewMode === "list" && (
+            <div className="list-view-container">
+              <div className="appointment-list-description">
+                <div>
+                  <h3>Appointments</h3>
+                  <p>Search, filter, and manage all appointments below.</p>
+                </div>
+                <span>{filteredAppointments.length} results</span>
+              </div>
+
+              <div className="appointment-list-toolbar">
+                <div className="appointment-search-box">
+                  <input
+                    type="text"
+                    className="apt-search"
+                    placeholder="Search pet, owner, or status…"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setApptPage(1);
+                    }}
+                  />
+
+                  <label className="apt-entries-control">
+                    <span>Show</span>
+                    <select
+                      className="apt-filter-select apt-entries-select"
+                      value={apptPageSize}
+                      onChange={(e) => {
+                        setApptPageSize(Number(e.target.value));
+                        setApptPage(1);
+                      }}
+                    >
+                      {APPT_PAGE_SIZE_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    <span>entries</span>
+                  </label>
+
+                  <select
+                    className="apt-filter-select apt-status-filter-select"
+                    value={apptStatusFilter}
+                    onChange={(e) => {
+                      setApptStatusFilter(e.target.value);
+                      setApptPage(1);
+                    }}
+                    aria-label="Filter by appointment status"
                   >
-                    &lt; Prev
-                  </button>
-                  <button onClick={() => setCalendarDate(new Date())}>
-                    Today
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCalendarDate((prev) => {
-                        const d = new Date(prev);
-                        d.setDate(d.getDate() + 1);
-                        return d;
-                      })
-                    }
+                    <option value="">All Status</option>
+                    <option value="Due">Past Due</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+
+                  <div
+                    className="apt-date-range"
+                    aria-label="Date range filter"
                   >
-                    Next &gt;
-                  </button>
+                    <label className="apt-date-field">
+                      <span>From</span>
+                      <input
+                        type="date"
+                        className="apt-date-input"
+                        value={apptDateFrom}
+                        onChange={(e) => {
+                          setApptDateFrom(e.target.value);
+                          setApptPage(1);
+                        }}
+                      />
+                    </label>
+                    <label className="apt-date-field">
+                      <span>To</span>
+                      <input
+                        type="date"
+                        className="apt-date-input"
+                        value={apptDateTo}
+                        onChange={(e) => {
+                          setApptDateTo(e.target.value);
+                          setApptPage(1);
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
-              <div className="day-view">
-                {dayApts.length === 0 ? (
-                  <p className="list-feedback">No appointments on this day.</p>
-                ) : (
-                  dayApts.map((a) => (
-                    <div
-                      key={a.id}
-                      className={`day-apt-block ${(a.status || "").toLowerCase()}`}
-                      onClick={() => openEdit(a)}
-                    >
-                      <span className="day-apt-time">
-                        {new Date(a.scheduledAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      <div className="day-apt-info">
-                        <strong>{a.pet?.name || "—"}</strong>
-                        <span>{a.reason || "—"}</span>
-                        <span
-                          className={`apt-status ${(a.status || "").toLowerCase()}`}
-                        >
-                          {a.status}
-                        </span>
-                      </div>
+
+              {paginatedAppointments.length === 0 ? (
+                <p className="list-placeholder">No appointments found.</p>
+              ) : (
+                <>
+                  {/* Desktop table */}
+                  <div className="table-desktop">
+                    <div className="vc-table-wrapper">
+                      <table className="vc-table">
+                        <thead>
+                          <tr>
+                            <th>Pet</th>
+                            <th>Pet Owner</th>
+                            <th>Date &amp; Time</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th className="vc-th-center">Past Due</th>
+                            <th className="vc-th-actions">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedAppointments.map((apt) => (
+                            <tr
+                              key={apt.id}
+                              className="vc-table-row"
+                              onClick={() => openView(apt)}
+                            >
+                              <td className="vc-td vc-td-pet">
+                                {apt.pet?.name || "—"}
+                              </td>
+                              <td className="vc-td">{getOwnerName(apt)}</td>
+                              <td className="vc-td vc-td-date">
+                                <span className="vc-date-main">
+                                  {new Date(apt.scheduledAt).toLocaleDateString(
+                                    [],
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    }
+                                  )}
+                                </span>
+                                <span className="vc-date-time">
+                                  {new Date(
+                                    apt.scheduledAt
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </td>
+                              <td className="vc-td vc-td-reason">
+                                {apt.reason || "—"}
+                              </td>
+                              <td className="vc-td">
+                                <span
+                                  className={`apt-status ${getDisplayStatus(apt)}`}
+                                >
+                                  {getDisplayStatus(apt) === "completed" ? "Completed" : "Confirmed"}
+                                </span>
+                              </td>
+                              <td className="vc-td vc-td-center">
+                                {getPastDueBadge(apt)}
+                              </td>
+                              <td
+                                className="vc-td vc-td-actions"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {renderActionButtons(apt)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))
-                )}
+                  </div>
+
+                  {/* Mobile cards */}
+                  <div className="table-mobile table-cards-list">
+                    {paginatedAppointments.map((apt) => (
+                      <div
+                        className="record-card"
+                        key={apt.id}
+                        onClick={() => openView(apt)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openView(apt);
+                          }
+                        }}
+                      >
+                        <div className="record-card-header">
+                          <div className="record-card-title">
+                            <div className="record-card-id">
+                              {apt.pet?.name || "—"}
+                            </div>
+                            <div className="record-card-patient">
+                              {getOwnerName(apt)}
+                            </div>
+                          </div>
+                          <span
+                            className={`apt-status ${getDisplayStatus(apt)}`}
+                          >
+                            {getDisplayStatus(apt) === "completed" ? "Completed" : "Confirmed"}
+                          </span>
+                        </div>
+                        <div className="record-card-body">
+                          <div className="record-card-row">
+                            <span className="record-card-label">
+                              Date &amp; Time
+                            </span>
+                            <span>
+                              {new Date(apt.scheduledAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="record-card-row">
+                            <span className="record-card-label">Reason</span>
+                            <span>{apt.reason || "—"}</span>
+                          </div>
+                          <div className="record-card-row">
+                            <span className="record-card-label">Past Due</span>
+                            {getPastDueBadge(apt)}
+                          </div>
+                          <div
+                            className="record-card-row"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="record-card-label">Actions</span>
+                            {renderActionButtons(apt)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="appt-pagination">
+                <button
+                  className="appt-page-btn"
+                  disabled={currentApptPage === 1}
+                  onClick={() => setApptPage((p) => Math.max(1, p - 1))}
+                >
+                  Prev
+                </button>
+                <span className="appt-page-info">
+                  Showing {apptStartItem}–{apptEndItem} of{" "}
+                  {filteredAppointments.length}&nbsp;|&nbsp;Page{" "}
+                  {currentApptPage} of {apptTotalPages}
+                </span>
+                <button
+                  className="appt-page-btn"
+                  disabled={currentApptPage === apptTotalPages}
+                  onClick={() =>
+                    setApptPage((p) => Math.min(apptTotalPages, p + 1))
+                  }
+                >
+                  Next
+                </button>
               </div>
             </div>
           )}
+        </section>
+      </main>
 
-          {/* ── LIST VIEW ── */}
-          {viewMode === "list" && (
-            <div className="list-view-container">
-              {sortedStatuses.length === 0 ? (
-                <p className="list-feedback">No appointments found.</p>
+      {/* ══ APPOINTMENT QUEUE MODAL (staff-style) ══ */}
+      {queueDateKey && (
+        <div
+          className="modal-overlay vc-queue-overlay"
+          onClick={closeQueue}
+        >
+          <div
+            className="modal-box vc-queue-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Appointment queue for ${queueDateLabel}`}
+          >
+            <span className="vc-queue-badge">Appointment Queue</span>
+            <h3 className="vc-queue-title">{queueDateLabel}</h3>
+            <p className="vc-queue-copy">
+              {queueAppointments.length === 1
+                ? "1 appointment is scheduled for this date."
+                : `${queueAppointments.length} appointments are scheduled for this date.`}
+            </p>
+
+            <div className="vc-queue-list">
+              {queueAppointments.length === 0 ? (
+                <p className="list-placeholder">
+                  No appointments found for this date.
+                </p>
               ) : (
-                sortedStatuses.map((status) => {
-                  const config = getStatusConfig(status);
-                  const statusApts = groupedAppointments[status];
-                  const isExpanded = expandedStatus[status];
-
+                queueAppointments.map((apt, index) => {
+                  const queueStatus = getQueueStatusDisplay(apt);
                   return (
-                    <div key={status} className="status-group">
-                      <button
-                        className="status-group-header"
-                        onClick={() => toggleStatus(status)}
-                        aria-expanded={isExpanded}
-                      >
-                        <span className="status-header-left">
-                          <span className="status-icon">{config.icon}</span>
-                          <span className="status-title">{status}</span>
-                          <span className="status-count">
-                            {statusApts.length}
+                    <div
+                      key={apt.id}
+                      className={`vc-queue-row ${queueStatus.className}`}
+                    >
+                      <div className="vc-queue-number">#{index + 1}</div>
+                      <div className="vc-queue-main">
+                        <div className="vc-queue-top">
+                          <strong>
+                            {new Date(apt.scheduledAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </strong>
+                          <span
+                            className={`vc-queue-status ${queueStatus.className}`}
+                          >
+                            {queueStatus.label}
                           </span>
-                        </span>
-                        <span className="status-toggle-icon">
-                          {isExpanded ? "▼" : "▶"}
-                        </span>
-                      </button>
-
-                      {/* Desktop table */}
-                      {isExpanded && (
-                        <div className="table-desktop">
-                          <table className="appointment-table">
-                            <tbody>
-                              {statusApts.map((apt) => (
-                                <tr key={apt.id}>
-                                  <td>{apt.pet?.name || "-"}</td>
-                                  <td>
-                                    {`${apt.owner?.firstName || ""} ${apt.owner?.lastName || ""}`.trim() ||
-                                      apt.owner?.username ||
-                                      "-"}
-                                  </td>
-                                  <td>
-                                    {new Date(apt.scheduledAt).toLocaleString()}
-                                  </td>
-                                  <td>{apt.reason || "-"}</td>
-                                  <td>
-                                    <span
-                                      className={`apt-status ${(apt.status || "").toLowerCase()}`}
-                                    >
-                                      {apt.status}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <div className="action-btns">
-                                      {apt.status === "Pending" && (
-                                        <>
-                                          <button
-                                            className="btn-accept"
-                                            onClick={() =>
-                                              quickStatus(apt, "Confirmed")
-                                            }
-                                            title="Accept appointment"
-                                          >
-                                            ✓
-                                          </button>
-                                          <button
-                                            className="btn-reject"
-                                            onClick={() =>
-                                              quickStatus(apt, "Cancelled")
-                                            }
-                                            title="Reject appointment"
-                                          >
-                                            ✕
-                                          </button>
-                                        </>
-                                      )}
-                                      <button
-                                        className="btn-edit icon-btn"
-                                        onClick={() => openEdit(apt)}
-                                        title="Edit appointment"
-                                      >
-                                        {editIcon}
-                                      </button>
-                                      <button
-                                        className="btn-remove icon-btn"
-                                        onClick={() => removeAppointment(apt)}
-                                        title="Delete appointment"
-                                      >
-                                        {deleteIcon}
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
                         </div>
-                      )}
-
-                      {/* Mobile cards */}
-                      {isExpanded && (
-                        <div className="table-mobile table-cards-list">
-                          {statusApts.map((apt) => (
-                            <div className="record-card" key={apt.id}>
-                              <div className="record-card-header">
-                                <div className="record-card-title">
-                                  <div className="record-card-id">
-                                    {apt.pet?.name || "-"}
-                                  </div>
-                                  <div className="record-card-patient">
-                                    {`${apt.owner?.firstName || ""} ${apt.owner?.lastName || ""}`.trim() ||
-                                      apt.owner?.username ||
-                                      "-"}
-                                  </div>
-                                </div>
-                                <span
-                                  className={`apt-status ${(apt.status || "").toLowerCase()}`}
-                                >
-                                  {apt.status}
-                                </span>
-                              </div>
-                              <div className="record-card-body">
-                                <div className="record-card-row">
-                                  <span className="record-card-label">
-                                    Date & Time
-                                  </span>
-                                  <span>
-                                    {new Date(apt.scheduledAt).toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="record-card-row">
-                                  <span className="record-card-label">
-                                    Reason
-                                  </span>
-                                  <span>{apt.reason || "-"}</span>
-                                </div>
-                                <div className="record-card-row">
-                                  <span className="record-card-label">
-                                    Actions
-                                  </span>
-                                  <div className="action-btns">
-                                    {apt.status === "Pending" && (
-                                      <>
-                                        <button
-                                          className="btn-accept"
-                                          onClick={() =>
-                                            quickStatus(apt, "Confirmed")
-                                          }
-                                          title="Accept"
-                                        >
-                                          ✓
-                                        </button>
-                                        <button
-                                          className="btn-reject"
-                                          onClick={() =>
-                                            quickStatus(apt, "Cancelled")
-                                          }
-                                          title="Reject"
-                                        >
-                                          ✕
-                                        </button>
-                                      </>
-                                    )}
-                                    <button
-                                      className="btn-edit icon-btn"
-                                      onClick={() => openEdit(apt)}
-                                      title="Edit appointment"
-                                    >
-                                      {editIcon}
-                                    </button>
-                                    <button
-                                      className="btn-remove icon-btn"
-                                      onClick={() => removeAppointment(apt)}
-                                      title="Delete appointment"
-                                    >
-                                      {deleteIcon}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="vc-queue-pet">
+                          {apt.pet?.name || "—"}
+                          {apt.pet?.species ? ` (${apt.pet.species})` : ""}
                         </div>
-                      )}
+                        <div className="vc-queue-meta">
+                          {getOwnerName(apt)}
+                        </div>
+                        {apt.reason && (
+                          <div className="vc-queue-reason">{apt.reason}</div>
+                        )}
+                        {isPastDueQueueItem(apt) && (
+                          <div className="vc-queue-pastdue-tag">
+                            <AlertCircle size={11} strokeWidth={2.5} /> Past Due
+                          </div>
+                        )}
+                      </div>
+                      <div className="vc-queue-actions">
+                        <button
+                          type="button"
+                          className="btn-edit"
+                          onClick={() => {
+                            closeQueue();
+                            openView(apt);
+                          }}
+                        >
+                          View
+                        </button>
+                        {queueStatus.className !== "no-compliance" &&
+                          renderActionButtons(apt, { fromQueue: true })}
+                      </div>
                     </div>
                   );
                 })
               )}
             </div>
-          )}
 
-          {loading && <p className="list-feedback">Loading appointments...</p>}
-          {error && <p className="modal-error">{error}</p>}
-        </section>
-      </main>
-
-      {/* Appointment modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <form className="user-modal-form" onSubmit={submitAppointment}>
-              <h3>{editing ? "Edit Appointment" : "Add Appointment"}</h3>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Pet</label>
-                  <select
-                    name="petId"
-                    value={form.petId}
-                    onChange={onChange}
-                    required
-                    disabled={Boolean(editing)}
-                  >
-                    <option value="">Select pet</option>
-                    {pets.map((pet) => (
-                      <option key={pet.id} value={pet.id}>
-                        {pet.name} ({pet.species})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select
-                    name="status"
-                    value={form.status}
-                    onChange={onChange}
-                    disabled={!editing}
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Confirmed">Confirmed</option>
-                    <option value="Ongoing">Ongoing</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Scheduled At</label>
-                <input
-                  type="datetime-local"
-                  name="scheduledAt"
-                  value={form.scheduledAt}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Reason</label>
-                <select name="reason" value={form.reason} onChange={onChange}>
-                  <option value="">Select a reason</option>
-                  <option value="Checkup">Checkup</option>
-                  <option value="Follow-up">Follow-up</option>
-                  <option value="Vaccination">Vaccination</option>
-                  <option value="Dental cleaning">Dental cleaning</option>
-                  <option value="Surgery">Surgery</option>
-                  <option value="Medication refill">Medication refill</option>
-                  <option value="Others">
-                    Others, please specify on Notes
-                  </option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Notes</label>
-                <textarea name="notes" value={form.notes} onChange={onChange} />
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={closeModal}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="save-btn" disabled={saving}>
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
+            <div className="modal-actions vc-queue-footer">
+              <button
+                type="button"
+                className="step-back-btn"
+                onClick={closeQueue}
+              >
+                Back
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* ══ PENDING APPOINTMENT MODAL ══ */}
+      {pendingAppointment && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPendingAppointment(null)}
+        >
+          <div
+            className="modal-box pending-appointment-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="pending-appointment-badge">Confirmed</span>
+            <h3>Confirmed Appointment</h3>
+            <p className="pending-appointment-copy">
+              This appointment is confirmed. You can mark it completed when the visit is done.
+            </p>
+            <div className="pending-appointment-details">
+              <div>
+                <span>Pet</span>
+                <strong>{pendingAppointment.pet?.name || "—"}</strong>
+              </div>
+              <div>
+                <span>Pet Owner</span>
+                <strong>{getOwnerName(pendingAppointment)}</strong>
+              </div>
+              <div>
+                <span>Date and Time</span>
+                <strong>
+                  {new Date(pendingAppointment.scheduledAt).toLocaleString()}
+                </strong>
+              </div>
+              <div>
+                <span>Reason</span>
+                <strong>{pendingAppointment.reason || "—"}</strong>
+              </div>
+            </div>
+            <div className="modal-actions pending-appointment-actions">
+              <button
+                className="step-back-btn"
+                onClick={() => setPendingAppointment(null)}
+              >
+                Back
+              </button>
+              <button
+                className="btn-complete"
+                onClick={(e) => {
+                  setPendingAppointment(null);
+                  handleCompleteAction(pendingAppointment, e);
+                }}
+              >
+                Mark as Completed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ CONFIRMED APPOINTMENT MODAL ══ */}
+      {confirmedAppointment && (
+        <div
+          className="modal-overlay"
+          onClick={() => setConfirmedAppointment(null)}
+        >
+          <div
+            className="modal-box confirmed-appointment-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="confirmed-appointment-badge">Confirmed</span>
+            <h3>Appointment Confirmed</h3>
+            <p className="confirmed-appointment-copy">
+              This appointment is confirmed. Mark it complete when the visit is
+              done.
+            </p>
+            <div className="confirmed-appointment-details">
+              <div>
+                <span>Pet</span>
+                <strong>{confirmedAppointment.pet?.name || "—"}</strong>
+              </div>
+              <div>
+                <span>Pet Owner</span>
+                <strong>{getOwnerName(confirmedAppointment)}</strong>
+              </div>
+              <div>
+                <span>Date and Time</span>
+                <strong>
+                  {new Date(confirmedAppointment.scheduledAt).toLocaleString()}
+                </strong>
+              </div>
+              <div>
+                <span>Reason</span>
+                <strong>{confirmedAppointment.reason || "—"}</strong>
+              </div>
+            </div>
+            <div className="modal-actions confirmed-appointment-actions">
+              <button
+                className="step-back-btn"
+                onClick={() => setConfirmedAppointment(null)}
+              >
+                Back
+              </button>
+              <button
+                className="btn-complete"
+                onClick={(e) => {
+                  setConfirmedAppointment(null);
+                  handleCompleteAction(confirmedAppointment, e);
+                }}
+              >
+                Mark as Complete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ COMPLETED APPOINTMENT MODAL ══ */}
+      {completedAppointment && (
+        <div
+          className="modal-overlay"
+          onClick={() => setCompletedAppointment(null)}
+        >
+          <div
+            className="modal-box completed-appointment-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="completed-appointment-badge">Completed</span>
+            <h3>Completed Appointment</h3>
+            <p className="completed-appointment-copy">
+              This appointment is already completed and cannot be edited.
+            </p>
+            <div className="completed-appointment-details">
+              <div>
+                <span>Pet</span>
+                <strong>{completedAppointment.pet?.name || "—"}</strong>
+              </div>
+              <div>
+                <span>Pet Owner</span>
+                <strong>{getOwnerName(completedAppointment)}</strong>
+              </div>
+              <div>
+                <span>Date and Time</span>
+                <strong>
+                  {new Date(completedAppointment.scheduledAt).toLocaleString()}
+                </strong>
+              </div>
+              <div>
+                <span>Reason</span>
+                <strong>{completedAppointment.reason || "—"}</strong>
+              </div>
+            </div>
+            <div className="modal-actions completed-appointment-actions">
+              <button
+                className="step-back-btn"
+                onClick={() => setCompletedAppointment(null)}
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ CANCELLED APPOINTMENT MODAL ══ */}
+      {cancelledAppointment && (
+        <div
+          className="modal-overlay"
+          onClick={() => setCancelledAppointment(null)}
+        >
+          <div
+            className="modal-box cancelled-appointment-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="cancelled-appointment-badge">Cancelled</span>
+            <h3>Cancelled Appointment</h3>
+            <p className="cancelled-appointment-copy">
+              This appointment has been cancelled.
+            </p>
+            <div className="cancelled-appointment-details">
+              <div>
+                <span>Pet</span>
+                <strong>{cancelledAppointment.pet?.name || "—"}</strong>
+              </div>
+              <div>
+                <span>Pet Owner</span>
+                <strong>{getOwnerName(cancelledAppointment)}</strong>
+              </div>
+              <div>
+                <span>Date and Time</span>
+                <strong>
+                  {new Date(cancelledAppointment.scheduledAt).toLocaleString()}
+                </strong>
+              </div>
+              <div>
+                <span>Reason</span>
+                <strong>{cancelledAppointment.reason || "—"}</strong>
+              </div>
+            </div>
+            <div className="modal-actions cancelled-appointment-actions">
+              <button
+                className="step-back-btn"
+                onClick={() => setCancelledAppointment(null)}
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ DETAIL VIEW MODAL ══ */}
+      {showModal && viewing && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div
+            className="modal-box"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header-banner">
+              <div>
+                <h3>Appointment Details</h3>
+                <div
+                  className={`modal-status-badge ${getDisplayStatus(viewing)}`}
+                >
+                  {getDisplayStatus(viewing) === "completed" ? "Completed" : "Confirmed"}
+                </div>
+              </div>
+              <button
+                className="modal-close-btn"
+                onClick={closeModal}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-info-row">
+                <div className="modal-info-field">
+                  <span className="modal-field-label">Pet Owner</span>
+                  <span className="modal-field-value">
+                    {getOwnerName(viewing)}
+                  </span>
+                </div>
+                <div className="modal-info-field">
+                  <span className="modal-field-label">Pet</span>
+                  <span className="modal-field-value">
+                    {viewing.pet?.name
+                      ? `${viewing.pet.name}${
+                          viewing.pet.species
+                            ? ` (${viewing.pet.species})`
+                            : ""
+                        }`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+              <div className="modal-divider" />
+              <p className="modal-section-label">Scheduled At</p>
+              <div className="modal-scheduled-row">
+                <div className="modal-info-field">
+                  <span className="modal-field-label">Date</span>
+                  <span className="modal-field-value">
+                    {getScheduledDate(viewing.scheduledAt)}
+                  </span>
+                </div>
+                <div className="modal-info-field">
+                  <span className="modal-field-label">Time</span>
+                  <span className="modal-field-value">
+                    {getScheduledTime(viewing.scheduledAt)}
+                  </span>
+                </div>
+              </div>
+              <div className="modal-divider" />
+              <div className="modal-reason-row">
+                <div className="modal-info-field">
+                  <span className="modal-field-label">Reason</span>
+                  <span className="modal-field-value">
+                    {viewing.reason || "—"}
+                  </span>
+                </div>
+              </div>
+              <div className="modal-reason-row">
+                <div className="modal-info-field">
+                  <span className="modal-field-label">Status</span>
+                  <span
+                    className={`modal-field-value status-${getDisplayStatus(viewing)}`}
+                  >
+                    {getDisplayStatus(viewing) === "completed" ? "Completed" : "Confirmed"}
+                  </span>
+                </div>
+              </div>
+              {viewing.notes && (
+                <div className="modal-notes-row">
+                  <div className="modal-info-field">
+                    <span className="modal-field-label">Notes</span>
+                    <div className="modal-notes-value">{viewing.notes}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="close-btn-footer" onClick={closeModal}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ VALIDATION CONFIRM MODAL ══ */}
+      {validationModal.open && (
+        <ValidationModal
+          title={validationModal.title}
+          message={validationModal.message}
+          confirmLabel={validationModal.confirmLabel}
+          confirmClass={validationModal.confirmClass}
+          modalType={validationModal.modalType}
+          onConfirm={validationModal.onConfirm}
+          onCancel={closeValidation}
+        />
       )}
     </div>
   );

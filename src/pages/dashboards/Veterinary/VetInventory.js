@@ -11,6 +11,9 @@ import { formatInventoryCategory } from "../../../constants/inventoryCategories"
 import bellIcon from "../../../assets/Bell_Icon.png";
 import userIcon from "../../../assets/Profile.png";
 
+const INVENTORY_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_INVENTORY_PAGE_SIZE = 10;
+
 const VetInventory = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -23,6 +26,10 @@ const VetInventory = () => {
 
   const [items, setItems] = useState([]);
   const [aiModal, setAiModal] = useState(null);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [inventoryPageSize, setInventoryPageSize] = useState(
+    DEFAULT_INVENTORY_PAGE_SIZE
+  );
 
   // FUNCTION: Guard Clause (Matches your PetOwner format)
   useEffect(() => {
@@ -50,6 +57,28 @@ const VetInventory = () => {
       }));
     }
   };
+
+  const inventoryTotalPages = Math.max(
+    1,
+    Math.ceil(items.length / inventoryPageSize)
+  );
+  const currentInventoryPage = Math.min(inventoryPage, inventoryTotalPages);
+  const paginatedItems = items.slice(
+    (currentInventoryPage - 1) * inventoryPageSize,
+    currentInventoryPage * inventoryPageSize
+  );
+  const inventoryStartItem =
+    items.length === 0 ? 0 : (currentInventoryPage - 1) * inventoryPageSize + 1;
+  const inventoryEndItem = Math.min(
+    currentInventoryPage * inventoryPageSize,
+    items.length
+  );
+
+  useEffect(() => {
+    if (inventoryPage > inventoryTotalPages) {
+      setInventoryPage(inventoryTotalPages);
+    }
+  }, [inventoryPage, inventoryTotalPages]);
 
   return (
     <div className="dashboard-container">
@@ -97,9 +126,31 @@ const VetInventory = () => {
             <p style={{ color: "#555", marginBottom: "25px" }}>
               Monitor and manage your medical supplies and pharmaceutical stock.
             </p>
-            <button className="inv-ai-btn" onClick={openAiAnalysis}>
-              AI Analysis
-            </button>
+            <div className="inventory-header-actions">
+              <button className="inv-ai-btn" onClick={openAiAnalysis}>
+                AI Analysis
+              </button>
+              <div className="inventory-table-toolbar">
+                <label className="inventory-entries-control">
+                  <span>Show</span>
+                  <select
+                    className="inventory-entries-select"
+                    value={inventoryPageSize}
+                    onChange={(e) => {
+                      setInventoryPageSize(Number(e.target.value));
+                      setInventoryPage(1);
+                    }}
+                  >
+                    {INVENTORY_PAGE_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                  <span>entries</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div
@@ -137,7 +188,7 @@ const VetInventory = () => {
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {paginatedItems.map((item) => (
                   <tr
                     key={item.id}
                     style={{ borderBottom: "1px solid #f9f9f9" }}
@@ -186,6 +237,30 @@ const VetInventory = () => {
                 ))}
               </tbody>
             </table>
+
+            <div className="inventory-pagination">
+              <button
+                className="inventory-page-btn"
+                disabled={currentInventoryPage === 1}
+                onClick={() => setInventoryPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <span className="inventory-page-info">
+                Showing {inventoryStartItem}&ndash;{inventoryEndItem} of{" "}
+                {items.length} | Page {currentInventoryPage} of{" "}
+                {inventoryTotalPages}
+              </span>
+              <button
+                className="inventory-page-btn"
+                disabled={currentInventoryPage === inventoryTotalPages}
+                onClick={() =>
+                  setInventoryPage((p) => Math.min(inventoryTotalPages, p + 1))
+                }
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
       </main>

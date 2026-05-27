@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
+import VetConfirmModal from "../../../components/VetConfirmModal";
 import "../../../css/VetPatients.css";
 import "../../../css/responsive-tables.css";
 import VetSidebar from "../../../components/VetSidebar";
@@ -51,6 +52,7 @@ const VetPatients = () => {
   const [profileApts, setProfileApts] = useState([]);
   const [profileTab, setProfileTab] = useState("details");
   const [profileLoading, setProfileLoading] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null);
 
   useEffect(() => {
     if (!user || user.role !== "veterinarian") {
@@ -215,12 +217,19 @@ const VetPatients = () => {
   };
 
   const archivePatient = async (pet) => {
-    if (!window.confirm(`Archive ${pet.name}?`)) return;
+    setConfirmModal({ type: "archive-patient", pet, loading: false });
+  };
+
+  const confirmArchivePatient = async () => {
+    if (!confirmModal?.pet) return;
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
     try {
-      await deletePet(pet.id);
+      await deletePet(confirmModal.pet.id);
       await loadPatients();
+      setConfirmModal(null);
     } catch {
       setError("Failed to archive patient");
+      setConfirmModal(null);
     }
   };
 
@@ -615,6 +624,18 @@ const VetPatients = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {confirmModal?.type === "archive-patient" && (
+        <VetConfirmModal
+          title="Archive Patient"
+          message={`Archive ${confirmModal.pet?.name || "this patient"}? The record will be removed from the active patient list.`}
+          confirmLabel="Archive"
+          tone="warning"
+          loading={confirmModal.loading}
+          onCancel={() => setConfirmModal(null)}
+          onConfirm={confirmArchivePatient}
+        />
       )}
     </div>
   );

@@ -149,6 +149,97 @@
   background: #ddd6fe;
 }
 
+.inventory-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 0;
+}
+
+.inventory-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.inventory-entries-control {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #255065;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-family: "Poppins", sans-serif;
+}
+
+.inventory-entries-select {
+  min-width: 70px;
+  height: 40px;
+  border: 1px solid #d7dde4;
+  border-radius: 10px;
+  padding: 0 32px 0 10px;
+  background-color: #fff;
+  color: #255065;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  outline: none;
+}
+
+.inventory-entries-select:focus {
+  border-color: #63b6c5;
+  box-shadow: 0 0 0 3px rgba(99, 182, 197, 0.16);
+}
+
+.inventory-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 24px;
+  padding: 2px 0 6px;
+  flex-wrap: wrap;
+}
+
+.inventory-page-btn {
+  min-width: 84px;
+  height: 56px;
+  background: #f5fbff;
+  color: #438fb5;
+  border: 1.5px solid #a7d4eb;
+  border-radius: 12px;
+  padding: 0 22px;
+  font-weight: 700;
+  font-size: 15px;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+}
+
+.inventory-page-btn:disabled {
+  color: #a8cfe3;
+  background: #f5fbff;
+  border-color: #a7d4eb;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.inventory-page-btn:hover:not(:disabled) {
+  background: #e0f0f8;
+}
+
+.inventory-page-info {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f2937;
+  font-family: "Poppins", sans-serif;
+  text-align: center;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -332,6 +423,16 @@
     padding: 16px !important;
     padding-top: calc(16px + var(--topbar-height)) !important;
     margin-top: var(--topbar-height) !important;
+  }
+
+  .inventory-header-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .inventory-table-toolbar {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   /* Stats grid: 2 columns on tablet, 1 on phone */

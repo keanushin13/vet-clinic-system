@@ -1,0 +1,123 @@
+.vet-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.vet-confirm-modal {
+  width: min(420px, 100%);
+  border-radius: 18px;
+  background: #fff;
+  padding: 30px 28px 24px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  text-align: center;
+  font-family: "Poppins", sans-serif;
+}
+
+.vet-confirm-icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.vet-confirm-icon-danger {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.vet-confirm-icon-warning {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.vet-confirm-modal h3 {
+  margin: 0 0 8px;
+  color: #255065;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.vet-confirm-modal p {
+  margin: 0;
+  color: #5d6b78;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.vet-confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.vet-confirm-actions button {
+  min-width: 120px;
+  min-height: 42px;
+  border-radius: 12px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vet-confirm-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.vet-confirm-cancel {
+  background: #f5f7f9;
+  color: #4b5563;
+  border-color: #dce3e8 !important;
+}
+
+.vet-confirm-cancel:hover:not(:disabled) {
+  background: #edf2f6;
+}
+
+.vet-confirm-submit-danger {
+  background: #c62828;
+  color: #fff;
+}
+
+.vet-confirm-submit-danger:hover:not(:disabled) {
+  background: #a61f1f;
+}
+
+.vet-confirm-submit-warning {
+  background: #ef6c00;
+  color: #fff;
+}
+
+.vet-confirm-submit-warning:hover:not(:disabled) {
+  background: #d45f00;
+}
+
+@media (max-width: 480px) {
+  .vet-confirm-modal {
+    padding: 24px 18px 20px;
+  }
+
+  .vet-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .vet-confirm-actions button {
+    width: 100%;
+  }
+}
