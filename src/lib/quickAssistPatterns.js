@@ -8,21 +8,21 @@ const URGENT_PET_HEALTH_REGEX =
   /\b(seizure|seizures|collapsed|unconscious|choking|can't breathe|cant breathe|cannot breathe|not breathing|gasping|bloated (abdomen|belly|stomach)|gdv|bloat|twisted stomach|poison(ed)?|toxic|antifreeze|hit by car|heat\s*stroke|heatstroke|anaphylaxis|paralyzed|paralysed|paralysis|urinary block|blocked bladder|blocked cat|pale gums|white gums|blue gums|non-?stop bleeding|bleeding heavily|swollen (face|muzzle|throat))\b/i;
 
 const PET_HEALTH_REGEX =
-  /\b(my pet is sick|my dog is sick|my cat is sick|pet is sick|not eating|won't eat|isn't eating|vomit|vomiting|diarrhea|loose stool|limping|lethargic|weak|fever|shaking|trembling|seizure|collapsed|bleeding|wound|bitten|attacked|swallowed|not drinking|losing weight|lump|bumps?|skin problem|scratching|hair loss|eye discharge|nose discharge|sneezing|coughing|breathing fast|bloated|peeing blood|bad breath|swollen face|in pain|not acting normal)\b/i;
+  /\b(my pet is sick|my dog is sick|my cat is sick|pet is sick|not eating|won't eat|isn't eating|vomit|vomiting|vomitting|vommiting|throwing up|threw up|diarrhea|loose stool|limping|lethargic|weak|fever|shaking|trembling|seizure|collapsed|bleeding|wound|bitten|attacked|swallowed|not drinking|losing weight|lump|bumps?|skin problem|scratching|hair loss|eye discharge|nose discharge|sneezing|coughing|breathing fast|bloated|peeing blood|bad breath|swollen face|in pain|not acting normal)\b/i;
 
 const PET_HEALTH_SAFETY_TAIL =
   "";
 
 const PET_HEALTH_URGENT_REPLY =
-  "Please have your pet seen by our attending veterinarian as soon as possible. Quick Assist cannot assess or diagnose medical conditions. If the situation seems urgent, please alert the vet on duty right away or come to the clinic immediately." +
+  "This may be urgent. Please have your pet seen by our attending veterinarian as soon as possible. Quick Assist cannot diagnose medical conditions. If your pet has trouble breathing, repeated vomiting, blood, collapse, severe weakness, seizures, or a swollen/painful belly, alert the vet on duty right away or come to the clinic immediately." +
   PET_HEALTH_SAFETY_TAIL;
 
 const PET_HEALTH_GENERAL_REPLY =
-  "Please have your pet seen by our attending veterinarian as soon as possible. Quick Assist cannot assess or diagnose medical conditions. If the situation seems urgent, please alert the vet on duty right away or come to the clinic immediately." +
+  "Please have your pet checked by our attending veterinarian. Quick Assist cannot diagnose medical conditions, but you can keep your pet calm, offer fresh water, and avoid giving human medicine unless a vet prescribed it. Go urgently if symptoms worsen or you notice trouble breathing, repeated vomiting, blood, collapse, severe weakness, seizures, or a swollen/painful belly." +
   PET_HEALTH_SAFETY_TAIL;
 
 const hasMildSymptomTopic = (normalized) =>
-  /\b(vomit|vomiting|threw up|throwing up|diarrhea|loose stool|not eating|won't eat|isn't eating|loss of appetite|limping|lame|sneeze|sneezing|cough|coughing|scratching|hair loss|ear infection|ear itchy|runny eyes|runny nose|watery eyes|sick|unwell|ill)\b/.test(
+  /\b(vomit|vomiting|vomitting|vommiting|threw up|throwing up|diarrhea|loose stool|not eating|won't eat|isn't eating|loss of appetite|limping|lame|sneeze|sneezing|cough|coughing|scratching|hair loss|ear infection|ear itchy|runny eyes|runny nose|watery eyes|sick|unwell|ill)\b/.test(
     normalized,
   );
 
@@ -36,7 +36,27 @@ const mildSymptomGuidanceMatch = (normalized) => {
   return hasMildSymptomTopic(normalized) && seemsToWantGuidance(normalized);
 };
 
-const replyMildSymptomGuidance = () => PET_HEALTH_GENERAL_REPLY;
+const replyMildSymptomGuidance = (normalized) => {
+  if (/\b(vomit|vomiting|vomitting|vommiting|threw up|throwing up)\b/.test(normalized)) {
+    return (
+      "Vomiting can have many causes. Quick Assist cannot diagnose your pet, but you can keep your pet calm, offer small amounts of fresh water, and avoid human medicine unless a vet prescribed it. Please contact or visit PawCruz so a veterinarian can check your pet. Go urgently if vomiting repeats, there is blood, your pet is weak, cannot keep water down, has a swollen/painful belly, or seems very unwell."
+    );
+  }
+
+  if (/\b(diarrhea|loose stool)\b/.test(normalized)) {
+    return (
+      "Diarrhea can lead to dehydration. Keep fresh water available and avoid human medicine unless a vet prescribed it. Please contact or visit PawCruz for proper checking, especially if it lasts more than a day, has blood, or your pet seems weak, painful, very young, or senior."
+    );
+  }
+
+  if (/\b(not eating|won't eat|isn't eating|loss of appetite)\b/.test(normalized)) {
+    return (
+      "Not eating can be serious, especially if your pet is young, senior, weak, vomiting, or acting unusual. Do not force food or give human medicine. Offer fresh water and contact PawCruz so a veterinarian can check your pet."
+    );
+  }
+
+  return PET_HEALTH_GENERAL_REPLY;
+};
 
 const getLocalDayName = (offsetDays = 0) => {
   const date = new Date();
