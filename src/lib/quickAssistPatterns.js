@@ -8,7 +8,7 @@ const URGENT_PET_HEALTH_REGEX =
   /\b(seizure|seizures|collapsed|unconscious|choking|can't breathe|cant breathe|cannot breathe|not breathing|gasping|bloated (abdomen|belly|stomach)|gdv|bloat|twisted stomach|poison(ed)?|toxic|antifreeze|hit by car|heat\s*stroke|heatstroke|anaphylaxis|paralyzed|paralysed|paralysis|urinary block|blocked bladder|blocked cat|pale gums|white gums|blue gums|non-?stop bleeding|bleeding heavily|swollen (face|muzzle|throat))\b/i;
 
 const PET_HEALTH_REGEX =
-  /\b(my pet is sick|my dog is sick|my cat is sick|pet is sick|not eating|won't eat|isn't eating|vomit|vomiting|vomitting|vommiting|throwing up|threw up|diarrhea|loose stool|limping|lethargic|weak|fever|shaking|trembling|seizure|collapsed|bleeding|wound|bitten|attacked|swallowed|not drinking|losing weight|lump|bumps?|skin problem|scratching|hair loss|eye discharge|nose discharge|sneezing|coughing|breathing fast|bloated|peeing blood|bad breath|swollen face|in pain|not acting normal)\b/i;
+  /\b(my pet is sick|my dog is sick|my cat is sick|pet is sick|not eating|not eatingwell|not eating well|won't eat|isn't eating|not feeling well|feeling unwell|doesn't feel well|does not feel well|vomit|vomiting|vomitting|vommiting|throwing up|threw up|diarrhea|loose stool|limping|lethargic|weak|fever|shaking|trembling|seizure|collapsed|bleeding|wound|bitten|attacked|swallowed|not drinking|losing weight|lump|bumps?|skin problem|scratching|hair loss|eye discharge|nose discharge|sneezing|coughing|breathing fast|bloated|peeing blood|bad breath|swollen face|in pain|not acting normal)\b/i;
 
 const PET_HEALTH_SAFETY_TAIL =
   "";
@@ -22,7 +22,7 @@ const PET_HEALTH_GENERAL_REPLY =
   PET_HEALTH_SAFETY_TAIL;
 
 const hasMildSymptomTopic = (normalized) =>
-  /\b(vomit|vomiting|vomitting|vommiting|threw up|throwing up|diarrhea|loose stool|not eating|won't eat|isn't eating|loss of appetite|limping|lame|sneeze|sneezing|cough|coughing|scratching|hair loss|ear infection|ear itchy|runny eyes|runny nose|watery eyes|sick|unwell|ill)\b/.test(
+  /\b(vomit|vomiting|vomitting|vommiting|threw up|throwing up|diarrhea|loose stool|not eating|not eatingwell|not eating well|won't eat|isn't eating|loss of appetite|not feeling well|feeling unwell|doesn't feel well|does not feel well|limping|lame|sneeze|sneezing|cough|coughing|scratching|hair loss|ear infection|ear itchy|runny eyes|runny nose|watery eyes|sick|unwell|ill)\b/.test(
     normalized,
   );
 
@@ -49,9 +49,15 @@ const replyMildSymptomGuidance = (normalized) => {
     );
   }
 
-  if (/\b(not eating|won't eat|isn't eating|loss of appetite)\b/.test(normalized)) {
+  if (/\b(not eating|not eatingwell|not eating well|won't eat|isn't eating|loss of appetite)\b/.test(normalized)) {
     return (
       "Not eating can be serious, especially if your pet is young, senior, weak, vomiting, or acting unusual. Do not force food or give human medicine. Offer fresh water and contact PawCruz so a veterinarian can check your pet."
+    );
+  }
+
+  if (/\b(not feeling well|feeling unwell|doesn't feel well|does not feel well|sick|unwell|ill)\b/.test(normalized)) {
+    return (
+      "I am sorry your dog is not feeling well. Quick Assist cannot diagnose your pet, but it is best to have a PawCruz veterinarian check them. You can visit during clinic hours, Monday to Sunday, 9:00 AM to 7:00 PM. Go urgently if your dog is very weak, vomiting repeatedly, having trouble breathing, has blood, collapses, or seems in pain."
     );
   }
 
