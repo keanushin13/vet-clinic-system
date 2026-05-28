@@ -5,10 +5,10 @@ export const UNKNOWN_INFO_REPLY =
   "I don't have that information. Please check with the front desk or clinic staff.";
 
 const URGENT_PET_HEALTH_REGEX =
-  /\b(seizure|seizures|collapsed|unconscious|choking|can't breathe|cant breathe|cannot breathe|not breathing|gasping|bloated (abdomen|belly|stomach)|gdv|bloat|twisted stomach|poison(ed)?|toxic|antifreeze|hit by car|heat\s*stroke|heatstroke|anaphylaxis|paralyzed|paralysed|paralysis|urinary block|blocked bladder|blocked cat|pale gums|white gums|blue gums|non-?stop bleeding|bleeding heavily|swollen (face|muzzle|throat))\b/i;
+  /\b(seizure|seizures|collapsed|unconscious|choking|can't breathe|cant breathe|cannot breathe|not breathing|gasping|bloated (abdomen|belly|stomach)|swollen belly|painful belly|gdv|bloat|twisted stomach|poison(ed)?|toxic|antifreeze|hit by car|heat\s*stroke|heatstroke|anaphylaxis|paralyzed|paralysed|paralysis|urinary block|blocked bladder|blocked cat|pale gums|white gums|blue gums|non-?stop bleeding|bleeding heavily|swollen (face|muzzle|throat))\b/i;
 
 const PET_HEALTH_REGEX =
-  /\b(my pet is sick|my dog is sick|my cat is sick|pet is sick|not eating|not eatingwell|not eating well|won't eat|isn't eating|not feeling well|feeling unwell|doesn't feel well|does not feel well|vomit|vomiting|vomitting|vommiting|throwing up|threw up|diarrhea|loose stool|limping|lethargic|weak|fever|shaking|trembling|seizure|collapsed|bleeding|wound|bitten|attacked|swallowed|not drinking|losing weight|lump|bumps?|skin problem|scratching|hair loss|eye discharge|nose discharge|sneezing|coughing|breathing fast|bloated|peeing blood|bad breath|swollen face|in pain|not acting normal)\b/i;
+  /\b(my pet is sick|my dog is sick|my cat is sick|pet is sick|not eating|not eatingwell|not eating well|won't eat|isn't eating|not feeling well|feeling unwell|doesn't feel well|does not feel well|vomit|vomiting|vomitting|vommiting|throwing up|threw up|diarrhea|loose stool|limping|lethargic|weak|fever|shaking|trembling|seizure|collapsed|bleeding|blood in stool|wound|bitten|attacked|swallowed|ate something|not drinking|losing weight|lump|bumps?|skin problem|scratching|hair loss|eye discharge|nose discharge|sneezing|coughing|breathing fast|breathing trouble|bloated|swollen belly|painful belly|not pooped|straining|peeing blood|bad breath|swollen face|swollen paws|in pain|not acting normal|is it normal)\b/i;
 
 const PET_HEALTH_SAFETY_TAIL =
   "";
@@ -22,7 +22,7 @@ const PET_HEALTH_GENERAL_REPLY =
   PET_HEALTH_SAFETY_TAIL;
 
 const hasMildSymptomTopic = (normalized) =>
-  /\b(vomit|vomiting|vomitting|vommiting|threw up|throwing up|diarrhea|loose stool|not eating|not eatingwell|not eating well|won't eat|isn't eating|loss of appetite|not feeling well|feeling unwell|doesn't feel well|does not feel well|limping|lame|sneeze|sneezing|cough|coughing|scratching|hair loss|ear infection|ear itchy|runny eyes|runny nose|watery eyes|sick|unwell|ill)\b/.test(
+  /\b(vomit|vomiting|vomitting|vommiting|threw up|throwing up|diarrhea|loose stool|not eating|not eatingwell|not eating well|won't eat|isn't eating|loss of appetite|not feeling well|feeling unwell|doesn't feel well|does not feel well|limping|lame|sneeze|sneezing|cough|coughing|scratching|hair loss|ear infection|ear itchy|runny eyes|runny nose|watery eyes|sick|unwell|ill|not drinking|losing weight|lump|bump|bad breath|not pooped|straining)\b/.test(
     normalized,
   );
 
@@ -77,6 +77,12 @@ const replyTomorrow = () => {
   const tomorrow = getLocalDayName(1);
   return `Yes, we are open tomorrow (${tomorrow}) from 9:00 AM to 7:00 PM.`;
 };
+
+const replyClinicHours =
+  "We are open every day, Monday to Sunday, 9:00 AM to 7:00 PM.";
+
+const replyCannotDoAction =
+  "I cannot complete that action for you in chat. Please use the correct page in your PawCruz account or contact the clinic staff for help.";
 
 const parseHourFromQuestion = (normalized) => {
   const match = normalized.match(/\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/);
@@ -145,6 +151,9 @@ const matchDayComeQuestion = (normalized) => {
   return null;
 };
 
+const dashboardReply = (pageName) =>
+  `You can check that in the ${pageName} page of your PawCruz account.`;
+
 export const QUICK_ASSIST_PATTERNS = [
   {
     id: "pet_health_urgent",
@@ -196,15 +205,24 @@ export const QUICK_ASSIST_PATTERNS = [
       "I can help with clinic hours, services, booking questions, vaccination schedules, grooming information, payment reminders, your appointment details, and staff workflow tasks.",
   },
   {
+    id: "not_a_vet",
+    match: (normalized) =>
+      /\b(are you a vet|are you veterinarian|are you doctor|can you diagnose|diagnose my pet|prescribe|prescription|what medicine|what meds|human medicine|give medicine|dosage|dose)\b/.test(
+        normalized,
+      ),
+    reply:
+      "I am not a veterinarian and cannot diagnose or prescribe medicine. Please have a PawCruz veterinarian check your pet before giving any medicine, especially human medicine.",
+  },
+  {
     id: "hours",
     match: (normalized) =>
       /^(hours|open|what time|when do you open)\s*[!.]?$/i.test(
         normalized.trim(),
       ) ||
-      /\b(what are your hours|clinic hours|operating hours|business hours|opening hours|when are you open|what time are you open|what time do you close|what time do you open)\b/.test(
+      /\b(what are your hours|clinic hours|operating hours|business hours|opening hours|when are you open|what time are you open|what time do you close|what time do you open|are you open now|open now|open every day|are you open every day|open weekends|open on weekends|are you open on weekends|open later|are you open later|what time do you close)\b/.test(
         normalized,
       ),
-    reply: CLINIC_HOURS_LINE,
+    reply: replyClinicHours,
   },
   {
     id: "open_day_time",
@@ -242,7 +260,7 @@ export const QUICK_ASSIST_PATTERNS = [
     id: "appointment_book",
     match: (normalized) =>
       /^appointment\s*[!.]?$/i.test(normalized.trim()) ||
-      /\b(how do i book|how can i book|book an appointment|how to book)\b/.test(
+      /\b(how do i book|how can i book|book an appointment|how to book|do i need an appointment|need appointment|can i book|book for vaccination|book grooming|same day booking)\b/.test(
         normalized,
       ),
     reply:
@@ -251,16 +269,24 @@ export const QUICK_ASSIST_PATTERNS = [
   {
     id: "reschedule_cancel",
     match: (normalized) =>
-      /\b(reschedule|cancel an appointment|cancel appointment|rebook)\b/.test(
+      /\b(reschedule|cancel an appointment|cancel appointment|rebook|change my appointment|move my appointment)\b/.test(
         normalized,
       ),
     reply:
       "Open the Appointment page to review your appointment options. If you need help with a confirmed visit, call the clinic or message staff.",
   },
   {
+    id: "cannot_manage_booking",
+    match: (normalized) =>
+      /\b(can you confirm|confirm my booking|confirm my appointment|can you cancel|cancel it for me|book it for me|make appointment for me)\b/.test(
+        normalized,
+      ),
+    reply: replyCannotDoAction,
+  },
+  {
     id: "pricing",
     match: (normalized) =>
-      /\b(price|prices|rates|how much|cost\b|costs|fee|fees)\b/.test(
+      /\b(price|prices|rates|how much|cost\b|costs|fee|fees|consultation fee|price list|exact price|estimate)\b/.test(
         normalized,
       ),
     reply:
@@ -269,11 +295,11 @@ export const QUICK_ASSIST_PATTERNS = [
   {
     id: "payment",
     match: (normalized) =>
-      /\b(how do i pay|pay online|gcash|maya|card payment|online payment|settle|front desk payment)\b/.test(
+      /\b(how do i pay|pay online|gcash|g-cash|maya|card payment|credit card|debit card|online payment|in-app payment|settle|front desk payment|payment history|unpaid balance|balance)\b/.test(
         normalized,
       ),
     reply:
-      "Please settle your payment at the front desk during or after your visit. We do not have online or in-app payment.",
+      "Payments are handled in person at the clinic front desk. We do not have online or in-app payment. You can review your payment history from the Payment History page.",
   },
   {
     id: "vaccine_availability",
@@ -299,9 +325,9 @@ export const QUICK_ASSIST_PATTERNS = [
   {
     id: "grooming",
     match: (normalized) =>
-      /\b(grooming|groom|haircut|nail trim|bath)\b/.test(normalized),
+      /\b(grooming|groom|haircut|nail trim|bath|groom cats|groom dogs|book grooming|walk in for grooming)\b/.test(normalized),
     reply:
-      "Yes, we offer grooming services including bath, blow dry, ear cleaning, nail trimming, and breed-specific haircuts. Please book at least 2 days in advance.",
+      "Yes, we offer grooming services including bath, blow dry, ear cleaning, nail trimming, and haircuts for cats and dogs. Please book at least 2 days in advance. Walk-ins may depend on availability.",
   },
   {
     id: "emergency_service",
@@ -317,7 +343,7 @@ export const QUICK_ASSIST_PATTERNS = [
   {
     id: "services",
     match: (normalized) =>
-      /\b(what services|services do you offer|what do you offer)\b/.test(
+      /\b(what services|services do you offer|what do you offer|wellness exam|annual checkup|checkup|consultation)\b/.test(
         normalized,
       ),
     reply:
@@ -331,6 +357,39 @@ export const QUICK_ASSIST_PATTERNS = [
       ),
     reply:
       "Yes, we treat both cats and dogs. Please call the clinic for questions about other types of pets.",
+  },
+  {
+    id: "dashboard_my_pets",
+    match: (normalized) =>
+      /\b(where can i see my pets|where are my pets|my pets page|pet profile|pet profiles|see my pets|list my pets)\b/.test(
+        normalized,
+      ),
+    reply: () => dashboardReply("My Pets"),
+  },
+  {
+    id: "dashboard_medical_records",
+    match: (normalized) =>
+      /\b(where can i see medical records|medical records|medical history|vaccination records|vaccine records|pet records)\b/.test(
+        normalized,
+      ),
+    reply: () => dashboardReply("Medical Records"),
+  },
+  {
+    id: "dashboard_messages",
+    match: (normalized) =>
+      /\b(where can i see messages|how do i message|message staff|message vet|message the vet|messages page|contact staff|contact vet)\b/.test(
+        normalized,
+      ),
+    reply:
+      "You can use the Messages page to contact clinic staff or veterinarians when available.",
+  },
+  {
+    id: "dashboard_profile",
+    match: (normalized) =>
+      /\b(update my profile|edit my profile|change my profile|profile page|account details)\b/.test(
+        normalized,
+      ),
+    reply: () => dashboardReply("Profile"),
   },
   {
     id: "vet_available",
