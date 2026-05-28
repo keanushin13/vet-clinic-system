@@ -30,6 +30,103 @@ function parseNotes(notesStr) {
   return { symptoms: notesStr.slice(prefix.length, nl), notes: notesStr.slice(nl + 2) };
 }
 
+const IMMUNIZATION_BLOCK_TITLE = "[Immunization Record]";
+
+const emptyVaccinationFields = {
+  isVaccination: false,
+  vaccineName: "",
+  vaccineDose: "",
+  vaccineLotNo: "",
+  vaccinationDate: "",
+  nextVaccinationDate: "",
+};
+
+function stripImmunizationBlock(text = "") {
+  return String(text)
+    .replace(/\n{0,2}\[Immunization Record\][\s\S]*$/i, "")
+    .trim();
+}
+
+function buildImmunizationBlock(form) {
+  const lines = [
+    IMMUNIZATION_BLOCK_TITLE,
+    `Vaccine: ${form.vaccineName.trim()}`,
+    form.vaccineDose.trim() ? `Dose: ${form.vaccineDose.trim()}` : "",
+    form.vaccineLotNo.trim() ? `Lot No: ${form.vaccineLotNo.trim()}` : "",
+    form.vaccinationDate ? `Date Given: ${form.vaccinationDate}` : "",
+    form.nextVaccinationDate ? `Next Due: ${form.nextVaccinationDate}` : "",
+  ].filter(Boolean);
+
+  return lines.join("\n");
+}
+
+function parseImmunizationDetails(record) {
+  const treatment = String(record?.treatment || "");
+  const blockMatch = treatment.match(/\[Immunization Record\]([\s\S]*)$/i);
+  const details = {
+    isImmunization: Boolean(blockMatch),
+    vaccineName: "",
+    vaccineDose: "",
+    vaccineLotNo: "",
+    vaccinationDate: "",
+    nextVaccinationDate: "",
+  };
+
+  if (blockMatch) {
+    blockMatch[1]
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        const [label, ...valueParts] = line.split(":");
+        const value = valueParts.join(":").trim();
+        switch (label.trim().toLowerCase()) {
+          case "vaccine":
+            details.vaccineName = value;
+            break;
+          case "dose":
+            details.vaccineDose = value;
+            break;
+          case "lot no":
+            details.vaccineLotNo = value;
+            break;
+          case "date given":
+            details.vaccinationDate = value;
+            break;
+          case "next due":
+            details.nextVaccinationDate = value;
+            break;
+          default:
+            break;
+        }
+      });
+  }
+
+  const searchableText = [
+    record?.diagnosis,
+    record?.treatment,
+    record?.prescription,
+    record?.notes,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (!details.isImmunization) {
+    details.isImmunization =
+      /vaccin|immuniz|rabies|booster|shot|deworm/.test(searchableText);
+  }
+
+  if (!details.vaccineName) {
+    details.vaccineName =
+      record?.diagnosis?.replace(/^vaccination\s*[-:]?\s*/i, "").trim() ||
+      record?.prescription ||
+      "Immunization";
+  }
+
+  return details;
+}
+
 const QUICK_TEMPLATES = [
   {
     label: "Wellness Exam",
@@ -159,6 +256,7 @@ const VetMedRec = () => {
     notes: "",
     status: "",
     followUpDate: "",
+    ...emptyVaccinationFields,
     modificationReason: "",
   });
 
@@ -266,21 +364,38 @@ const VetMedRec = () => {
     [pets, form.petId],
   );
 
+  const appointmentIdsWithRecords = useMemo(
+    () =>
+      new Set(
+        records
+          .map((record) => record.appointmentId)
+          .filter(Boolean)
+          .map((appointmentId) => String(appointmentId)),
+      ),
+    [records],
+  );
+
   const petAppointments = useMemo(() => {
     if (!form.petId) return [];
     return appointments
       .filter((appointment) => {
         const appointmentPetId = appointment.petId || appointment.pet?.id;
+        const isSelected =
+          String(appointment.id) === String(form.appointmentId);
+        const alreadyHasRecord = appointmentIdsWithRecords.has(
+          String(appointment.id),
+        );
         return (
           String(appointmentPetId) === String(form.petId) &&
-          normalizeStatus(appointment.status) === "confirmed"
+          (isSelected || normalizeStatus(appointment.status) === "confirmed") &&
+          (isSelected || !alreadyHasRecord)
         );
       })
       .sort((a, b) => {
         return new Date(b.scheduledAt || 0) - new Date(a.scheduledAt || 0);
       })
       .slice(0, 5);
-  }, [appointments, form.petId]);
+  }, [appointmentIdsWithRecords, appointments, form.appointmentId, form.petId]);
 
   const selectedAppointment = useMemo(
     () =>
@@ -300,18 +415,9 @@ const VetMedRec = () => {
 
   const immunizationRecords = useMemo(
     () =>
-      selectedPetRecords.filter((record) => {
-        const text = [
-          record.diagnosis,
-          record.treatment,
-          record.prescription,
-          record.notes,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return /vaccin|immuniz|rabies|booster|shot|deworm/.test(text);
-      }),
+      selectedPetRecords.filter(
+        (record) => parseImmunizationDetails(record).isImmunization,
+      ),
     [selectedPetRecords],
   );
 
@@ -355,7 +461,9 @@ const VetMedRec = () => {
       Boolean(form.treatment.trim()) &&
       Boolean(form.prescription.trim()) &&
       Boolean(form.status) &&
-      (form.status !== "FollowUp" || Boolean(form.followUpDate))) ||
+      (form.status !== "FollowUp" || Boolean(form.followUpDate)) &&
+      (!form.isVaccination ||
+        (Boolean(form.vaccineName.trim()) && Boolean(form.vaccinationDate)))) ||
     activeStep === FINAL_STEP_INDEX;
 
   const canOpenStep = (stepIndex) => {
@@ -403,6 +511,7 @@ const VetMedRec = () => {
       notes: "",
       status: "",
       followUpDate: "",
+      ...emptyVaccinationFields,
     });
     setShowModal(true);
     setError("");
@@ -422,6 +531,7 @@ const VetMedRec = () => {
     setProgressConfirmSaving(false);
     setProgressConfirmError("");
     const { symptoms, notes } = parseNotes(record.notes || "");
+    const immunizationDetails = parseImmunizationDetails(record);
     const recordOwnerId = petOwnerId(record.pet) || record.pet?.owner?.id || "";
     setSelectedOwnerId(recordOwnerId);
     setOwnerSearch("");
@@ -432,13 +542,19 @@ const VetMedRec = () => {
       appointmentId: record.appointmentId || "",
       diagnosis: record.diagnosis || "",
       symptoms,
-      treatment: record.treatment || "",
+      treatment: stripImmunizationBlock(record.treatment || ""),
       prescription: record.prescription || "",
       notes,
       status: record.status || "",
       followUpDate: record.followUpDate
         ? new Date(record.followUpDate).toISOString().slice(0, 10)
         : "",
+      isVaccination: immunizationDetails.isImmunization,
+      vaccineName: immunizationDetails.vaccineName,
+      vaccineDose: immunizationDetails.vaccineDose,
+      vaccineLotNo: immunizationDetails.vaccineLotNo,
+      vaccinationDate: immunizationDetails.vaccinationDate,
+      nextVaccinationDate: immunizationDetails.nextVaccinationDate,
       modificationReason: "",
     });
     setShowModal(true);
@@ -449,6 +565,39 @@ const VetMedRec = () => {
   const printRecord = (rec) => {
     const { symptoms, notes } = parseNotes(rec.notes || "");
     const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const treatmentText = stripImmunizationBlock(rec.treatment || "");
+    const immunizationDetails = parseImmunizationDetails(rec);
+    const fmtPrintDate = (value) =>
+      value ? new Date(value).toLocaleDateString() : "";
+    const immunizationTable = immunizationDetails.isImmunization
+      ? `<h2>Immunization Record</h2>
+        <table class="immunization-table">
+          <thead>
+            <tr>
+              <th>Date Given</th>
+              <th>Vaccine</th>
+              <th>Dose</th>
+              <th>Lot No.</th>
+              <th>Next Due</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${esc(
+                fmtPrintDate(immunizationDetails.vaccinationDate) ||
+                  fmtPrintDate(rec.createdAt) ||
+                  "No date",
+              )}</td>
+              <td>${esc(immunizationDetails.vaccineName || "Immunization")}</td>
+              <td>${esc(immunizationDetails.vaccineDose || "-")}</td>
+              <td>${esc(immunizationDetails.vaccineLotNo || "-")}</td>
+              <td>${esc(
+                fmtPrintDate(immunizationDetails.nextVaccinationDate) || "-",
+              )}</td>
+            </tr>
+          </tbody>
+        </table>`
+      : "";
     const html = `<!DOCTYPE html><html><head>
       <title>Medical Record – ${esc(rec.pet?.name)}</title>
       <style>
@@ -458,6 +607,9 @@ const VetMedRec = () => {
         p { margin: 0; font-size: 13px; line-height: 1.6; }
         .meta { display: flex; gap: 20px; font-size: 12px; color: #666; margin-bottom: 20px; flex-wrap: wrap; }
         .badge { background: #e3f2fd; color: #255065; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+        th, td { border: 1px solid #dbe8ee; padding: 8px; text-align: left; vertical-align: top; }
+        th { background: #f4f9fb; color: #255065; font-size: 11px; text-transform: uppercase; }
         @media print { body { padding: 20px; } }
       </style>
     </head><body>
@@ -471,7 +623,8 @@ const VetMedRec = () => {
       </div>
       <h2>Diagnosis</h2><p>${esc(rec.diagnosis)}</p>
       ${symptoms ? `<h2>Symptoms</h2><p>${esc(symptoms)}</p>` : ""}
-      ${rec.treatment ? `<h2>Treatment / Treatment Plan</h2><p>${esc(rec.treatment)}</p>` : ""}
+      ${treatmentText ? `<h2>Treatment / Treatment Plan</h2><p>${esc(treatmentText)}</p>` : ""}
+      ${immunizationTable}
       ${rec.prescription ? `<h2>Prescription / Medications</h2><p>${esc(rec.prescription)}</p>` : ""}
       ${notes ? `<h2>Notes</h2><p>${esc(notes)}</p>` : ""}
       ${rec.followUpDate ? `<h2>Follow-up Date</h2><p>${new Date(rec.followUpDate).toLocaleDateString()}</p>` : ""}
@@ -511,6 +664,7 @@ const VetMedRec = () => {
       notes: "",
       status: "",
       followUpDate: "",
+      ...emptyVaccinationFields,
       modificationReason: "",
     });
   };
@@ -534,10 +688,10 @@ const VetMedRec = () => {
   };
 
   const onChange = (e) => {
-    const { name, value } = e.target;
+    const { name, type, checked, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
       ...(name === "status" && value !== "FollowUp" ? { followUpDate: "" } : {}),
     }));
   };
@@ -642,6 +796,12 @@ const VetMedRec = () => {
       symptoms: template.symptoms,
       treatment: template.treatment,
       notes: template.notes,
+      ...(template.label === "Vaccination"
+        ? {
+            isVaccination: true,
+            vaccinationDate: new Date().toISOString().slice(0, 10),
+          }
+        : {}),
     }));
   };
 
@@ -653,6 +813,7 @@ const VetMedRec = () => {
       treatment: "",
       prescription: "",
       notes: "",
+      ...emptyVaccinationFields,
     }));
     setMedicationSearch("");
     setMedicationDropdownOpen(false);
@@ -673,6 +834,10 @@ const VetMedRec = () => {
       setError("Pet, diagnosis, treatment, prescription, and status are required");
       return;
     }
+    if (form.isVaccination && (!form.vaccineName.trim() || !form.vaccinationDate)) {
+      setError("Vaccine name and date given are required for vaccination records");
+      return;
+    }
     if (form.status === "FollowUp" && !form.followUpDate) {
       setError("Follow-up date is required when status is FollowUp");
       return;
@@ -685,10 +850,25 @@ const VetMedRec = () => {
       const assembledNotes = form.symptoms.trim()
         ? `Symptoms: ${form.symptoms.trim()}\n\n${form.notes}`
         : form.notes;
-      const { symptoms: _s, ...rest } = form;
+      const treatment = form.isVaccination
+        ? `${stripImmunizationBlock(form.treatment)}\n\n${buildImmunizationBlock(form)}`.trim()
+        : stripImmunizationBlock(form.treatment);
+      const {
+        symptoms: _s,
+        isVaccination: _isVaccination,
+        vaccineName: _vaccineName,
+        vaccineDose: _vaccineDose,
+        vaccineLotNo: _vaccineLotNo,
+        vaccinationDate: _vaccinationDate,
+        nextVaccinationDate: _nextVaccinationDate,
+        ...rest
+      } = form;
       const payload = {
         ...rest,
+        treatment,
         appointmentId: selectedAppointment ? selectedAppointment.id : null,
+        autoLinkAppointment: Boolean(selectedAppointment),
+        skipAppointmentAutoLink: !selectedAppointment,
         notes: assembledNotes,
         followUpDate: form.followUpDate || null,
       };
@@ -1389,25 +1569,42 @@ const VetMedRec = () => {
                       <span>Immunization Records</span>
                     </div>
                     {immunizationRecords.length > 0 ? (
-                      <div className="history-record-list">
-                        {immunizationRecords.slice(0, 4).map((record) => (
-                          <div className="history-record-item" key={record.id}>
-                            <div>
-                              <strong>{record.diagnosis || "Immunization Record"}</strong>
-                              <span>
-                                {record.createdAt
-                                  ? new Date(record.createdAt).toLocaleDateString()
-                                  : "No date recorded"}
-                              </span>
-                            </div>
-                            <small>
-                              {record.treatment ||
-                                record.prescription ||
-                                parseNotes(record.notes || "").notes ||
-                                "No details recorded"}
-                            </small>
-                          </div>
-                        ))}
+                      <div className="immunization-table-wrap">
+                        <table className="immunization-table">
+                          <thead>
+                            <tr>
+                              <th>Date Given</th>
+                              <th>Vaccine</th>
+                              <th>Dose</th>
+                              <th>Lot No.</th>
+                              <th>Next Due</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {immunizationRecords.slice(0, 4).map((record) => {
+                              const details = parseImmunizationDetails(record);
+                              return (
+                                <tr key={record.id}>
+                                  <td>
+                                    {details.vaccinationDate
+                                      ? new Date(details.vaccinationDate).toLocaleDateString()
+                                      : record.createdAt
+                                        ? new Date(record.createdAt).toLocaleDateString()
+                                        : "No date"}
+                                  </td>
+                                  <td>{details.vaccineName || "Immunization"}</td>
+                                  <td>{details.vaccineDose || "-"}</td>
+                                  <td>{details.vaccineLotNo || "-"}</td>
+                                  <td>
+                                    {details.nextVaccinationDate
+                                      ? new Date(details.nextVaccinationDate).toLocaleDateString()
+                                      : "-"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     ) : (
                       <div className="history-empty">
@@ -1435,7 +1632,7 @@ const VetMedRec = () => {
                               </span>
                             </div>
                             <small>
-                              {record.treatment ||
+                              {stripImmunizationBlock(record.treatment) ||
                                 parseNotes(record.notes || "").notes ||
                                 "No notes recorded"}
                             </small>
@@ -1576,8 +1773,83 @@ const VetMedRec = () => {
                       )}
                     </div>
 
+                    <div className="vaccination-panel">
+                      <label className="vaccination-toggle">
+                        <input
+                          type="checkbox"
+                          name="isVaccination"
+                          checked={form.isVaccination}
+                          onChange={onChange}
+                        />
+                        Record as vaccination / immunization
+                      </label>
+
+                      {form.isVaccination && (
+                        <div className="vaccination-fields">
+                          <div className="form-row">
+                            <div className="form-group">
+                              <label>
+                                Vaccine Name{" "}
+                                <span className="required-mark">*</span>
+                              </label>
+                              <input
+                                name="vaccineName"
+                                value={form.vaccineName}
+                                onChange={onChange}
+                                placeholder="Rabies, DHPP, Bordetella..."
+                                required
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Dose</label>
+                              <input
+                                name="vaccineDose"
+                                value={form.vaccineDose}
+                                onChange={onChange}
+                                placeholder="1 dose, 1 mL..."
+                              />
+                            </div>
+                          </div>
+
+                          <div className="form-row">
+                            <div className="form-group">
+                              <label>Lot No.</label>
+                              <input
+                                name="vaccineLotNo"
+                                value={form.vaccineLotNo}
+                                onChange={onChange}
+                                placeholder="Batch or lot number"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>
+                                Date Given{" "}
+                                <span className="required-mark">*</span>
+                              </label>
+                              <input
+                                type="date"
+                                name="vaccinationDate"
+                                value={form.vaccinationDate}
+                                onChange={onChange}
+                                required
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Next Due</label>
+                              <input
+                                type="date"
+                                name="nextVaccinationDate"
+                                value={form.nextVaccinationDate}
+                                onChange={onChange}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="form-group treatment-attachment-group">
-                      <label>Attachment (optional)</label>
+                      <label>Attachment</label>
                       <div className="treatment-attachment-control">
                         <label className="treatment-attachment-btn">
                           Attach File
@@ -1658,6 +1930,38 @@ const VetMedRec = () => {
                             : "Not scheduled"}
                         </strong>
                       </div>
+                    )}
+                    {form.isVaccination && (
+                      <>
+                        <div>
+                          <span>Vaccination</span>
+                          <strong>{form.vaccineName || "Required"}</strong>
+                        </div>
+                        <div>
+                          <span>Date Given</span>
+                          <strong>
+                            {form.vaccinationDate
+                              ? new Date(form.vaccinationDate).toLocaleDateString()
+                              : "Required"}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>Dose / Lot</span>
+                          <strong>
+                            {[form.vaccineDose, form.vaccineLotNo]
+                              .filter(Boolean)
+                              .join(" / ") || "Not added"}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>Next Due</span>
+                          <strong>
+                            {form.nextVaccinationDate
+                              ? new Date(form.nextVaccinationDate).toLocaleDateString()
+                              : "Not scheduled"}
+                          </strong>
+                        </div>
+                      </>
                     )}
                     <div>
                       <span>Date & Time</span>

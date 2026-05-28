@@ -989,6 +989,72 @@
   cursor: pointer;
 }
 
+.vaccination-panel {
+  border: 1px solid #dbe8ee;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 4px;
+  margin-bottom: 14px;
+  background: #fff;
+}
+
+.vaccination-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #26495a;
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.vaccination-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: #438fb5;
+}
+
+.vaccination-fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.immunization-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dbe8ee;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.immunization-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.immunization-table th,
+.immunization-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf3f6;
+  color: #486271;
+  font-size: 0.84rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.immunization-table th {
+  background: #f4f9fb;
+  color: #255065;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.immunization-table tr:last-child td {
+  border-bottom: 0;
+}
+
 .history-record-list {
   display: grid;
   gap: 8px;
