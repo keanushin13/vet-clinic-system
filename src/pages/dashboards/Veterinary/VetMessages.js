@@ -211,7 +211,7 @@ const VetMessages = () => {
         </header>
 
         <section className="content-body no-scroll">
-          <div className="messaging-wrapper">
+          <div className={`messaging-wrapper ${activeChat ? "chat-active" : ""}`}>
 
             {/* ── CONTACT SIDEBAR ── */}
             <div className="contact-sidebar">
@@ -281,6 +281,14 @@ const VetMessages = () => {
               <div className="chat-header">
                 {activeChat ? (
                   <div className="chat-header-info">
+                    <button
+                      type="button"
+                      className="mobile-chat-back"
+                      onClick={() => setActiveChat(null)}
+                      aria-label="Back to conversations"
+                    >
+                      Back
+                    </button>
                     <div className="chat-partner-avatar">
                       {(activeChat.partner?.firstName || activeChat.partner?.username || "?")
                         .charAt(0)

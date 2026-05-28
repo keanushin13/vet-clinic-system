@@ -508,7 +508,6 @@ const StaffUserManagement = () => {
                 <tr>
                   <th>Client Name</th>
                   <th>Contact Info</th>
-                  <th>Address</th>
                   <th>Registered Pets</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -518,7 +517,7 @@ const StaffUserManagement = () => {
                 {displayUsers.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={5}
                       style={{
                         textAlign: "center",
                         color: "#888",
@@ -550,15 +549,6 @@ const StaffUserManagement = () => {
                             <span>{u.email}</span>
                             <small>{u.phone || "—"}</small>
                           </div>
-                        </td>
-                        <td
-                          style={{
-                            fontSize: "13px",
-                            color: "#555",
-                            maxWidth: "160px",
-                          }}
-                        >
-                          {u.address || "—"}
                         </td>
                         <td>{u._count?.pets ?? 0} Pet(s)</td>
                         <td>
@@ -648,10 +638,6 @@ const StaffUserManagement = () => {
                     <div className="user-card-row">
                       <span className="user-card-label">Phone</span>
                       <span>{u.phone || "—"}</span>
-                    </div>
-                    <div className="user-card-row">
-                      <span className="user-card-label">Address</span>
-                      <span>{u.address || "—"}</span>
                     </div>
                     <div className="user-card-row">
                       <span className="user-card-label">Pets</span>
