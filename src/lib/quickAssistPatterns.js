@@ -74,13 +74,13 @@ const hasDayName = (normalized) =>
 const hasTomorrowWord = (normalized) =>
   /\b(tomorrow|tmr|tmrw|tomm?orow|tom)\b/.test(normalized);
 
+const hasVisitIntent = (normalized) =>
+  /\b(open|hours?|operating hours?|clinic hours?|available|come|go|visit|walk ?in|see|consult|checkup|check up|vet|veterinarian|clinic)\b/.test(
+    normalized,
+  );
+
 const matchOpenDayTimeQuestion = (normalized) => {
-  if (
-    !/\b(open|hours?|operating hours?|clinic hours?|available)\b/.test(
-      normalized,
-    ) ||
-    !hasDayName(normalized)
-  ) {
+  if (!hasVisitIntent(normalized) || !hasDayName(normalized)) {
     return null;
   }
 
@@ -97,7 +97,14 @@ const matchOpenDayTimeQuestion = (normalized) => {
 };
 
 const matchDayComeQuestion = (normalized) => {
-  if (!/\b(can i come|may i come)\b/.test(normalized)) return null;
+  if (
+    !/\b(can i|may i|can we|may we|should i|should we|is it okay to|okay to)\b/.test(
+      normalized,
+    ) ||
+    !hasVisitIntent(normalized)
+  ) {
+    return null;
+  }
 
   if (/\btoday\b/.test(normalized)) return replyOpenToday();
   if (hasTomorrowWord(normalized)) return replyTomorrow();
@@ -187,7 +194,7 @@ export const QUICK_ASSIST_PATTERNS = [
   {
     id: "open_tomorrow",
     match: (normalized) =>
-      /\b(open|come|available|hours?)\b/.test(normalized) &&
+      hasVisitIntent(normalized) &&
       hasTomorrowWord(normalized),
     reply: () => replyTomorrow(),
   },
@@ -401,7 +408,7 @@ export const matchQuickAssistPattern = (rawMessage) => {
 };
 
 export const getQuickAssistOfflineFallback = () =>
-  "I can't reach the AI assistant right now. Please try again in a moment, or contact the clinic staff if this is urgent.";
+  "I can help with clinic hours, appointments, grooming, vaccines, payment, and services. We are open every day Monday to Sunday, 9:00 AM to 7:00 PM. For urgent pet concerns, please contact the clinic or alert the vet on duty.";
 
 export const getQuickAssistAccountFallback = () =>
   "I can't reach the account assistant right now. You can still review your pet details, appointments, medical records, payments, and messages from the pet owner dashboard pages.";
