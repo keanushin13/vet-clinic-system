@@ -253,7 +253,7 @@ const normalizeStatus = (status) =>
 
 const isAppointmentAccountQuestion = (text) => {
   const normalized = String(text || "").toLowerCase();
-  if (!/\b(appointment|appointments|booking|bookings|visit|visits)\b/.test(normalized)) {
+  if (!/\b(appointment|appointments|booking|bookings)\b/.test(normalized)) {
     return false;
   }
 
@@ -521,6 +521,18 @@ export default function PetOwnerChatBot({
     const appointmentQuery = isAppointmentAccountQuestion(trimmed);
     let appointmentLookupFailed = false;
     const accountQuery = isPetOwnerAccountQuery(trimmed) || appointmentQuery;
+    const priorityPatternHit = matchQuickAssistPattern(trimmed);
+
+    if (
+      priorityPatternHit &&
+      ["pet_health_urgent", "pet_symptom_guidance", "pet_health_redirect"].includes(
+        priorityPatternHit.id,
+      )
+    ) {
+      replaceTypingWithAssistant(priorityPatternHit.reply);
+      setIsSending(false);
+      return;
+    }
 
     if (appointmentQuery) {
       try {
