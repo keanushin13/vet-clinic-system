@@ -1,5 +1,5 @@
 export const CLINIC_HOURS_LINE =
-  "We are open Monday to Saturday, 8:00 AM to 6:00 PM. We are closed on Sundays and public holidays.";
+  "We are open every day Monday to Sunday, 9:00 AM to 7:00 PM.";
 
 export const UNKNOWN_INFO_REPLY =
   "I don't have that information. Please check with the front desk or clinic staff.";
@@ -44,19 +44,12 @@ const getLocalDayName = (offsetDays = 0) => {
   return date.toLocaleDateString(undefined, { weekday: "long" });
 };
 
-const isSundayName = (dayName = "") => /^sun(day)?$/i.test(dayName);
-
 const replyOpenToday = () =>
-  isSundayName(getLocalDayName())
-    ? "Sorry, we are closed today because it is Sunday. We are open Monday to Saturday, 8:00 AM to 6:00 PM."
-    : "Yes, we are open today from 8:00 AM to 6:00 PM, unless today is a public holiday.";
+  "Yes, we are open today from 9:00 AM to 7:00 PM.";
 
 const replyTomorrow = () => {
   const tomorrow = getLocalDayName(1);
-  if (isSundayName(tomorrow)) {
-    return "Sorry, we are closed tomorrow because it is Sunday. We are open Monday to Saturday, 8:00 AM to 6:00 PM.";
-  }
-  return `Yes, we are open tomorrow (${tomorrow}) from 8:00 AM to 6:00 PM, unless it is a public holiday.`;
+  return `Yes, we are open tomorrow (${tomorrow}) from 9:00 AM to 7:00 PM.`;
 };
 
 const parseHourFromQuestion = (normalized) => {
@@ -81,8 +74,6 @@ const hasDayName = (normalized) =>
 const hasTomorrowWord = (normalized) =>
   /\b(tomorrow|tmr|tmrw|tomm?orow|tom)\b/.test(normalized);
 
-const asksSunday = (normalized) => /\b(sunday|sun)\b/.test(normalized);
-
 const matchOpenDayTimeQuestion = (normalized) => {
   if (
     !/\b(open|hours?|operating hours?|clinic hours?|available)\b/.test(
@@ -94,19 +85,15 @@ const matchOpenDayTimeQuestion = (normalized) => {
   }
 
   const requestedHour = parseHourFromQuestion(normalized);
-  if (asksSunday(normalized)) {
-    return "Sorry, we are closed on Sundays. We are open Monday to Saturday, 8:00 AM to 6:00 PM.";
-  }
-
   if (requestedHour === null) {
-    return "Yes, we are open that day from 8:00 AM to 6:00 PM unless it is a public holiday.";
+    return "Yes, we are open that day from 9:00 AM to 7:00 PM.";
   }
 
-  if (requestedHour >= 8 && requestedHour < 18) {
-    return "Yes, that time is within our regular clinic hours: Monday to Saturday, 8:00 AM to 6:00 PM. We are closed on Sundays and public holidays.";
+  if (requestedHour >= 9 && requestedHour < 19) {
+    return "Yes, that time is within our regular clinic hours: Monday to Sunday, 9:00 AM to 7:00 PM.";
   }
 
-  return "No, that time is outside our regular clinic hours. We are open Monday to Saturday, 8:00 AM to 6:00 PM. We are closed on Sundays and public holidays.";
+  return "No, that time is outside our regular clinic hours. We are open every day from 9:00 AM to 7:00 PM.";
 };
 
 const matchDayComeQuestion = (normalized) => {
@@ -114,15 +101,12 @@ const matchDayComeQuestion = (normalized) => {
 
   if (/\btoday\b/.test(normalized)) return replyOpenToday();
   if (hasTomorrowWord(normalized)) return replyTomorrow();
-  if (asksSunday(normalized)) {
-    return "Sorry, we are closed on Sundays. We are open Monday to Saturday, 8:00 AM to 6:00 PM.";
-  }
   if (
     /\b(monday|mon|tuesday|tue|tues|wednesday|wed|thursday|thu|thur|thurs|friday|fri|saturday|sat|sunday|sun)\b/.test(
       normalized,
     )
   ) {
-    return "Yes, we are open that day from 8:00 AM to 6:00 PM unless it is a public holiday.";
+    return "Yes, we are open that day from 9:00 AM to 7:00 PM.";
   }
 
   return null;
@@ -256,7 +240,7 @@ export const QUICK_ASSIST_PATTERNS = [
         normalized,
       ),
     reply:
-      "All payments are handled in person at the clinic front desk only. We do not have online or in-app payment.",
+      "Please settle your payment at the front desk during or after your visit. We do not have online or in-app payment.",
   },
   {
     id: "vaccine_availability",
@@ -295,7 +279,7 @@ export const QUICK_ASSIST_PATTERNS = [
       !PET_HEALTH_REGEX.test(normalized) &&
       !URGENT_PET_HEALTH_REGEX.test(normalized),
     reply:
-      "We accept emergency consultations during clinic hours, Monday to Saturday, 8:00 AM to 6:00 PM. Please call ahead. For after-hours emergencies, go to the nearest 24-hour veterinary emergency clinic.",
+      "We accept emergency consultations during clinic hours, Monday to Sunday, 9:00 AM to 7:00 PM. Please call ahead. For after-hours emergencies, go to the nearest 24-hour veterinary emergency clinic.",
   },
   {
     id: "services",
@@ -322,7 +306,7 @@ export const QUICK_ASSIST_PATTERNS = [
         normalized,
       ),
     reply:
-      "Our veterinarian is available during clinic hours, Monday to Saturday, 8:00 AM to 6:00 PM.",
+      "Our veterinarian is available during clinic hours, Monday to Sunday, 9:00 AM to 7:00 PM.",
   },
   {
     id: "specific_vet",
@@ -369,7 +353,7 @@ export const QUICK_ASSIST_PATTERNS = [
     match: (normalized) =>
       /\b(open on holidays|public holiday|holiday hours)\b/.test(normalized),
     reply:
-      "We are closed on public holidays. We are open Monday to Saturday, 8:00 AM to 6:00 PM, when there is no holiday.",
+      "We are open every day Monday to Sunday, 9:00 AM to 7:00 PM. Holiday hours should be confirmed with the front desk.",
   },
 ];
 
