@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getAppointments, sendPetOwnerChatbotMessage } from "../../../api/api";
+import {
+  getAppointments,
+  getClinicSettings,
+  getNotifications,
+  sendPetOwnerChatbotMessage,
+} from "../../../api/api";
 import {
   getQuickAssistAccountFallback,
   getQuickAssistOfflineFallback,
@@ -24,6 +29,184 @@ const QUICK_PROMPTS = [
   "My dog is sick",
   "How do I book?",
 ];
+
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+const DEFAULT_CLINIC_INFO = {
+  clinicName: "PawCruz Veterinary Clinic",
+  address: "Please contact the clinic for the current address.",
+  contactNumber: "the clinic",
+  email: "Please contact the clinic for the current email.",
+  operatingHours:
+    "Monday to Sunday: 9:00 AM to 7:00 PM. Holiday hours should be confirmed with the clinic.",
+  services: [
+    "Wellness exams",
+    "Vaccinations",
+    "Spay and neuter",
+    "Dental cleaning",
+    "Grooming",
+    "Laboratory tests",
+    "Deworming",
+    "Flea and tick treatment",
+    "Emergency consultations",
+  ],
+  vaccines: ["DHPP", "Bordetella", "Rabies"],
+  paymentMethods: ["In-person payment at the front desk"],
+  appointmentInfo:
+    "Book through the PawCruz app or by calling the clinic. Walk-ins are accepted subject to availability.",
+  groomingInfo:
+    "Grooming includes bath, blow dry, ear cleaning, nail trimming, and haircuts. Please book at least 2 days in advance.",
+  emergencyPolicy:
+    "Emergency consultations are accepted during clinic hours. Please call ahead when possible. For after-hours emergencies, go to the nearest 24-hour veterinary clinic.",
+  announcements: [],
+};
+
+const FALLBACK_PROMPT = `
+You are a friendly AI assistant for PawCruz Veterinary Clinic.
+Clinic information is currently unavailable.
+For all questions about hours, services, and pricing say:
+I am unable to load clinic information right now. Please contact the clinic directly or visit us in person for accurate and up to date details.
+`.trim();
+
+const formatTime = (value) => {
+  if (!value) return "";
+  const [hourText, minuteText = "00"] = String(value).split(":");
+  let hour = Number(hourText);
+  if (!Number.isFinite(hour)) return value;
+  const minute = Number(minuteText);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour}:${String(Number.isFinite(minute) ? minute : 0).padStart(2, "0")} ${suffix}`;
+};
+
+const formatOperatingHours = (settings = []) => {
+  if (!Array.isArray(settings) || settings.length === 0) {
+    return DEFAULT_CLINIC_INFO.operatingHours;
+  }
+
+  return settings
+    .map((day) => {
+      const label = DAY_NAMES[Number(day.dayOfWeek)] || "Day";
+      if (!day.isOpen) return `${label}: Closed`;
+      const hours = `${formatTime(day.openTime)} to ${formatTime(day.closeTime)}`;
+      const breakText =
+        day.breakStart && day.breakEnd
+          ? `, break ${formatTime(day.breakStart)} to ${formatTime(day.breakEnd)}`
+          : "";
+      return `${label}: ${hours}${breakText}`;
+    })
+    .join("\n");
+};
+
+const normalizeClinicInfo = ({ settings = [], notifications = [] } = {}) => {
+  const announcements = Array.isArray(notifications)
+    ? notifications
+        .filter((notification) => {
+          const text = `${notification?.type || ""} ${notification?.title || ""}`.toLowerCase();
+          return text.includes("announcement") || text.includes("promo");
+        })
+        .slice(0, 3)
+        .map((notification) =>
+          [notification.title, notification.body].filter(Boolean).join(": "),
+        )
+        .filter(Boolean)
+    : [];
+
+  return {
+    ...DEFAULT_CLINIC_INFO,
+    operatingHours: formatOperatingHours(settings),
+    announcements,
+  };
+};
+
+const fetchClinicInfo = async () => {
+  try {
+    const [settingsRes, notificationsRes] = await Promise.allSettled([
+      getClinicSettings(),
+      getNotifications(),
+    ]);
+
+    const settings =
+      settingsRes.status === "fulfilled" && Array.isArray(settingsRes.value?.data)
+        ? settingsRes.value.data
+        : [];
+    const notifications =
+      notificationsRes.status === "fulfilled" &&
+      Array.isArray(notificationsRes.value?.data)
+        ? notificationsRes.value.data
+        : [];
+
+    return normalizeClinicInfo({ settings, notifications });
+  } catch (error) {
+    console.log("Failed to fetch clinic info:", error);
+    return null;
+  }
+};
+
+const buildSystemPrompt = (info) => {
+  if (!info) return FALLBACK_PROMPT;
+
+  return `
+You are a friendly AI assistant for ${info.clinicName}.
+You are talking directly to pet owners, not clinic staff.
+Be warm, simple, and easy to understand. Never use technical clinic system terms.
+
+CLINIC INFORMATION:
+Name: ${info.clinicName}
+Address: ${info.address}
+Contact: ${info.contactNumber}
+Email: ${info.email}
+
+OPERATING HOURS:
+${info.operatingHours}
+
+SERVICES OFFERED:
+${info.services.join(", ")}
+
+VACCINES AVAILABLE:
+${info.vaccines.join(", ")}
+
+PAYMENT METHODS:
+${info.paymentMethods.join(", ")}
+
+APPOINTMENT BOOKING:
+${info.appointmentInfo}
+
+GROOMING:
+${info.groomingInfo}
+
+EMERGENCY POLICY:
+${info.emergencyPolicy}
+
+ACTIVE PROMOS OR ANNOUNCEMENTS:
+${info.announcements.length ? info.announcements.join("\n") : "No active promos or announcements loaded."}
+
+CORE RULES:
+- You are talking to pet owners, so be warm and reassuring.
+- Only use the clinic information provided above.
+- Never guess or make up clinic details.
+- Never diagnose or give medical advice.
+- If a pet owner says their pet is sick, tell them: Please bring your pet to the clinic as soon as possible so our veterinarian can check them. If it is urgent, please come in right away or call us at ${info.contactNumber}.
+- Always answer short questions directly without asking for more details first.
+- For pricing always say: For exact pricing please ask our front desk staff or call us at ${info.contactNumber}.
+- Never confirm actions you cannot perform.
+- If you do not know something say: I am not sure about that. Please contact us at ${info.contactNumber} or visit the clinic directly.
+
+TONE:
+- Friendly and caring, like talking to a helpful receptionist.
+- Use simple words that any pet owner can understand.
+- Be reassuring especially when a pet owner is worried.
+- Keep responses short and easy to read.
+`.trim();
+};
 
 const waitAssistantReply = () =>
   new Promise((resolve) => setTimeout(resolve, ASSISTANT_REPLY_DELAY_MS));
@@ -227,6 +410,8 @@ export default function PetOwnerChatBot({
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState("");
+  const [clinicInfo, setClinicInfo] = useState(null);
+  const [isReady, setIsReady] = useState(false);
   const listRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -249,6 +434,35 @@ export default function PetOwnerChatBot({
     }
     setMessages(initialMessages);
   }, [initialMessages, shouldRender]);
+
+  useEffect(() => {
+    if (!shouldRender) {
+      setClinicInfo(null);
+      setIsReady(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadClinicInfo = async () => {
+      const info = await fetchClinicInfo();
+      if (cancelled) return;
+      setClinicInfo(info);
+      setIsReady(true);
+    };
+
+    loadClinicInfo();
+
+    const interval = window.setInterval(async () => {
+      const info = await fetchClinicInfo();
+      if (!cancelled && info) setClinicInfo(info);
+    }, 1000 * 60 * 30);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [shouldRender]);
 
   useEffect(() => {
     if (!shouldRender || !userId || messages.length === 0) return;
@@ -287,7 +501,7 @@ export default function PetOwnerChatBot({
 
   const handleSend = async (presetText = "") => {
     const trimmed = String(presetText || input).trim();
-    if (!trimmed || isSending) return;
+    if (!trimmed || isSending || !isReady) return;
 
     setError("");
     setIsSending(true);
@@ -333,12 +547,24 @@ export default function PetOwnerChatBot({
         messages,
         trimmed,
       );
+      const systemPrompt = clinicInfo
+        ? buildSystemPrompt(clinicInfo)
+        : FALLBACK_PROMPT;
+
+      console.log("SENDING TO API:", JSON.stringify({
+        headers: { backendAuth: localStorage.getItem("token") ? "present" : "MISSING" },
+        system: systemPrompt ? "present" : "MISSING",
+        messages: conversationHistory,
+      }, null, 2));
+
       const data = await sendPetOwnerChatbotMessage({
         message: trimmed,
         conversationHistory,
         context: {
           persona: "quick_assist",
           route: location.pathname,
+          clinicInfo,
+          systemPrompt,
         },
       });
 
@@ -353,6 +579,8 @@ export default function PetOwnerChatBot({
 
       replaceTypingWithAssistant(replyText);
     } catch (err) {
+      console.log("FULL ERROR:", err?.message);
+      console.log("ERROR DETAIL:", JSON.stringify(err, null, 2));
       const status = err?.status;
       const unavailable = isAssistantUnavailable(status, err?.message);
       const patternHit = accountQuery ? null : matchQuickAssistPattern(trimmed);
@@ -444,6 +672,11 @@ export default function PetOwnerChatBot({
                 <div className="po-chatbot-text">{message.text}</div>
               </div>
             ))}
+            {!isReady ? (
+              <div className="po-chatbot-bubble assistant typing">
+                <div className="po-chatbot-text">Loading your assistant...</div>
+              </div>
+            ) : null}
             {showQuickPrompts && (
               <div className="po-chatbot-suggestions" aria-label="Quick prompts">
                 {QUICK_PROMPTS.map((prompt) => (
@@ -452,7 +685,7 @@ export default function PetOwnerChatBot({
                     type="button"
                     className="po-chatbot-suggestion"
                     onClick={() => handleSend(prompt)}
-                    disabled={isSending}
+                    disabled={isSending || !isReady}
                   >
                     {prompt}
                   </button>
@@ -474,16 +707,16 @@ export default function PetOwnerChatBot({
                 if (event.key === "Enter") handleSend();
               }}
               placeholder="Ask about appointments or pet symptoms..."
-              disabled={isSending}
+              disabled={isSending || !isReady}
               aria-label="Chat message"
             />
             <button
               type="button"
               className="po-chatbot-send"
               onClick={() => handleSend()}
-              disabled={isSending || !input.trim()}
+              disabled={isSending || !isReady || !input.trim()}
             >
-              {isSending ? "..." : "Send"}
+              {isSending ? "..." : isReady ? "Send" : "..."}
             </button>
           </div>
     </section>
