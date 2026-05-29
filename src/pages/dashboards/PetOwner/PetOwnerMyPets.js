@@ -490,6 +490,15 @@ const PetOwnerMyPets = () => {
     }
   };
 
+  const bookAppointmentForPet = (pet) => {
+    navigate("/pet-owner-appointments", {
+      state: {
+        openBooking: true,
+        petId: pet.id,
+      },
+    });
+  };
+
   // ─── Avatar sub-component ────────────────────────────────────────────────────
 
   const PetAvatar = ({ pet, size = 72 }) => {
@@ -639,7 +648,7 @@ const PetOwnerMyPets = () => {
             </button>
             <button
               className="detail-book-appt-btn"
-              onClick={() => navigate("/pet-owner-appointments")}
+              onClick={() => bookAppointmentForPet(pet)}
             >
               ＋ Book Appointment
             </button>
@@ -864,7 +873,7 @@ const PetOwnerMyPets = () => {
                       </button>
                       <button
                         className="btn-book-appt"
-                        onClick={() => navigate("/pet-owner-appointments")}
+                        onClick={() => bookAppointmentForPet(pet)}
                       >
                         Book Appt
                       </button>

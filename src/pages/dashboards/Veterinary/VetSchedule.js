@@ -26,11 +26,26 @@ const dayLabels = [
   "Saturday",
 ];
 
+const SLOT_DURATION_OPTIONS = [10, 15, 30, 45];
+
+const normalizeSlotDuration = (value) => {
+  const duration = Number(value);
+  if (SLOT_DURATION_OPTIONS.includes(duration)) return duration;
+  if (!Number.isFinite(duration)) return 10;
+  if (duration > 45) return 45;
+
+  return SLOT_DURATION_OPTIONS.reduce((closest, option) =>
+    Math.abs(option - duration) < Math.abs(closest - duration)
+      ? option
+      : closest,
+  );
+};
+
 const defaultWeek = dayLabels.map((_, dayOfWeek) => ({
   dayOfWeek,
   startTime: "09:00",
   endTime: "19:00",
-  slotDurationMinutes: 30,
+  slotDurationMinutes: 10,
   isActive: true,
 }));
 
@@ -74,7 +89,9 @@ export default function VetSchedule() {
               dayOfWeek: existing.dayOfWeek,
               startTime: existing.startTime,
               endTime: existing.endTime,
-              slotDurationMinutes: existing.slotDurationMinutes,
+              slotDurationMinutes: normalizeSlotDuration(
+                existing.slotDurationMinutes,
+              ),
               isActive: existing.isActive,
             }
           : d;
@@ -94,7 +111,10 @@ export default function VetSchedule() {
         d.dayOfWeek === dayOfWeek
           ? {
               ...d,
-              [field]: field === "slotDurationMinutes" ? Number(value) : value,
+              [field]:
+                field === "slotDurationMinutes"
+                  ? normalizeSlotDuration(value)
+                  : value,
             }
           : d,
       ),
@@ -117,7 +137,9 @@ export default function VetSchedule() {
                 dayOfWeek: existing.dayOfWeek,
                 startTime: existing.startTime,
                 endTime: existing.endTime,
-                slotDurationMinutes: existing.slotDurationMinutes,
+                slotDurationMinutes: normalizeSlotDuration(
+                  existing.slotDurationMinutes,
+                ),
                 isActive: existing.isActive,
               }
             : d;
@@ -280,7 +302,7 @@ export default function VetSchedule() {
                               )
                             }
                           >
-                            {[15, 20, 30, 45, 60].map((m) => (
+                            {SLOT_DURATION_OPTIONS.map((m) => (
                               <option key={m} value={m}>
                                 {m}
                               </option>
@@ -345,7 +367,7 @@ export default function VetSchedule() {
                             )
                           }
                         >
-                          {[15, 20, 30, 45, 60].map((m) => (
+                          {SLOT_DURATION_OPTIONS.map((m) => (
                             <option key={m} value={m}>
                               {m}
                             </option>

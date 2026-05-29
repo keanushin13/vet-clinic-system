@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import TopbarUserMenu from "../../../components/TopbarUserMenu";
 import "../../../css/PetOwnerAppointment.css";
 import "../../../css/responsive-tables.css";
@@ -175,6 +175,14 @@ const VISIT_REASONS = {
 const BOOKING_STEPS = ["Pet", "Visit Reason", "Date & Time", "Notes"];
 const FINAL_BOOKING_STEP_INDEX = BOOKING_STEPS.length - 1;
 
+const getPetOptionLabel = (pet) =>
+  pet ? `${pet.name || "Unnamed Pet"} (${pet.species || "Unknown species"})` : "";
+
+const getVetOptionLabel = (vet) =>
+  vet
+    ? `${`${vet.firstName || ""} ${vet.lastName || ""}`.trim() || vet.username || "Veterinarian"}`
+    : "";
+
 function parseReason(reasonStr) {
   if (!reasonStr) return { visitReason: "", serviceType: "" };
   const sep = " — ";
@@ -226,6 +234,8 @@ const getAppointmentStatusDisplay = (appointment) => {
 
 const PetOwnerAppointment = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const handledBookingStateRef = useRef(false);
   const user = JSON.parse(localStorage.getItem("user"));
   const { isOpen, toggle, close } = useSidebar();
 
@@ -252,6 +262,10 @@ const PetOwnerAppointment = () => {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [bookingStep, setBookingStep] = useState(0);
+  const [petSearch, setPetSearch] = useState("");
+  const [isPetDropdownOpen, setIsPetDropdownOpen] = useState(false);
+  const [vetSearch, setVetSearch] = useState("");
+  const [isVetDropdownOpen, setIsVetDropdownOpen] = useState(false);
   const [error, setError] = useState("");
   const [pendingBookingDateKey, setPendingBookingDateKey] = useState("");
   const [queueDateKey, setQueueDateKey] = useState("");
@@ -335,12 +349,16 @@ const PetOwnerAppointment = () => {
     );
   };
 
-  const openBookingModal = ({ date = "" } = {}) => {
+  const openBookingModal = ({ date = "", petId = "" } = {}) => {
     const defaultVetId = form.vetId || vets[0]?.id || "";
     const nextCalendarDate = date ? new Date(`${date}T00:00:00`) : new Date();
     setEditing(null);
     setShowModal(true);
     setBookingStep(0);
+    setPetSearch("");
+    setIsPetDropdownOpen(false);
+    setVetSearch("");
+    setIsVetDropdownOpen(false);
     setPendingBookingDateKey("");
     setQueueDateKey("");
     setBookingCalendarDate(nextCalendarDate);
@@ -349,7 +367,7 @@ const PetOwnerAppointment = () => {
     setSlotsLoading(false);
     setForm((prev) => ({
       ...prev,
-      petId: prev.petId || pets[0]?.id || "",
+      petId: petId || prev.petId || pets[0]?.id || "",
       vetId: defaultVetId,
       date,
       slot: "",
@@ -359,10 +377,23 @@ const PetOwnerAppointment = () => {
     }));
   };
 
+  useEffect(() => {
+    if (!location.state?.openBooking || handledBookingStateRef.current) return;
+
+    handledBookingStateRef.current = true;
+    openBookingModal({ petId: location.state.petId || "" });
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, location.pathname, navigate]);
+
   const closeBookingModal = () => {
     setShowModal(false);
     setEditing(null);
     setBookingStep(0);
+    setPetSearch("");
+    setIsPetDropdownOpen(false);
+    setVetSearch("");
+    setIsVetDropdownOpen(false);
     setPendingBookingDateKey("");
     setQueueDateKey("");
     setError("");
@@ -375,6 +406,10 @@ const PetOwnerAppointment = () => {
     setEditing(appointment);
     setShowModal(true);
     setBookingStep(0);
+    setPetSearch("");
+    setIsPetDropdownOpen(false);
+    setVetSearch("");
+    setIsVetDropdownOpen(false);
     setPendingBookingDateKey("");
     setQueueDateKey("");
     setBookingCalendarDate(new Date(`${date}T00:00:00`));
@@ -398,6 +433,10 @@ const PetOwnerAppointment = () => {
     setEditing(null);
     setShowModal(true);
     setBookingStep(visitReason && serviceType ? 2 : 1);
+    setPetSearch("");
+    setIsPetDropdownOpen(false);
+    setVetSearch("");
+    setIsVetDropdownOpen(false);
     setPendingBookingDateKey("");
     setQueueDateKey("");
     setBookingCalendarDate(new Date());
@@ -594,6 +633,8 @@ const PetOwnerAppointment = () => {
       setShowModal(false);
       setEditing(null);
       setBookingStep(0);
+      setPetSearch("");
+      setIsPetDropdownOpen(false);
       setPendingBookingDateKey("");
       await loadData();
     } catch (err) {
@@ -989,8 +1030,29 @@ const PetOwnerAppointment = () => {
     : "";
   const selectedPet =
     pets.find((pet) => String(pet.id) === String(form.petId)) || null;
+  const petSearchTerm = petSearch.trim().toLowerCase();
+  const filteredPetOptions = pets.filter((pet) => {
+    if (!petSearchTerm) return true;
+
+    return [pet.name, pet.species, pet.breed]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(petSearchTerm));
+  });
   const selectedVet =
     vets.find((vet) => String(vet.id) === String(form.vetId)) || null;
+  const vetSearchTerm = vetSearch.trim().toLowerCase();
+  const filteredVetOptions = vets.filter((vet) => {
+    if (!vetSearchTerm) return true;
+
+    return [
+      getVetOptionLabel(vet),
+      vet.username,
+      vet.email,
+      vet.phone,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(vetSearchTerm));
+  });
   const confirmedTimeKeysForSelectedDate = getConfirmedTimeKeysForDate(
     form.date,
   );
@@ -1004,6 +1066,17 @@ const PetOwnerAppointment = () => {
     form.visitReason && form.serviceType
       ? `${form.visitReason} - ${form.serviceType}`
       : "";
+
+  useEffect(() => {
+    if (!showModal || isPetDropdownOpen) return;
+    setPetSearch(getPetOptionLabel(selectedPet));
+  }, [isPetDropdownOpen, selectedPet, showModal]);
+
+  useEffect(() => {
+    if (!showModal || isVetDropdownOpen) return;
+    setVetSearch(getVetOptionLabel(selectedVet));
+  }, [isVetDropdownOpen, selectedVet, showModal]);
+
   const queueAppointments = queueDateKey
     ? filteredAppointments
         .filter(
@@ -1684,23 +1757,98 @@ const PetOwnerAppointment = () => {
                 <label>
                   Pet <span className="required-star">*</span>
                 </label>
-                <select
-                  name="petId"
-                  value={form.petId}
-                  onChange={onFieldChange}
-                  required
-                  disabled={!!editing}
+                <div
+                  className={`pet-search-select${isPetDropdownOpen ? " open" : ""}${
+                    editing ? " disabled" : ""
+                  }`}
                 >
-                  {pets.length === 0 ? (
-                    <option value="">No pets found</option>
-                  ) : (
-                    pets.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.species})
-                      </option>
-                    ))
+                  <input
+                    type="text"
+                    value={petSearch}
+                    onChange={(event) => {
+                      setPetSearch(event.target.value);
+                      setIsPetDropdownOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (!editing) {
+                        setPetSearch("");
+                        setIsPetDropdownOpen(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setIsPetDropdownOpen(false);
+                        setPetSearch(getPetOptionLabel(selectedPet));
+                      }, 120);
+                    }}
+                    placeholder={
+                      pets.length === 0 ? "No pets found" : "Search and choose a pet"
+                    }
+                    disabled={!!editing || pets.length === 0}
+                    required
+                    role="combobox"
+                    aria-expanded={isPetDropdownOpen}
+                    aria-controls="booking-pet-options"
+                    aria-autocomplete="list"
+                  />
+                  <button
+                    type="button"
+                    className="pet-search-toggle"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      if (!editing && pets.length > 0) {
+                        setPetSearch("");
+                        setIsPetDropdownOpen((current) => !current);
+                      }
+                    }}
+                    disabled={!!editing || pets.length === 0}
+                    aria-label="Show pet options"
+                  >
+                    ▾
+                  </button>
+
+                  {isPetDropdownOpen && !editing && pets.length > 0 && (
+                    <div
+                      id="booking-pet-options"
+                      className="pet-search-options"
+                      role="listbox"
+                    >
+                      {filteredPetOptions.length === 0 ? (
+                        <div className="pet-search-empty">No matching pets</div>
+                      ) : (
+                        filteredPetOptions.map((pet) => (
+                          <button
+                            key={pet.id}
+                            type="button"
+                            className={`pet-search-option${
+                              String(pet.id) === String(form.petId)
+                                ? " selected"
+                                : ""
+                            }`}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setForm((prev) => ({
+                                ...prev,
+                                petId: pet.id,
+                              }));
+                              setPetSearch(getPetOptionLabel(pet));
+                              setIsPetDropdownOpen(false);
+                              setError("");
+                            }}
+                            role="option"
+                            aria-selected={String(pet.id) === String(form.petId)}
+                          >
+                            <span>{pet.name || "Unnamed Pet"}</span>
+                            <small>
+                              {[pet.species, pet.breed].filter(Boolean).join(" - ") ||
+                                "Pet profile"}
+                            </small>
+                          </button>
+                        ))
+                      )}
+                    </div>
                   )}
-                </select>
+                </div>
                 {pets.length === 0 ? (
                   <p className="no-pets-hint">
                     No pets found.{" "}
@@ -1751,19 +1899,100 @@ const PetOwnerAppointment = () => {
                 <label>
                   Veterinarian <span className="required-star">*</span>
                 </label>
-                <select
-                  name="vetId"
-                  value={form.vetId}
-                  onChange={onFieldChange}
-                  required
+                <div
+                  className={`pet-search-select vet-search-select${
+                    isVetDropdownOpen ? " open" : ""
+                  }`}
                 >
-                  <option value="">Select veterinarian…</option>
-                  {vets.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {`${v.firstName || ""} ${v.lastName || ""}`.trim() || v.username}
-                    </option>
-                  ))}
-                </select>
+                  <input
+                    type="text"
+                    value={vetSearch}
+                    onChange={(event) => {
+                      setVetSearch(event.target.value);
+                      setIsVetDropdownOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (vets.length > 0) {
+                        setVetSearch("");
+                        setIsVetDropdownOpen(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setIsVetDropdownOpen(false);
+                        setVetSearch(getVetOptionLabel(selectedVet));
+                      }, 120);
+                    }}
+                    placeholder={
+                      vets.length === 0
+                        ? "No veterinarians found"
+                        : "Search and choose a veterinarian"
+                    }
+                    disabled={vets.length === 0}
+                    required
+                    role="combobox"
+                    aria-expanded={isVetDropdownOpen}
+                    aria-controls="booking-vet-options"
+                    aria-autocomplete="list"
+                  />
+                  <button
+                    type="button"
+                    className="pet-search-toggle"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      if (vets.length > 0) {
+                        setVetSearch("");
+                        setIsVetDropdownOpen((current) => !current);
+                      }
+                    }}
+                    disabled={vets.length === 0}
+                    aria-label="Show veterinarian options"
+                  >
+                    ▾
+                  </button>
+
+                  {isVetDropdownOpen && vets.length > 0 && (
+                    <div
+                      id="booking-vet-options"
+                      className="pet-search-options"
+                      role="listbox"
+                    >
+                      {filteredVetOptions.length === 0 ? (
+                        <div className="pet-search-empty">
+                          No matching veterinarians
+                        </div>
+                      ) : (
+                        filteredVetOptions.map((vet) => (
+                          <button
+                            key={vet.id}
+                            type="button"
+                            className={`pet-search-option${
+                              String(vet.id) === String(form.vetId)
+                                ? " selected"
+                                : ""
+                            }`}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setForm((prev) => ({
+                                ...prev,
+                                vetId: vet.id,
+                                slot: "",
+                              }));
+                              setVetSearch(getVetOptionLabel(vet));
+                              setIsVetDropdownOpen(false);
+                              setError("");
+                            }}
+                            role="option"
+                            aria-selected={String(vet.id) === String(form.vetId)}
+                          >
+                            <span>{getVetOptionLabel(vet)}</span>
+                            <small>{vet.email || vet.username || "Veterinarian"}</small>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Date */}
