@@ -7,7 +7,9 @@ import { useSidebar } from "../../../components/useSidebar";
 import {
   createMyVetScheduleException,
   deleteVetScheduleException,
+  getAppointments,
   getMyVetSchedule,
+  updateAppointment,
   updateMyVetSchedule,
 } from "../../../api/api";
 import "../../../css/VetSchedule.css";
@@ -27,6 +29,8 @@ const dayLabels = [
 ];
 
 const SLOT_DURATION_OPTIONS = [10, 15, 30, 45];
+const NO_COMPLIANCE_CANCEL_NOTE = "Cancelled due to no compliance.";
+const COLLIDING_APPOINTMENT_STATUSES = new Set(["pending", "confirmed"]);
 
 const normalizeSlotDuration = (value) => {
   const duration = Number(value);
@@ -48,6 +52,56 @@ const defaultWeek = dayLabels.map((_, dayOfWeek) => ({
   slotDurationMinutes: 10,
   isActive: true,
 }));
+
+const toApiDateTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+};
+
+const formatExceptionDateTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
+const normalizeStatus = (status) =>
+  String(status || "Pending")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+
+const isAppointmentInRange = (appointment, startsAt, endsAt) => {
+  const scheduled = new Date(appointment?.scheduledAt).getTime();
+  const start = new Date(startsAt).getTime();
+  const end = new Date(endsAt).getTime();
+
+  return (
+    Number.isFinite(scheduled) &&
+    Number.isFinite(start) &&
+    Number.isFinite(end) &&
+    scheduled >= start &&
+    scheduled < end
+  );
+};
+
+const isAppointmentForVet = (appointment, vetId) => {
+  const appointmentVetId = appointment?.vetId || appointment?.vet?.id || "";
+  return (
+    !appointmentVetId ||
+    !vetId ||
+    String(appointmentVetId) === String(vetId)
+  );
+};
+
+const buildCancellationNotes = (appointment, startsAt, endsAt) => {
+  const message = `${NO_COMPLIANCE_CANCEL_NOTE} Appointment collided with veterinarian time-off from ${formatExceptionDateTime(
+    startsAt,
+  )} to ${formatExceptionDateTime(endsAt)}. Please reschedule your appointment.`;
+  const existingNotes = String(appointment?.notes || "").trim();
+
+  return existingNotes ? `${existingNotes}\n\n${message}` : message;
+};
 
 export default function VetSchedule() {
   const navigate = useNavigate();
@@ -157,15 +211,56 @@ export default function VetSchedule() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    const startsAt = toApiDateTime(exceptionForm.startsAt);
+    const endsAt = toApiDateTime(exceptionForm.endsAt);
+
+    if (!startsAt || !endsAt) {
+      setError("Please choose a valid start and end time.");
+      return;
+    }
+
+    if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+      setError("End time must be later than start time.");
+      return;
+    }
+
     try {
       await createMyVetScheduleException({
-        startsAt: exceptionForm.startsAt,
-        endsAt: exceptionForm.endsAt,
+        startsAt,
+        endsAt,
         reason: exceptionForm.reason,
       });
+
+      const aptRes = await getAppointments();
+      const overlappingAppointments = (aptRes.data || []).filter(
+        (appointment) =>
+          isAppointmentForVet(appointment, user?.id) &&
+          COLLIDING_APPOINTMENT_STATUSES.has(
+            normalizeStatus(appointment.status),
+          ) &&
+          isAppointmentInRange(appointment, startsAt, endsAt),
+      );
+
+      await Promise.all(
+        overlappingAppointments.map((appointment) =>
+          updateAppointment(appointment.id, {
+            status: "Cancelled",
+            notes: buildCancellationNotes(appointment, startsAt, endsAt),
+          }),
+        ),
+      );
+
       setExceptionForm({ startsAt: "", endsAt: "", reason: "" });
       await loadSchedule();
-      setSuccess("Exception added");
+      setSuccess(
+        overlappingAppointments.length
+          ? `Exception added. ${overlappingAppointments.length} pending/confirmed appointment${
+              overlappingAppointments.length === 1 ? "" : "s"
+            } cancelled due to no compliance and owner${
+              overlappingAppointments.length === 1 ? "" : "s"
+            } notified to reschedule.`
+          : "Exception added",
+      );
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add exception");
     }
@@ -445,8 +540,8 @@ export default function VetSchedule() {
               {exceptions.map((ex) => (
                 <div className="schedule-ex-row" key={ex.id}>
                   <div>
-                    <strong>{new Date(ex.startsAt).toLocaleString()}</strong>
-                    <span> to {new Date(ex.endsAt).toLocaleString()}</span>
+                    <strong>{formatExceptionDateTime(ex.startsAt)}</strong>
+                    <span> to {formatExceptionDateTime(ex.endsAt)}</span>
                     <p>{ex.reason || "No reason"}</p>
                   </div>
                   <button

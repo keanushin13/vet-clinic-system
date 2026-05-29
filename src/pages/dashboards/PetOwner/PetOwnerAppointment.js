@@ -134,6 +134,19 @@ const normalizeSlotList = (payload, date) => {
     .filter(Boolean);
 };
 
+const isNoAvailableSlotsError = (err) => {
+  const status = err?.response?.status;
+  const message = String(err?.response?.data?.message || err?.message || "")
+    .toLowerCase();
+
+  return (
+    [400, 404, 409].includes(status) &&
+    /\b(no|not|unavailable|closed|exception|time[-\s]?off|schedule|slot)\b/.test(
+      message,
+    )
+  );
+};
+
 const VISIT_REASONS = {
   Consultation: [
     "General Consultation",
@@ -487,6 +500,11 @@ const PetOwnerAppointment = () => {
         ),
       );
     } catch (err) {
+      if (isNoAvailableSlotsError(err)) {
+        setSlots([]);
+        return;
+      }
+
       setError(
         err.response?.data?.message || "Failed to fetch available slots",
       );

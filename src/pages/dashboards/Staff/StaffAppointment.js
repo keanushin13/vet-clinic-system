@@ -243,6 +243,19 @@ const normalizeSlotList = (payload, date) => {
     .filter(Boolean);
 };
 
+const isNoAvailableSlotsError = (err) => {
+  const status = err?.response?.status;
+  const message = String(err?.response?.data?.message || err?.message || "")
+    .toLowerCase();
+
+  return (
+    [400, 404, 409].includes(status) &&
+    /\b(no|not|unavailable|closed|exception|time[-\s]?off|schedule|slot)\b/.test(
+      message,
+    )
+  );
+};
+
 const saveStoredAvailableDates = (dateKeys) => {
   if (typeof window === "undefined") return;
 
@@ -543,6 +556,10 @@ const StaffAppointment = () => {
       );
     } catch (err) {
       setSlots([]);
+      if (isNoAvailableSlotsError(err)) {
+        return;
+      }
+
       handleApiError(err, "Failed to fetch available slots");
     } finally {
       setSlotsLoading(false);
