@@ -583,7 +583,9 @@
 
 .event-item.confirmed  { background: #e3f2fd; color: #1976d2; }
 .event-item.pending    { background: #fff3e0; color: #e65100; }
+.event-item.inprogress { background: #ede7f6; color: #6a1b9a; }
 .event-item.completed  { background: #e8f5e9; color: #2e7d32; }
+.event-item.late       { background: #fff1f2; color: #be123c; }
 .event-item.cancelled  { background: #ffebee; color: #c62828; }
 .event-item.ongoing    { background: #1565c0; color: #fff; }
 
@@ -752,7 +754,9 @@
 
 .apt-status.pending   { background: #fff3e0; color: #ef6c00; }
 .apt-status.confirmed { background: #e3f2fd; color: #1565c0; }
+.apt-status.inprogress { background: #fff3e0; color: #ef6c00; }
 .apt-status.completed { background: #e8f5e9; color: #2e7d32; }
+.apt-status.late { background: #fff1f2; color: #be123c; }
 .apt-status.cancelled { background: #ffebee; color: #c62828; }
 .apt-status.ongoing   { background: #ede7f6; color: #6a1b9a; }
 
@@ -1059,6 +1063,8 @@
 
 .modal-status-badge.pending   { background: rgba(255, 243, 224, 0.9); color: #ef6c00; }
 .modal-status-badge.confirmed { background: rgba(227, 242, 253, 0.95); color: #1976d2; }
+.modal-status-badge.inprogress { background: rgba(255, 243, 224, 0.95); color: #ef6c00; }
+.modal-status-badge.late { background: rgba(255, 241, 242, 0.95); color: #be123c; }
 .modal-status-badge.ongoing   { background: rgba(227, 242, 253, 0.95); color: #1976d2; }
 .modal-status-badge.completed { background: rgba(232, 245, 233, 0.95); color: #2e7d32; }
 .modal-status-badge.cancelled { background: rgba(255, 235, 238, 0.95); color: #c62828; }
@@ -1103,6 +1109,8 @@
 }
 
 .modal-field-value.status-confirmed { background: #e3f2fd; border-color: #bbdefb; color: #1976d2; font-weight: 700; }
+.modal-field-value.status-inprogress { background: #fff3e0; border-color: #ffe0b2; color: #ef6c00; font-weight: 700; }
+.modal-field-value.status-late { background: #fff1f2; border-color: #fecdd3; color: #be123c; font-weight: 700; }
 .modal-field-value.status-cancelled { background: #ffebee; border-color: #ffcdd2; color: #c62828; font-weight: 700; }
 .modal-field-value.status-pending   { background: #fff3e0; border-color: #ffe0b2; color: #ef6c00; font-weight: 700; }
 .modal-field-value.status-ongoing   { background: #e3f2fd; border-color: #bbdefb; color: #1976d2; font-weight: 700; }
@@ -1314,6 +1322,8 @@
 
 .vc-queue-row.pending   { border-left-color: #ef6c00; }
 .vc-queue-row.confirmed { border-left-color: #1565c0; }
+.vc-queue-row.inprogress { border-left-color: #ef6c00; }
+.vc-queue-row.late { border-left-color: #be123c; }
 .vc-queue-row.completed { border-left-color: #2e7d32; }
 .vc-queue-row.cancelled { border-left-color: #c62828; }
 .vc-queue-row.ongoing   { border-left-color: #6a1b9a; }
@@ -1368,6 +1378,14 @@
 
 .vc-queue-status.confirmed {
   color: #1565c0;
+}
+
+.vc-queue-status.inprogress {
+  color: #ef6c00;
+}
+
+.vc-queue-status.late {
+  color: #be123c;
 }
 
 .vc-queue-status.completed {

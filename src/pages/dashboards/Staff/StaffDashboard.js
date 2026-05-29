@@ -144,7 +144,7 @@ const StaffDashboard = () => {
             <span />
             <span />
           </button>
-          <h2>Welcome, Staff</h2>
+          <h2>Staff Dashboard</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

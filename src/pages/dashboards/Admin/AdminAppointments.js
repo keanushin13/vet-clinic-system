@@ -17,9 +17,40 @@ import userIcon from "../../../assets/Profile.png";
 const STATUS_COLORS = {
   Pending: "status-pending",
   Confirmed: "status-confirmed",
+  InProgress: "status-inprogress",
+  "In Progress": "status-inprogress",
   Completed: "status-completed",
+  Late: "status-late",
   Cancelled: "status-cancelled",
 };
+
+const normalizeAppointmentStatus = (status, fallback = "Pending") =>
+  String(status || fallback).trim().toLowerCase().replace(/\s+/g, "");
+
+const getAppointmentStatusLabel = (status) => {
+  const normalized = normalizeAppointmentStatus(status);
+  const labels = {
+    pending: "Pending",
+    confirmed: "Confirmed",
+    inprogress: "In Progress",
+    completed: "Completed",
+    late: "Late",
+    cancelled: "Cancelled",
+  };
+  return labels[normalized] || status || "Pending";
+};
+
+const getAppointmentStatusClass = (status) =>
+  STATUS_COLORS[status] ||
+  {
+    pending: "status-pending",
+    confirmed: "status-confirmed",
+    inprogress: "status-inprogress",
+    completed: "status-completed",
+    late: "status-late",
+    cancelled: "status-cancelled",
+  }[normalizeAppointmentStatus(status)] ||
+  "";
 
 const VISIT_REASONS = [
   "Checkup",
@@ -141,17 +172,22 @@ export default function AdminAppointments() {
   // Stats derived from all appointments
   const stats = useMemo(() => {
     const total = appointments.length;
-    const pending = appointments.filter((a) => a.status === "Pending").length;
-    const confirmed = appointments.filter((a) => a.status === "Confirmed").length;
-    const completed = appointments.filter((a) => a.status === "Completed").length;
-    const cancelled = appointments.filter((a) => a.status === "Cancelled").length;
+    const pending = appointments.filter((a) => normalizeAppointmentStatus(a.status) === "pending").length;
+    const confirmed = appointments.filter((a) => normalizeAppointmentStatus(a.status) === "confirmed").length;
+    const inprogress = appointments.filter((a) => normalizeAppointmentStatus(a.status) === "inprogress").length;
+    const completed = appointments.filter((a) => normalizeAppointmentStatus(a.status) === "completed").length;
+    const late = appointments.filter((a) => normalizeAppointmentStatus(a.status) === "late").length;
+    const cancelled = appointments.filter((a) => normalizeAppointmentStatus(a.status) === "cancelled").length;
     const today = appointments.filter((a) => isToday(a.scheduledAt)).length;
-    return { total, pending, confirmed, completed, cancelled, today };
+    return { total, pending, confirmed, inprogress, completed, late, cancelled, today };
   }, [appointments]);
 
   const filtered = useMemo(() => {
     return appointments.filter((a) => {
-      if (statusFilter && a.status !== statusFilter) return false;
+      if (
+        statusFilter &&
+        normalizeAppointmentStatus(a.status) !== normalizeAppointmentStatus(statusFilter)
+      ) return false;
       if (vetFilter && a.vetId !== vetFilter) return false;
       if (reasonFilter && !(a.reason || "").toLowerCase().includes(reasonFilter.toLowerCase())) return false;
       if (dateFrom) {
@@ -287,7 +323,9 @@ export default function AdminAppointments() {
     { label: "Total", value: stats.total, cls: "stat-total" },
     { label: "Pending", value: stats.pending, cls: "stat-pending" },
     { label: "Confirmed", value: stats.confirmed, cls: "stat-confirmed" },
+    { label: "In Progress", value: stats.inprogress, cls: "stat-inprogress" },
     { label: "Completed", value: stats.completed, cls: "stat-completed" },
+    { label: "Late", value: stats.late, cls: "stat-late" },
     { label: "Cancelled", value: stats.cancelled, cls: "stat-cancelled" },
     { label: "Today", value: stats.today, cls: "stat-today" },
   ];
@@ -300,7 +338,7 @@ export default function AdminAppointments() {
           <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
             <span /><span /><span />
           </button>
-          <h2>Appointment Management</h2>
+          <h2>Admin Appointment Management</h2>
           <div className="top-bar-right">
             <TopbarUserMenu avatarSrc={userIcon} avatarAlt="Admin" profilePath="/admin-profile" />
           </div>
@@ -355,7 +393,9 @@ export default function AdminAppointments() {
                 <option value="">All Status</option>
                 <option value="Pending">Pending</option>
                 <option value="Confirmed">Confirmed</option>
+                <option value="InProgress">In Progress</option>
                 <option value="Completed">Completed</option>
+                <option value="Late">Late</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
 
@@ -435,13 +475,13 @@ export default function AdminAppointments() {
                           <td>{fmtDate(a.scheduledAt)}</td>
                           <td>{a.reason || "—"}</td>
                           <td>
-                            <span className={`status-pill ${STATUS_COLORS[a.status] || ""}`}>
-                              {a.status}
+                            <span className={`status-pill ${getAppointmentStatusClass(a.status)}`}>
+                              {getAppointmentStatusLabel(a.status)}
                             </span>
                           </td>
                           <td>
                             <div className="action-btns">
-                              {a.status === "Pending" && (
+                              {normalizeAppointmentStatus(a.status) === "pending" && (
                                 <button
                                   className="activate-btn icon-btn"
                                   title="Confirm"
@@ -450,7 +490,7 @@ export default function AdminAppointments() {
                                   ✓
                                 </button>
                               )}
-                              {(a.status === "Pending" || a.status === "Confirmed") && (
+                              {(["pending", "confirmed", "inprogress"].includes(normalizeAppointmentStatus(a.status))) && (
                                 <button
                                   className="suspend-btn icon-btn"
                                   title="Cancel"
@@ -528,21 +568,21 @@ export default function AdminAppointments() {
                         </div>
                         <div className="user-card-row">
                           <span className="user-card-label">Status</span>
-                          <span className={`status-pill ${STATUS_COLORS[a.status] || ""}`}>
-                            {a.status}
+                          <span className={`status-pill ${getAppointmentStatusClass(a.status)}`}>
+                            {getAppointmentStatusLabel(a.status)}
                           </span>
                         </div>
                         <div className="user-card-row">
                           <span className="user-card-label">Actions</span>
                           <div className="action-btns">
-                            {a.status === "Pending" && (
+                            {normalizeAppointmentStatus(a.status) === "pending" && (
                               <button
                                 className="activate-btn icon-btn"
                                 title="Confirm"
                                 onClick={() => handleStatusChange(a.id, "Confirmed")}
                               >✓</button>
                             )}
-                            {(a.status === "Pending" || a.status === "Confirmed") && (
+                            {(["pending", "confirmed", "inprogress"].includes(normalizeAppointmentStatus(a.status))) && (
                               <button
                                 className="suspend-btn icon-btn"
                                 title="Cancel"
@@ -672,7 +712,9 @@ export default function AdminAppointments() {
               <select name="status" value={form.status} onChange={handleChange}>
                 <option value="Pending">Pending</option>
                 <option value="Confirmed">Confirmed</option>
+                <option value="InProgress">In Progress</option>
                 <option value="Completed">Completed</option>
+                <option value="Late">Late</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
 

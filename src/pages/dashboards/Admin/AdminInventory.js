@@ -308,7 +308,7 @@ export default function AdminInventory() {
             <span />
             <span />
           </button>
-          <h2>Inventory</h2>
+          <h2>Admin Inventory</h2>
           <div className="top-bar-right">
             <TopbarUserMenu
               avatarSrc={userIcon}

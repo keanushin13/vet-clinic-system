@@ -181,9 +181,7 @@ const VetDashboard = () => {
             <span />
             <span />
           </button>
-          <h2>
-            Welcome, Dr. {user?.firstName || user?.username || "Veterinarian"}
-          </h2>
+          <h2>Veterinary Dashboard</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

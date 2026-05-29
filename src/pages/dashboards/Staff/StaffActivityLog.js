@@ -144,7 +144,7 @@ const StaffActivityLog = () => {
           <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
             <span /><span /><span />
           </button>
-          <h2>Activity Log</h2>
+          <h2>Staff Activity Log</h2>
           <div className="top-bar-right">
             <button className="notif-btn" onClick={() => navigate("/staff-notifications")}>
               <img src={bellIcon} alt="Notif" />

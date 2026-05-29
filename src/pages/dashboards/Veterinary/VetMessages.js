@@ -201,7 +201,7 @@ const VetMessages = () => {
             <span />
             <span />
           </button>
-          <h2>Messages</h2>
+          <h2>Veterinary Messages</h2>
           <div className="top-bar-right">
             <button className="notif-btn" onClick={() => navigate("/vet-notifications")}>
               <img src={bellIcon} alt="Notifications" />

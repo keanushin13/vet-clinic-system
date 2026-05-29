@@ -140,7 +140,7 @@ const StaffMessages = () => {
             <span />
             <span />
           </button>
-          <h2>Messages</h2>
+          <h2>Staff Messages</h2>
           <div className="top-bar-right">
             {/* Added the missing navigation handler here */}
             <button

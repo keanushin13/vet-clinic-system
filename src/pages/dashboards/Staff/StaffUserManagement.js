@@ -412,7 +412,7 @@ const StaffUserManagement = () => {
             <span />
             <span />
           </button>
-          <h2>User Management</h2>
+          <h2>Staff User Management</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

@@ -172,7 +172,7 @@ export default function AdminMedicalRecords() {
           <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
             <span /><span /><span />
           </button>
-          <h2>Pet Medical Records</h2>
+          <h2>Admin Pet Medical Records</h2>
           <div className="top-bar-right">
             <TopbarUserMenu avatarSrc={userIcon} avatarAlt="Admin" profilePath="/admin-profile" />
           </div>

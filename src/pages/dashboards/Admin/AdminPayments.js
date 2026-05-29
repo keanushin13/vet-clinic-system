@@ -309,7 +309,7 @@ export default function AdminPayments() {
             <span />
             <span />
           </button>
-          <h2>Payments</h2>
+          <h2>Admin Payments</h2>
           <div className="top-bar-right">
             <TopbarUserMenu
               avatarSrc={userIcon}

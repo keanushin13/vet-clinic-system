@@ -207,7 +207,7 @@ const AdminProfile = () => {
             <span />
             <span />
           </button>
-          <h2>My Profile</h2>
+          <h2>Admin Profile</h2>
           <div className="top-bar-right">
             <TopbarUserMenu
               avatarSrc={avatarSource}

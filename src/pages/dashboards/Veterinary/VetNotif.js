@@ -80,7 +80,7 @@ const VetNotif = () => {
             <span />
             <span />
           </button>
-          <h2>Notifications</h2>
+          <h2>Veterinary Notifications</h2>
           <div className="top-bar-right">
             <button className="notif-btn active">
               <img src={bellIcon} alt="Notifications" />

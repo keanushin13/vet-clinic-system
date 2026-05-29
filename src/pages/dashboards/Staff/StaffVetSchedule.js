@@ -259,7 +259,7 @@ export default function StaffVetSchedule() {
             <span />
             <span />
           </button>
-          <h2>Vet Schedules</h2>
+          <h2>Staff Vet Schedules</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

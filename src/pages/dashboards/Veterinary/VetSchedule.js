@@ -204,7 +204,7 @@ export default function VetSchedule() {
             <span />
             <span />
           </button>
-          <h2>Clinic Schedule</h2>
+          <h2>Veterinary Clinic Schedule</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

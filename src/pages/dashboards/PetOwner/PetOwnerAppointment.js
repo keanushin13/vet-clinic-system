@@ -196,7 +196,7 @@ function parseReason(reasonStr) {
 }
 
 const normalizeAppointmentStatus = (appointment, fallback = "Pending") =>
-  String(appointment?.status || fallback).trim().toLowerCase();
+  String(appointment?.status || fallback).trim().toLowerCase().replace(/\s+/g, "");
 
 const isAppointmentPastDue = (appointment) => {
   const appointmentDateKey = getAppointmentLocalDateKey(appointment);
@@ -213,7 +213,6 @@ const isNoComplianceCandidate = (appointment) =>
 
 const getAppointmentStatusDisplay = (appointment) => {
   if (
-    isNoComplianceCandidate(appointment) ||
     isNoComplianceCancelled(appointment)
   ) {
     return {
@@ -222,13 +221,28 @@ const getAppointmentStatusDisplay = (appointment) => {
     };
   }
 
-  const label = appointment?.status || "Pending";
+  if (
+    normalizeAppointmentStatus(appointment, "Pending") === "late" ||
+    isNoComplianceCandidate(appointment)
+  ) {
+    return {
+      label: "Late",
+      className: "late",
+    };
+  }
+
+  const status = normalizeAppointmentStatus(appointment, "Pending");
+  const labels = {
+    pending: "Pending",
+    confirmed: "Confirmed",
+    inprogress: "In Progress",
+    completed: "Completed",
+    late: "Late",
+    cancelled: "Cancelled",
+  };
   return {
-    label,
-    className: normalizeAppointmentStatus(appointment, "Pending").replace(
-      /\s+/g,
-      "-",
-    ),
+    label: labels[status] || appointment?.status || "Pending",
+    className: status,
   };
 };
 
@@ -1382,7 +1396,9 @@ const PetOwnerAppointment = () => {
                     <option value="Due">Due</option>
                     <option value="Pending">Pending</option>
                     <option value="Confirmed">Confirmed</option>
+                    <option value="In Progress">In Progress</option>
                     <option value="Completed">Completed</option>
+                    <option value="Late">Late</option>
                     <option value="Cancelled">Cancelled</option>
                     <option value={NO_COMPLIANCE_CANCEL_LABEL}>
                       {NO_COMPLIANCE_CANCEL_LABEL}

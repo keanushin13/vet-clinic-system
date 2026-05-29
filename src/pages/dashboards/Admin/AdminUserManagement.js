@@ -374,7 +374,7 @@ const AdminUserManagement = () => {
             <span />
             <span />
           </button>
-          <h2>User Management</h2>
+          <h2>Admin User Management</h2>
           <div className="top-bar-right">
             <TopbarUserMenu
               avatarSrc={userIcon}

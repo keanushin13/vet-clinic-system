@@ -136,7 +136,7 @@ const StaffMedRec = () => {
           <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
             <span /><span /><span />
           </button>
-          <h2>Medical Records</h2>
+          <h2>Staff Medical Records</h2>
           <div className="top-bar-right">
             <button className="notif-btn" onClick={() => navigate("/staff-notifications")}>
               <img src={bellIcon} alt="Notifications" />

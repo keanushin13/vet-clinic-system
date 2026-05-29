@@ -176,7 +176,7 @@ const AdminOwnerPets = () => {
             <span />
             <span />
           </button>
-          <h2>Client Pets</h2>
+          <h2>Admin Client Pets</h2>
           <div className="top-bar-right">
             <TopbarUserMenu
               avatarSrc={userIcon}

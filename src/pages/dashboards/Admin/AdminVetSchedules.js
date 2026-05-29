@@ -236,7 +236,7 @@ export default function AdminVetSchedules() {
           <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
             <span /><span /><span />
           </button>
-          <h2>Clinic Schedule</h2>
+          <h2>Admin Clinic Schedule</h2>
           <div className="top-bar-right">
             <TopbarUserMenu avatarSrc={userIcon} avatarAlt="Admin" profilePath="/admin-profile" />
           </div>

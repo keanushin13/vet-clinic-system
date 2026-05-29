@@ -87,7 +87,7 @@ const StaffOwnerPets = () => {
             <span />
             <span />
           </button>
-          <h2>Client Pets</h2>
+          <h2>Staff Client Pets</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

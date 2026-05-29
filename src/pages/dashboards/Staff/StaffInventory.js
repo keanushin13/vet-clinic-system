@@ -294,7 +294,7 @@ const StaffInventory = () => {
             <span />
             <span />
           </button>
-          <h2>Inventory Management</h2>
+          <h2>Staff Inventory Management</h2>
           <div className="top-bar-right">
             {/* Added the missing navigation handler here */}
             <button

@@ -638,9 +638,17 @@
   background: #e3f2fd;
   color: #1976d2;
 }
+.event-item.inprogress {
+  background: #ede7f6;
+  color: #6a1b9a;
+}
 .event-item.pending {
   background: #fff3e0;
   color: #e65100;
+}
+.event-item.late {
+  background: #fff1f2;
+  color: #be123c;
 }
 .event-item.completed {
   background: #e8f5e9;
@@ -744,6 +752,11 @@
   color: #1976d2;
 }
 
+.apt-status.inprogress {
+  background: #ede7f6;
+  color: #6a1b9a;
+}
+
 .apt-status.completed {
   background: #e8f5e9;
   color: #2e7d32;
@@ -752,6 +765,11 @@
 .apt-status.cancelled {
   background: #ffebee;
   color: #c62828;
+}
+
+.apt-status.late {
+  background: #fff1f2;
+  color: #be123c;
 }
 
 .apt-status.no-compliance {
@@ -904,12 +922,20 @@
   border-left-color: #1976d2;
 }
 
+.appointment-queue-row.inprogress {
+  border-left-color: #6a1b9a;
+}
+
 .appointment-queue-row.completed {
   border-left-color: #2e7d32;
 }
 
 .appointment-queue-row.cancelled {
   border-left-color: #c62828;
+}
+
+.appointment-queue-row.late {
+  border-left-color: #be123c;
 }
 
 .appointment-queue-row.no-compliance {

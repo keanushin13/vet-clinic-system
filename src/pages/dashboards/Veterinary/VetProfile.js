@@ -227,7 +227,7 @@ const VetProfile = () => {
             <span />
             <span />
           </button>
-          <h2>My Profile</h2>
+          <h2>Veterinary Profile</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

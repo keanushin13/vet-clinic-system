@@ -366,7 +366,7 @@ const StaffPaymentHistory = () => {
             <span />
             <span />
           </button>
-          <h2>Payment History</h2>
+          <h2>Staff Payment History</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

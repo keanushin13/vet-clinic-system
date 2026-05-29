@@ -128,7 +128,7 @@ const AdminMessages = () => {
             <span />
             <span />
           </button>
-          <h2>Messages</h2>
+          <h2>Admin Messages</h2>
           <div className="top-bar-right">
             <button
               className="broadcast-btn"

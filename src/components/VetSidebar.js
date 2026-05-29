@@ -9,7 +9,7 @@ import inventoryIcon from "../assets/payment_icon.png";
 
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/vet", icon: dashboardIcon },
-  { label: "Patients", path: "/vet-patients", icon: patientsIcon },
+  { label: "Pet Patients", path: "/vet-patients", icon: patientsIcon },
   { label: "Appointment", path: "/vet-calendar", icon: appointmentIcon },
   { label: "Messages", path: "/vet-messages", icon: messageIcon },
   { label: "Medical Records", path: "/vet-medical-records", icon: medicalIcon },

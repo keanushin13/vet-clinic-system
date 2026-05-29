@@ -96,7 +96,7 @@ const VetInventory = () => {
             <span />
             <span />
           </button>
-          <h2>Clinic Inventory</h2>
+          <h2>Veterinary Clinic Inventory</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"

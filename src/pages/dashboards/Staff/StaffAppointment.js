@@ -257,7 +257,7 @@ const saveStoredAvailableDates = (dateKeys) => {
 };
 
 const normalizeAppointmentStatus = (appointment, fallback = "") =>
-  String(appointment?.status || fallback).trim().toLowerCase();
+  String(appointment?.status || fallback).trim().toLowerCase().replace(/\s+/g, "");
 
 const isAppointmentPastDue = (appointment) => {
   if (!appointment?.scheduledAt) return false;
@@ -281,7 +281,6 @@ const isNoComplianceCancelled = (appointment) =>
 
 const getAppointmentStatusDisplay = (appointment) => {
   if (
-    isNoComplianceCandidate(appointment) ||
     isNoComplianceCancelled(appointment)
   ) {
     return {
@@ -290,10 +289,28 @@ const getAppointmentStatusDisplay = (appointment) => {
     };
   }
 
-  const label = appointment?.status || "Pending";
+  if (
+    normalizeAppointmentStatus(appointment, "Pending") === "late" ||
+    isNoComplianceCandidate(appointment)
+  ) {
+    return {
+      label: "Late",
+      className: "late",
+    };
+  }
+
+  const status = normalizeAppointmentStatus(appointment, "Pending");
+  const labels = {
+    pending: "Pending",
+    confirmed: "Confirmed",
+    inprogress: "In Progress",
+    completed: "Completed",
+    late: "Late",
+    cancelled: "Cancelled",
+  };
   return {
-    label,
-    className: normalizeAppointmentStatus(appointment, "Pending"),
+    label: labels[status] || appointment?.status || "Pending",
+    className: status,
   };
 };
 
@@ -1183,7 +1200,7 @@ const StaffAppointment = () => {
       );
     }
 
-    if (status === "confirmed") {
+    if (status === "confirmed" || status === "inprogress") {
       return (
         <button
           type="button"
@@ -1244,7 +1261,7 @@ const StaffAppointment = () => {
       );
     }
 
-    if (status === "confirmed") {
+    if (status === "confirmed" || status === "inprogress") {
       return (
         <button
           type="button"
@@ -1500,7 +1517,7 @@ const StaffAppointment = () => {
       return;
     }
 
-    if (status === "confirmed") {
+    if (status === "confirmed" || status === "inprogress") {
       setCancelledAppointment(null);
       setCompletedAppointment(null);
       setPendingAppointment(null);
@@ -1668,7 +1685,7 @@ const StaffAppointment = () => {
             <span />
             <span />
           </button>
-          <h2>Appointments</h2>
+          <h2>Staff Appointments</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"
@@ -2039,7 +2056,9 @@ const StaffAppointment = () => {
                     <option value="Due">Due</option>
                     <option value="Pending">Pending</option>
                     <option value="Confirmed">Confirmed</option>
+                    <option value="In Progress">In Progress</option>
                     <option value="Completed">Completed</option>
+                    <option value="Late">Late</option>
                     <option value="Cancelled">Cancelled</option>
                     <option value="Cancelled Due to No Compliance">
                       Cancelled Due to No Compliance
@@ -3319,7 +3338,9 @@ const StaffAppointment = () => {
                           >
                             <option value="Pending">Pending</option>
                             <option value="Confirmed">Confirmed</option>
+                            <option value="InProgress">In Progress</option>
                             <option value="Completed">Completed</option>
+                            <option value="Late">Late</option>
                             <option value="Cancelled">Cancelled</option>
                           </select>
                         </div>

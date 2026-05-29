@@ -62,7 +62,7 @@ const StaffNotif = () => {
             <span />
             <span />
           </button>
-          <h2>Notifications</h2>
+          <h2>Staff Notifications</h2>
           <div className="top-bar-right">
             <button className="notif-btn active">
               <img src={bellIcon} alt="Notif" />

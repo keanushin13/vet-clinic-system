@@ -68,7 +68,7 @@ const AdminNotif = () => {
             <span />
             <span />
           </button>
-          <h2>Notifications</h2>
+          <h2>Admin Notifications</h2>
           <div className="top-bar-right">
             <button className="notif-btn active-notif">
               <img src={bellIcon} alt="Notifications" />

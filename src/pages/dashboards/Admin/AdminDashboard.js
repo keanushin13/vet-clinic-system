@@ -81,7 +81,7 @@ const AdminDashboard = () => {
             <span />
             <span />
           </button>
-          <h2>Welcome, Admin</h2>
+          <h2>Admin Dashboard</h2>
           <div className="top-bar-right">
             <TopbarUserMenu
               avatarSrc={userIcon}

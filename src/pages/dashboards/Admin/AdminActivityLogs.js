@@ -121,7 +121,7 @@ export default function AdminActivityLogs() {
             <span />
             <span />
           </button>
-          <h2>Activity Logs</h2>
+          <h2>Admin Activity Logs</h2>
           <div className="top-bar-right">
             <TopbarUserMenu
               avatarSrc={userIcon}

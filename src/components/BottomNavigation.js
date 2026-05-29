@@ -65,7 +65,7 @@ const NAV_BY_ROLE = {
     { key: "home", label: "Home", path: "/vet", icon: dashboardIcon },
     {
       key: "patients",
-      label: "Patients",
+      label: "Pet Patients",
       path: "/vet-patients",
       icon: petsIcon,
     },

@@ -48,10 +48,31 @@ const isPastDateValue = (value) =>
 const normalizeStatus = (apt, fallback = "") =>
   String(apt?.status || fallback)
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, "");
 
-const getDisplayStatus = (apt) =>
-  normalizeStatus(apt) === "completed" ? "completed" : "confirmed";
+const getDisplayStatus = (apt) => {
+  const status = normalizeStatus(apt);
+  if (
+    ["pending", "confirmed", "inprogress", "completed", "late", "cancelled"].includes(
+      status,
+    )
+  ) {
+    return status;
+  }
+  return "pending";
+};
+
+const getDisplayStatusLabel = (apt) => {
+  const status = getDisplayStatus(apt);
+  if (status === "pending") return "Pending";
+  if (status === "confirmed") return "Confirmed";
+  if (status === "inprogress") return "In Progress";
+  if (status === "completed") return "Completed";
+  if (status === "late") return "Late";
+  if (status === "cancelled") return "Cancelled";
+  return "Pending";
+};
 
 const isAppointmentPastDue = (apt) => {
   if (!apt?.scheduledAt) return false;
@@ -61,18 +82,28 @@ const isAppointmentPastDue = (apt) => {
 };
 
 const isPastDueQueueItem = (apt) =>
-  getDisplayStatus(apt) !== "completed" && isAppointmentPastDue(apt);
+  !["completed", "cancelled"].includes(getDisplayStatus(apt)) &&
+  isAppointmentPastDue(apt);
 
 const getQueueStatusDisplay = (apt) => {
-  if (isPastDueQueueItem(apt)) {
-    return {
-      label: "Cancelled Due to No Compliance",
-      className: "no-compliance",
-    };
-  }
-
   if (getDisplayStatus(apt) === "completed") {
     return { label: "Completed", className: "completed" };
+  }
+
+  if (getDisplayStatus(apt) === "inprogress") {
+    return { label: "In Progress", className: "inprogress" };
+  }
+
+  if (getDisplayStatus(apt) === "late" || isPastDueQueueItem(apt)) {
+    return { label: "Late", className: "late" };
+  }
+
+  if (getDisplayStatus(apt) === "cancelled") {
+    return { label: "Cancelled", className: "cancelled" };
+  }
+
+  if (getDisplayStatus(apt) === "pending") {
+    return { label: "Pending", className: "pending" };
   }
 
   return { label: "Confirmed", className: "confirmed" };
@@ -324,7 +355,7 @@ const VetCalendar = () => {
           (a.pet?.name || "").toLowerCase().includes(query) ||
           ownerName.toLowerCase().includes(query) ||
           (a.owner?.email || "").toLowerCase().includes(query) ||
-          (getDisplayStatus(a) === "completed" ? "completed" : "confirmed").includes(query)
+          getDisplayStatusLabel(a).toLowerCase().includes(query)
         )
       )
         return false;
@@ -453,7 +484,9 @@ const VetCalendar = () => {
   const renderActionButtons = (apt, { fromQueue = false } = {}) => {
     const displayStatus = getDisplayStatus(apt);
     const isPastDue = isAppointmentPastDue(apt);
-    const canComplete = displayStatus === "confirmed" && !isPastDue;
+    const canComplete =
+      (displayStatus === "confirmed" || displayStatus === "inprogress") &&
+      !isPastDue;
     const disabledTitle =
       displayStatus === "completed"
         ? "Already completed"
@@ -508,7 +541,7 @@ const VetCalendar = () => {
             <span />
             <span />
           </button>
-          <h2>Appointments</h2>
+          <h2>Veterinary Appointments</h2>
           <div className="top-bar-right">
             <button
               className="notif-btn"
@@ -703,7 +736,7 @@ const VetCalendar = () => {
                                 key={apt.id}
                                 className={`event-item ${getDisplayStatus(apt)}`}
                                 title={`${apt.pet?.name || "Pet"} - ${
-                                  getDisplayStatus(apt) === "completed" ? "Completed" : "Confirmed"
+                                  getDisplayStatusLabel(apt)
                                 }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -786,8 +819,12 @@ const VetCalendar = () => {
                   >
                     <option value="">All Status</option>
                     <option value="Due">Past Due</option>
+                    <option value="Pending">Pending</option>
                     <option value="Confirmed">Confirmed</option>
+                    <option value="InProgress">In Progress</option>
                     <option value="Completed">Completed</option>
+                    <option value="Late">Late</option>
+                    <option value="Cancelled">Cancelled</option>
                   </select>
 
                   <div
@@ -879,7 +916,7 @@ const VetCalendar = () => {
                                 <span
                                   className={`apt-status ${getDisplayStatus(apt)}`}
                                 >
-                                  {getDisplayStatus(apt) === "completed" ? "Completed" : "Confirmed"}
+                                  {getDisplayStatusLabel(apt)}
                                 </span>
                               </td>
                               <td className="vc-td vc-td-center">
@@ -926,7 +963,7 @@ const VetCalendar = () => {
                           <span
                             className={`apt-status ${getDisplayStatus(apt)}`}
                           >
-                            {getDisplayStatus(apt) === "completed" ? "Completed" : "Confirmed"}
+                            {getDisplayStatusLabel(apt)}
                           </span>
                         </div>
                         <div className="record-card-body">
@@ -1306,7 +1343,7 @@ const VetCalendar = () => {
                 <div
                   className={`modal-status-badge ${getDisplayStatus(viewing)}`}
                 >
-                  {getDisplayStatus(viewing) === "completed" ? "Completed" : "Confirmed"}
+                  {getDisplayStatusLabel(viewing)}
                 </div>
               </div>
               <button
@@ -1369,7 +1406,7 @@ const VetCalendar = () => {
                   <span
                     className={`modal-field-value status-${getDisplayStatus(viewing)}`}
                   >
-                    {getDisplayStatus(viewing) === "completed" ? "Completed" : "Confirmed"}
+                    {getDisplayStatusLabel(viewing)}
                   </span>
                 </div>
               </div>

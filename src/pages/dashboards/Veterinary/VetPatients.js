@@ -70,7 +70,7 @@ const VetPatients = () => {
       const r = await getPets();
       setPatients(r.data || []);
     } catch {
-      setError("Failed to load patients");
+      setError("Failed to load pet patients");
     } finally {
       setLoading(false);
     }
@@ -210,7 +210,7 @@ const VetPatients = () => {
       closeModal();
       await loadPatients();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to save patient");
+      setError(err.response?.data?.message || "Failed to save pet patient");
     } finally {
       setSaving(false);
     }
@@ -228,7 +228,7 @@ const VetPatients = () => {
       await loadPatients();
       setConfirmModal(null);
     } catch {
-      setError("Failed to archive patient");
+      setError("Failed to archive pet patient");
       setConfirmModal(null);
     }
   };
@@ -255,7 +255,7 @@ const VetPatients = () => {
           <button className="hamburger-btn" onClick={toggle} aria-label="Toggle menu">
             <span /><span /><span />
           </button>
-          <h2>Patient Management</h2>
+          <h2>Veterinary Pet Patients</h2>
           <div className="top-bar-right">
             <button className="notif-btn" onClick={() => navigate("/vet-notifications")}>
               <img src={bellIcon} alt="Notifications" />
@@ -273,7 +273,7 @@ const VetPatients = () => {
               onChange={(e) => setSearch(e.target.value)}
             />
             <button className="add-patient-btn" onClick={openCreate}>
-              + Add Patient
+              + Add Pet Patient
             </button>
           </div>
 
@@ -338,10 +338,10 @@ const VetPatients = () => {
                           <button className="btn-profile" onClick={() => openProfile(p)} title="View profile">
                             Profile
                           </button>
-                          <button className="row-btn icon-btn" onClick={() => openEdit(p)} title="Edit patient">
+                          <button className="row-btn icon-btn" onClick={() => openEdit(p)} title="Edit pet patient">
                             {editIcon}
                           </button>
-                          <button className="row-btn row-btn-danger icon-btn" onClick={() => archivePatient(p)} title="Archive patient">
+                          <button className="row-btn row-btn-danger icon-btn" onClick={() => archivePatient(p)} title="Archive pet patient">
                             {deleteIcon}
                           </button>
                         </div>
@@ -389,7 +389,7 @@ const VetPatients = () => {
                       <div className="row-actions">
                         <button className="btn-profile" onClick={() => openProfile(p)}>Profile</button>
                         <button className="row-btn icon-btn" onClick={() => openEdit(p)} title="Edit">{editIcon}</button>
-                        <button className="row-btn row-btn-danger icon-btn" onClick={() => archivePatient(p)} title="Archive">{deleteIcon}</button>
+                        <button className="row-btn row-btn-danger icon-btn" onClick={() => archivePatient(p)} title="Archive pet patient">{deleteIcon}</button>
                       </div>
                     </div>
                   </div>
@@ -397,8 +397,8 @@ const VetPatients = () => {
               ))}
             </div>
 
-            {loading && <p className="list-feedback">Loading patients...</p>}
-            {!loading && !filteredPatients.length && <p className="list-feedback">No patients found.</p>}
+            {loading && <p className="list-feedback">Loading pet patients...</p>}
+            {!loading && !filteredPatients.length && <p className="list-feedback">No pet patients found.</p>}
             {error && <p className="list-error">{error}</p>}
           </div>
         </section>
@@ -409,7 +409,7 @@ const VetPatients = () => {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <form className="user-modal-form" onSubmit={submitPatient}>
-              <h3>{editing ? "Edit Patient" : "Add Patient"}</h3>
+              <h3>{editing ? "Edit Pet Patient" : "Add Pet Patient"}</h3>
               <div className="form-row">
                 <div className="form-group">
                   <label>Name</label>
@@ -474,7 +474,7 @@ const VetPatients = () => {
         </div>
       )}
 
-      {/* ── Patient profile modal ── */}
+      {/* ── Pet patient profile modal ── */}
       {selectedPet && (
         <div className="modal-overlay" onClick={() => setSelectedPet(null)}>
           <div className="patient-profile-modal" onClick={(e) => e.stopPropagation()}>
@@ -628,8 +628,8 @@ const VetPatients = () => {
 
       {confirmModal?.type === "archive-patient" && (
         <VetConfirmModal
-          title="Archive Patient"
-          message={`Archive ${confirmModal.pet?.name || "this patient"}? The record will be removed from the active patient list.`}
+          title="Archive Pet Patient"
+          message={`Archive ${confirmModal.pet?.name || "this pet patient"}? The record will be removed from the active pet patient list.`}
           confirmLabel="Archive"
           tone="warning"
           loading={confirmModal.loading}
