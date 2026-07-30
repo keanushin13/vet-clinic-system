@@ -52,7 +52,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await API.post("/users/login", formData);
+      const res = await API.post("/auth/login", formData);
 
       if (res.data.requiresOtp) {
         setLoginEmail(res.data.email);
@@ -107,7 +107,7 @@ const Login = () => {
         return;
       }
 
-      const res = await API.post("/users/send-unlock-email", {
+      const res = await API.post("/auth/send-unlock-email", {
         username: formData.username,
       });
 

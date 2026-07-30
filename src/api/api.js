@@ -52,11 +52,11 @@ export const adminResetPassword = (id, newPassword) =>
   API.post(`/users/${id}/reset-password`, { newPassword });
 export const sendResetLink = (id) => API.post(`/users/${id}/send-reset-link`);
 export const requestPasswordReset = (email) =>
-  API.post("/users/forgot-password", { email });
+  API.post("/auth/forgot-password", { email });
 export const toggleUserActive = (id) => API.patch(`/users/${id}/toggle-active`);
 export const verifyUser = (id) => API.patch(`/users/${id}/verify`);
 export const updatePassword = (data) =>
-  API.post("/users/update-password", data);
+  API.post("/auth/update-password", data);
 export const getStaffClients = (params = {}) =>
   API.get("/users", { params: { role: "pet_owner", ...params } });
 export const createStaffClient = (data) => API.post("/users/create", data);

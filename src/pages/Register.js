@@ -71,7 +71,7 @@ function Register() {
     }
     try {
       setLoading(true);
-      await API.post("/users/register", {
+      await API.post("/auth/register", {
         username: formData.username,
         email: formData.email,
         phone: formData.phone,

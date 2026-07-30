@@ -48,7 +48,7 @@ const LoginOtp = ({ email, onSuccess, onClose }) => {
 
     try {
       setLoading(true);
-      const res = await API.post("/users/verify-login-otp", {
+      const res = await API.post("/auth/verify-login-otp", {
         email,
         otp: otpValue,
       });
@@ -65,7 +65,7 @@ const LoginOtp = ({ email, onSuccess, onClose }) => {
 
   const resendOtp = async () => {
     try {
-      await API.post("/users/resend-login-otp", { email });
+      await API.post("/auth/resend-login-otp", { email });
       setMessage("A new code has been sent.");
       setCooldown(60);
     } catch (err) {
